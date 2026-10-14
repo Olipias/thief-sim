@@ -1,0 +1,9 @@
+# Godot 导入缓存与编辑器状态（可自动重建，不进版本库）
+.godot/
+
+# Python 工具脚本缓存
+__pycache__/
+*.pyc
+
+# 系统杂项
+.DS_Store

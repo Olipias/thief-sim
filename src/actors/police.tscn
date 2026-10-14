@@ -1,0 +1,31 @@
+[gd_scene load_steps=5 format=3]
+
+[ext_resource type="Script" path="res://src/actors/police.gd" id="1_script"]
+[ext_resource type="Texture2D" path="res://assets/sprites/police_sheet.png" id="2_sheet"]
+[ext_resource type="Texture2D" path="res://assets/sprites/light_cone.png" id="3_cone"]
+
+[sub_resource type="RectangleShape2D" id="RectangleShape2D_body"]
+size = Vector2(8, 8)
+
+[node name="Police" type="CharacterBody2D"]
+collision_layer = 4
+collision_mask = 3
+motion_mode = 1
+script = ExtResource("1_script")
+
+[node name="Sprite" type="Sprite2D" parent="."]
+position = Vector2(0, -6)
+texture = ExtResource("2_sheet")
+hframes = 2
+vframes = 3
+
+[node name="Flashlight" type="PointLight2D" parent="."]
+position = Vector2(0, -4)
+energy = 1.1
+texture = ExtResource("3_cone")
+texture_scale = 1.4
+color = Color(1, 0.97, 0.85, 1)
+
+[node name="CollisionShape2D" type="CollisionShape2D" parent="."]
+position = Vector2(0, 2)
+shape = SubResource("RectangleShape2D_body")

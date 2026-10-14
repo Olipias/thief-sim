@@ -1,0 +1,98 @@
+[gd_scene load_steps=4 format=3]
+
+[ext_resource type="Script" path="res://src/ui/backpack_screen.gd" id="1_script"]
+[ext_resource type="Script" path="res://src/ui/bag_grid.gd" id="2_grid"]
+
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_panel"]
+content_margin_left = 14.0
+content_margin_top = 10.0
+content_margin_right = 14.0
+content_margin_bottom = 10.0
+bg_color = Color(0.067, 0.075, 0.102, 0.98)
+border_width_left = 2
+border_width_top = 2
+border_width_right = 2
+border_width_bottom = 2
+border_color = Color(0.36, 0.4, 0.48, 1)
+corner_radius_top_left = 4
+corner_radius_top_right = 4
+corner_radius_bottom_right = 4
+corner_radius_bottom_left = 4
+
+[node name="BackpackScreen" type="CanvasLayer"]
+process_mode = 3
+layer = 15
+script = ExtResource("1_script")
+
+[node name="Root" type="Control" parent="."]
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+mouse_filter = 2
+
+[node name="Dim" type="ColorRect" parent="Root"]
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+color = Color(0.02, 0.02, 0.04, 0.65)
+mouse_filter = 2
+
+[node name="Panel" type="PanelContainer" parent="Root"]
+anchor_left = 0.5
+anchor_top = 0.5
+anchor_right = 0.5
+anchor_bottom = 0.5
+grow_horizontal = 2
+grow_vertical = 2
+theme_override_styles/panel = SubResource("StyleBoxFlat_panel")
+
+[node name="Margin" type="MarginContainer" parent="Root/Panel"]
+
+[node name="VBox" type="VBoxContainer" parent="Root/Panel/Margin"]
+theme_override_constants/separation = 8
+
+[node name="Title" type="Label" parent="Root/Panel/Margin/VBox"]
+theme_override_colors/font_color = Color(0.97, 0.84, 0.35, 1)
+theme_override_font_sizes/font_size = 16
+text = "背包整理"
+horizontal_alignment = 1
+
+[node name="Body" type="HBoxContainer" parent="Root/Panel/Margin/VBox"]
+theme_override_constants/separation = 16
+
+[node name="Grid" type="Control" parent="Root/Panel/Margin/VBox/Body"]
+custom_minimum_size = Vector2(48, 48)
+mouse_filter = 2
+script = ExtResource("2_grid")
+
+[node name="Info" type="VBoxContainer" parent="Root/Panel/Margin/VBox/Body"]
+custom_minimum_size = Vector2(190, 0)
+theme_override_constants/separation = 4
+
+[node name="ItemName" type="Label" parent="Root/Panel/Margin/VBox/Body/Info"]
+theme_override_colors/font_color = Color(0.97, 0.84, 0.35, 1)
+text = "空格子"
+
+[node name="ItemInfo" type="Label" parent="Root/Panel/Margin/VBox/Body/Info"]
+theme_override_colors/font_color = Color(0.85, 0.87, 0.95, 1)
+autowrap_mode = 2
+
+[node name="ItemStory" type="Label" parent="Root/Panel/Margin/VBox/Body/Info"]
+size_flags_vertical = 3
+theme_override_colors/font_color = Color(0.62, 0.66, 0.74, 1)
+text = ""
+autowrap_mode = 2
+
+[node name="Message" type="Label" parent="Root/Panel/Margin/VBox/Body/Info"]
+theme_override_colors/font_color = Color(0.95, 0.4, 0.35, 1)
+autowrap_mode = 2
+
+[node name="Hint" type="Label" parent="Root/Panel/Margin/VBox"]
+theme_override_colors/font_color = Color(0.55, 0.58, 0.64, 1)
+theme_override_font_sizes/font_size = 10
+text = "鼠标拖拽整理 · E 拿起/放下 · R 旋转 · 拖出方框丢弃 · B/Esc 关闭"
+horizontal_alignment = 1

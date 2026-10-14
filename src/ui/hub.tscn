@@ -1,0 +1,182 @@
+[gd_scene load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://src/ui/hub.gd" id="1_script"]
+
+[node name="Hub" type="Control"]
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+script = ExtResource("1_script")
+
+[node name="Background" type="ColorRect" parent="."]
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+color = Color(0.063, 0.071, 0.094, 1)
+mouse_filter = 2
+
+[node name="Title" type="Label" parent="."]
+anchor_left = 0.5
+anchor_right = 0.5
+offset_left = -220.0
+offset_top = 14.0
+offset_right = 220.0
+offset_bottom = 46.0
+grow_horizontal = 2
+theme_override_colors/font_color = Color(0.96, 0.84, 0.4, 1)
+theme_override_colors/font_outline_color = Color(0, 0, 0, 1)
+theme_override_constants/outline_size = 4
+theme_override_font_sizes/font_size = 24
+text = "神偷据点"
+horizontal_alignment = 1
+
+[node name="MoneyLabel" type="Label" parent="."]
+anchor_left = 0.5
+anchor_right = 0.5
+offset_left = -220.0
+offset_top = 52.0
+offset_right = 220.0
+offset_bottom = 72.0
+grow_horizontal = 2
+theme_override_colors/font_color = Color(0.97, 0.84, 0.35, 1)
+theme_override_colors/font_outline_color = Color(0, 0, 0, 1)
+theme_override_constants/outline_size = 4
+text = "金币 0"
+horizontal_alignment = 1
+
+[node name="Shop" type="VBoxContainer" parent="."]
+offset_left = 60.0
+offset_top = 82.0
+offset_right = 580.0
+offset_bottom = 254.0
+theme_override_constants/separation = 6
+
+[node name="RowBackpack" type="PanelContainer" parent="Shop"]
+custom_minimum_size = Vector2(0, 50)
+
+[node name="HBox" type="HBoxContainer" parent="Shop/RowBackpack"]
+theme_override_constants/separation = 8
+
+[node name="Info" type="VBoxContainer" parent="Shop/RowBackpack/HBox"]
+size_flags_horizontal = 3
+
+[node name="Name" type="Label" parent="Shop/RowBackpack/HBox/Info"]
+text = "加固背包"
+
+[node name="Desc" type="Label" parent="Shop/RowBackpack/HBox/Info"]
+theme_override_colors/font_color = Color(0.62, 0.66, 0.74, 1)
+text = "背包容量 +1"
+
+[node name="Price" type="Label" parent="Shop/RowBackpack/HBox"]
+custom_minimum_size = Vector2(96, 0)
+theme_override_colors/font_color = Color(0.97, 0.84, 0.35, 1)
+text = "250 金币"
+horizontal_alignment = 2
+vertical_alignment = 1
+
+[node name="Buy" type="Button" parent="Shop/RowBackpack/HBox"]
+custom_minimum_size = Vector2(72, 0)
+text = "购买"
+
+[node name="RowSneakers" type="PanelContainer" parent="Shop"]
+custom_minimum_size = Vector2(0, 50)
+
+[node name="HBox" type="HBoxContainer" parent="Shop/RowSneakers"]
+theme_override_constants/separation = 8
+
+[node name="Info" type="VBoxContainer" parent="Shop/RowSneakers/HBox"]
+size_flags_horizontal = 3
+
+[node name="Name" type="Label" parent="Shop/RowSneakers/HBox/Info"]
+text = "静音跑鞋"
+
+[node name="Desc" type="Label" parent="Shop/RowSneakers/HBox/Info"]
+theme_override_colors/font_color = Color(0.62, 0.66, 0.74, 1)
+text = "疾跑速度提升 25%"
+
+[node name="Price" type="Label" parent="Shop/RowSneakers/HBox"]
+custom_minimum_size = Vector2(96, 0)
+theme_override_colors/font_color = Color(0.97, 0.84, 0.35, 1)
+text = "400 金币"
+horizontal_alignment = 2
+vertical_alignment = 1
+
+[node name="Buy" type="Button" parent="Shop/RowSneakers/HBox"]
+custom_minimum_size = Vector2(72, 0)
+text = "购买"
+
+[node name="RowSmoke" type="PanelContainer" parent="Shop"]
+custom_minimum_size = Vector2(0, 50)
+
+[node name="HBox" type="HBoxContainer" parent="Shop/RowSmoke"]
+theme_override_constants/separation = 8
+
+[node name="Info" type="VBoxContainer" parent="Shop/RowSmoke/HBox"]
+size_flags_horizontal = 3
+
+[node name="Name" type="Label" parent="Shop/RowSmoke/HBox/Info"]
+text = "烟雾弹"
+
+[node name="Desc" type="Label" parent="Shop/RowSmoke/HBox/Info"]
+theme_override_colors/font_color = Color(0.62, 0.66, 0.74, 1)
+text = "脱身道具：附近警察短暂失去目标"
+
+[node name="Price" type="Label" parent="Shop/RowSmoke/HBox"]
+custom_minimum_size = Vector2(96, 0)
+theme_override_colors/font_color = Color(0.97, 0.84, 0.35, 1)
+text = "120 金币"
+horizontal_alignment = 2
+vertical_alignment = 1
+
+[node name="Buy" type="Button" parent="Shop/RowSmoke/HBox"]
+custom_minimum_size = Vector2(72, 0)
+text = "购买"
+
+[node name="Feedback" type="Label" parent="."]
+anchor_left = 0.5
+anchor_right = 0.5
+offset_left = -260.0
+offset_top = 258.0
+offset_right = 260.0
+offset_bottom = 278.0
+grow_horizontal = 2
+theme_override_colors/font_color = Color(0.78, 0.82, 0.9, 1)
+theme_override_colors/font_outline_color = Color(0, 0, 0, 1)
+theme_override_constants/outline_size = 4
+horizontal_alignment = 1
+
+[node name="StartButton" type="Button" parent="."]
+anchor_left = 0.5
+anchor_right = 0.5
+offset_left = -80.0
+offset_top = 280.0
+offset_right = 80.0
+offset_bottom = 306.0
+grow_horizontal = 2
+text = "开始任务"
+
+[node name="QuitButton" type="Button" parent="."]
+anchor_left = 0.5
+anchor_right = 0.5
+offset_left = -80.0
+offset_top = 314.0
+offset_right = 80.0
+offset_bottom = 338.0
+grow_horizontal = 2
+text = "退出游戏"
+
+[node name="Hint" type="Label" parent="."]
+anchor_left = 1.0
+anchor_right = 1.0
+offset_left = -260.0
+offset_top = 338.0
+offset_right = -8.0
+offset_bottom = 356.0
+grow_horizontal = 0
+theme_override_colors/font_color = Color(0.55, 0.58, 0.64, 1)
+text = "Q 使用烟雾弹"
+horizontal_alignment = 2
