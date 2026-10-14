@@ -1,0 +1,181 @@
+# 架构地图（ARCHITECTURE）
+
+> 目的：让 agent 快速建立正确的心智模型，并按配方（Recipes）安全扩展。
+> **维护要求**：改动架构（新增模块、数据格式、信号契约、存档字段）时同步更新本文件。
+
+## 1. 总览
+
+```
+main.tscn (Main, src/main.gd) —— 唯一场景编排者
+├── Screen (Node2D)          世界层：Hub / Museum 场景挂在这里
+│                            ⚠ 必须挂在默认画布，不能塞进 CanvasLayer（相机失效，见 D-003）
+├── UILayer (CanvasLayer)    全屏界面：据点 Hub、结算 ResultScreen
+├── HUD (CanvasLayer)        任务/金币/背包/提示/警戒/小地图
+├── Dialogue (CanvasLayer)   打字机对话框
+└── Backpack (CanvasLayer)   格子背包整理界面
+
+Autoload
+├── Game  (src/autoload/game_state.gd)   全局状态：金钱/背包/升级/存档
+└── Audio (src/autoload/audio.gd)        音效池
+```
+
+场景流：`Hub`（据点商店）—开始任务→ `Museum`（潜行关卡）—撤离/被捕→ `Result`（结算）→ `Hub`。
+界面之间**不互相引用**：一切通过 `main.gd` 连接信号、切换场景、控制暂停（`get_tree().paused`）。
+
+## 2. 模块职责表
+
+| 文件 | 职责 | 关键点 |
+| --- | --- | --- |
+| `src/main.gd` | 场景流程编排、暂停控制、任务简报 | 世界加到 `Screen`；HUD/对话/背包的信号在这里接线 |
+| `src/actors/player.gd` | 玩家移动（走/跑）、拾取、道具、噪音、脚步 | 信号 `used_item` / `made_noise`；分组 `player`；`controls_enabled` 冻结操控；场景内 `Camera2D`（zoom 2×，即一屏 20×11 格）+ 玩家微光 `Aura` |
+| `src/actors/police.gd` | 警察 AI：巡逻 → 调查 → 追击 → 逮捕 | 状态机 `State{PATROL,INVESTIGATE,CHASE}`；`in_cone()` 纯函数（可单测）；视野射线仅被墙阻挡（mask=1）；`blind()` 烟雾致盲（同时熄灭手电）；`alert_level()` 0/1/2；`set_ai_enabled()` 供演出/截图暂停感知 |
+| `src/world/museum.gd` | 关卡构建与全部关卡规则 | 读 `museum_map.json` 建碰撞/灯光/角色；房间相机；小地图数据；幽灵事件；烟雾弹；噪音与哀嚎按房间分流；出口锁 |
+| `src/world/artifact.gd` | 场景中的可拾取文物 | 贴图约定 `artifact_<id>.png`；拾取成功/失败信号 |
+| `src/world/ghost.gd` | 幽灵：尾随 + 周期哀嚎 + 寿命渐隐 | `wailed(position)` 由 museum 转给附近警察 |
+| `src/world/smoke_puff.gd` | 烟雾视觉（纯表现） | 不承载规则 |
+| `src/ui/hub.gd` | 据点：商店购买 + 开始任务 | `ROWS` 决定货架顺序，须与 `Game.UPGRADES` 一致（有测试） |
+| `src/ui/hud.gd` | HUD 全部显示 | 监听 `Game` 三信号；`bind_level()` 绑小地图；`toast()` 提示 |
+| `src/ui/minimap.gd` | 房间小地图 | 从 `museum.rooms` 坐标自动推列/行；标目标/出口/当前房间/玩家点 |
+| `src/ui/backpack_screen.gd` | 背包整理（键盘 + 鼠标拖拽） | 拖出方框 → `drop_requested` 交给 main 丢到场景；打开时由 main 暂停 |
+| `src/ui/bag_grid.gd` | 背包格子绘制 | 只负责画，不存数据 |
+| `src/ui/dialogue_box.gd` | 打字机对话 | `advance()`；暂停由调用方控制 |
+| `src/ui/result_screen.gd` | 结算界面 | 展示 `Game.finish_run()` 返回的 summary |
+| `src/autoload/game_state.gd` | 全部可持久化状态与规则 | 内容表 `CATALOG/SHAPES/UPGRADES/BAG_SIZES` 目前在这里（技术债，见 §8） |
+| `src/autoload/audio.gd` | 音效播放 | `SFX` 键→路径；播放器池轮转；退出前 `shutdown()` |
+| `src/levels/museum_map.json` | 关卡数据（**生成物**） | 由 `tools/gen_museum_map.py` 生成；verify 校验同步 |
+| `tests/*` | 测试与截图 | 见 §7 |
+| `tools/*.py` | 资源生成脚本 | 生成物只能由它们更新 |
+| `tools/verify.sh` | 一键验证 | 收尾必跑 |
+| `tools/check_level.py` / `check_docs.py` | 生成物同步/文档自检 | 由 verify 调用 |
+
+## 3. 关键数据
+
+### 3.1 全局状态（`Game`）
+
+- 运行局内：`bag_items: Array[{id,x,y,rot}]`、`mission_complete`
+- 长期成长：`money`、`backpack_level`、`has_sneakers`、`smoke_count`
+- 信号：`backpack_changed` / `money_changed` / `items_changed`（UI 只监听，不轮询）
+- Σ 存档：`user://save.json`（测试隔离到 `/tmp`）
+
+```json
+{ "money": 0, "backpack_level": 0, "has_sneakers": false,
+  "smoke_count": 0, "bag_items": [{"id": "mask", "x": 0, "y": 0, "rot": 0}] }
+```
+
+- **`mission_complete` 规则**：永远由背包内容实时推导（`_recompute_mission()`），目标丢出→false→出口重新上锁；放回→true。不要新增"曾经拿到过"的状态位。
+
+### 3.2 背包几何
+
+- `SHAPES`：形制 = 格子偏移数组（如面具 2 格横排、玉璧 1×3），运行时旋转 90° 连续步进。
+- 合法性：`bag_can_place(id, rot, x, y)`；自动摆放：`bag_auto_fit(id)`（先 0° 后 90°）。
+- `BAG_SIZES`：等级 0..5 的格子数（2×2 → 5×4）。
+- 相关测试：`tests/test_logic.gd::_test_bag_geometry`。
+
+### 3.3 关卡数据（`src/levels/museum_map.json`，生成物）
+
+```json
+{ "tile_size": 16,
+  "rooms":   [[x,y,w,h], ...],   // 房间矩形（格坐标），供相机/小地图/感知分流
+  "floors":  [[x,y,w,h], ...],   // 地板矩形（含走廊），仅绘制用
+  "tiles":   ["...", ...],       // 每行一个字符串，字符=瓦片
+  "patrols": {"1": [[x,y], ...]} // 警察出生点字符 → 巡逻路径（格坐标）
+}
+```
+
+瓦片图例（改地图看这里；`.~TapXP123456789` 为可行走）：
+
+| 字符 | 含义 | 字符 | 含义 |
+| --- | --- | --- | --- |
+| `.` | 地板 | `#` | 墙（实心） |
+| `~` | 地毯 | `W` `L` | 挂画/壁灯墙（实心） |
+| `o` | 柱子（实心） | `d` | 展柜（实心） |
+| `r` | 围栏绳（实心） | `s` `v` | 雕像/盆栽（实心） |
+| `p` | 展台（实心） | `T` | 任务目标（生成在展台上） |
+| `a` | 额外战利品（按 `ARTIFACT_POOL` 轮转） | `P` | 玩家出生点 |
+| `X` | 出口 | `1-9` | 警察出生点（键=巡逻路线 ID） |
+
+### 3.4 房间 / 相机 / 小地图
+
+- `museum.rooms` 是房间矩形的权威数据；`room_index_at(pos)` 全局使用。
+- 单屏一房间（20×12，相机 zoom 2×）：跨进新房间时相机 `limit_*` 重设（`_apply_camera_limits`），玩家永远只见一屏。
+- 夜间氛围（纯表现，不影响判定）：全局 `CanvasModulate` 夜色 + 展品/壁灯暖色 `PointLight2D` + 警察手电筒光锥（`Flashlight`，随朝向旋转、致盲时熄灭）+ 玩家微光；文物光晕挂在文物节点上，被拿走即熄灭。
+- 感知分流：噪音（`made_noise`）与幽灵哀嚎只惊动**同房间**且距离内的警察。
+- 小地图：从房间坐标去重出列/行自动排布，记录 `visited_rooms`、`target_room`、`exit_room`。
+- 尺寸约定：瓦片/灯光 16×16 起；角色 16×24（帧表 2 列 × 3 行）；文物 16×16。改尺寸要同时改绘制与生成脚本。
+
+## 4. 关键数据流
+
+- **拾取**：`Player` 按 E → `Artifact.try_pickup()` → `Game.try_pickup()`（自动找位）→ 成功 `picked` / 失败 `pickup_blocked` → `museum` 用 `toast` 反馈；`Game` 发 `backpack_changed` → HUD 刷新。
+- **任务目标**：拾取 → `mission_complete=true` 且触发幽灵事件；丢到场景 → 实时重算为 false → 出口拒绝开启（`_on_exit_body_entered` 检查 `Game.mission_complete`）。
+- **警察感知**：听到噪音 → `INVESTIGATE`（走去看）→ 视野锥内持续 0.35s（无墙遮挡）→ `CHASE` → 接触 <11px 逮捕；`blind()` 清空状态回巡逻；警戒等级 0/1/2 逐级上报 → HUD。
+- **幽灵事件**：拾取目标后延迟 `ghost_delay` 生成 `Ghost`；幽灵周期 `wailed(pos)` → 同房间 96px 内警察 `investigate(pos)`；幽灵超时渐隐自毁。
+- **音频**：`Audio.play(name, dB, pitch)` 轮转 10 个播放器，避免互相切断；测试与退出前 `shutdown()`。
+
+## 5. 不变量（改代码前必读）
+
+1. 世界节点不进 CanvasLayer（否则相机静默失效——v0.6.0 修过，别再犯）。
+2. `mission_complete` 实时推导，不存历史标记。
+3. 生成物只能由 `tools/*.py` 重新生成；不手改 `assets/**` 与 `museum_map.json`。
+4. 感知几何保持纯函数（如 `Police.in_cone` 静态方法），保证可单测。
+5. 跨房间感知必须按 `room_index_at` 分流（噪音/哀嚎）。
+6. 测试存档隔离 `/tmp`；冒烟测试退出前 `Audio.shutdown()`。
+7. 存档只增字段且带默认值；UI 文案中文；640×360 布局假设。
+8. 背包放置判定单点实现（`Game.bag_can_place`）——UI 不得复制一套碰撞逻辑。
+
+## 6. 改造配方（Recipes）
+
+### 6.1 加一件文物（当前做法，数据表还在代码里）
+
+1. `src/autoload/game_state.gd` → `CATALOG` 加条目（`name` / `value` / `story` / `is_target`）。
+2. 同文件 `SHAPES` 加形制：格子数 1–6、归一化到 (0,0)、4 连通。
+3. `tools/gen_placeholder_sprites.py` 的 `ART` 字典加 id 条目（配色 + 16×16 像素图）→ `python3 tools/gen_placeholder_sprites.py` → 生成 `assets/sprites/artifact_<id>.png`。
+4. 若要进关卡战利品池：`src/world/museum.gd` 的 `ARTIFACT_POOL` 加 id（不能包含任务目标）。
+5. `tools/verify.sh`——`test_content.gd` 会校验以上全部链条。
+
+### 6.2 改地图 / 房间
+
+1. 改 `tools/gen_museum_map.py`：`CONTENT`（房间内容）与 `ROOM_COUNT` 等常量。
+2. `python3 tools/gen_museum_map.py` 重新生成 JSON（生成器自带连通性/巡逻合法性校验）。
+3. 更新测试中的期望：`tests/test_logic.gd::_test_map` 与 `tests/smoke_test.gd`（房间数、尺寸、目标/出口房间号、警察数）。
+4. `tools/verify.sh`。
+
+> 房间数/尺寸/位置是测试断言的一部分：地图改动天然是一次"跨文件"改动，照上表逐处更新。
+
+### 6.3 加音效
+
+`tools/gen_sfx.py` 的 `SOUNDS` 加生成函数 → 运行 → `src/autoload/audio.gd` 的 `SFX` 表登记（键 → 路径）→ verify（会反向检查 assets/sfx 里没有未登记的孤儿 wav）。
+
+### 6.4 加/改 UI 界面
+
+- 界面 = `CanvasLayer` + 独立 `.tscn`；打开/关闭与 `get_tree().paused` 的联动统一由 `main.gd` 控制（参考背包装备：`open_backpack()` / `_on_backpack_closed()`）。
+- 只读 `Game` 数据 + 监听信号；需要改状态时调用 `Game` 的方法（保持规则单点）。
+
+### 6.5 加存档字段
+
+1. `save_game()` / `load_game()` 同步加键，读取用默认值（旧档必须能加载）。
+2. 需要迁移/破坏性变更：写迁移函数 + 记入 `docs/DECISIONS.md`，并在 CHANGELOG「修改」中说明。
+
+### 6.6 加新关卡（规划中）
+
+当前 `Museum` 是单关卡专用实现。多关卡重构方向（见 ROADMAP）：关卡数据加 meta（id/名称/目标文物）、关卡注册表、Hub 选关、结果结算按关卡参数化。**动手前先建任务、先讨论结构**，不要复制粘贴第二个 `museum.gd`。
+
+## 7. 测试与工具分工
+
+| 工具 | 位置 | 什么时候加用例 |
+| --- | --- | --- |
+| 纯逻辑单测 | `tests/test_logic.gd` | 背包/商店/存档/几何/地图结构等无场景逻辑 |
+| 内容一致性 | `tests/test_content.gd` | 新增文物/商店项/音效/关卡数据字段时自动覆盖，必要时扩展 |
+| 编译检查 | `tests/test_scripts.tscn` | 自动扫描 `src/`、`tests/` 全部 .gd |
+| 冒烟测试 | `tests/smoke_test.gd` | 场景行为：拾取/被捕/撤离/警报/幽灵/相机/背包界面 |
+| 截图 | `tests/screenshot.tscn` | 画面改动后人工核验（输出 `/tmp/shot_*.png`） |
+| 一键验证 | `tools/verify.sh` | 收尾必跑；`--fast` 跳过冒烟（快速迭代用） |
+| 地图自检 | `tools/check_level.py` | 校验 `museum_map.json` 与生成器同步 + 生成器语法 |
+| 文档自检 | `tools/check_docs.py` | 站内链接可达性 + CHANGELOG 格式 |
+
+## 8. 已知技术债（对应 ROADMAP 任务）
+
+- **内容表在代码里**：`CATALOG` / `SHAPES` / `UPGRADES` 是 `game_state.gd` 的 const。计划迁到 `src/data/*.json` + 加载器 + schema 校验（迁移前注意并行窗口冲突）。
+- **单关卡硬编码**：`main.gd` / `museum.gd` 写死了"城西博物馆"。多关卡需要元数据与选关流程。
+- **占位美术**：全部由脚本生成，正式素材替换时保持同文件尺寸约定或同步改绘制代码。
+- **文档漂移风险**：代码可能领先文档；以测试与代码为准，`verify.sh` 与 ROADMAP 用于对齐。
+- 孤儿文件 `src/ui/main_menu.gd.uid`（脚本已删）：待确认后清理（ROADMAP 已知问题）。

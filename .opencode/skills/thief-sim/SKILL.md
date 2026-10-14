@@ -44,7 +44,9 @@ description: Use when working on the thief-sim / 小偷模拟器 project (Godot 
 * 明确标注**演绎部分**（幽灵、超自然元素属于虚构），避免把虚构当史实传播。推荐在开场或档案页放置免责声明。
 * 每赛季/版本更新历史内容时同步更新来源清单。
 
-## 当前进度（v0.8.0，详见根目录 CHANGELOG.md）
+## 当前进度
+
+> 进度以根目录 `CHANGELOG.md` 与 `docs/ROADMAP.md` 为准；下面的清单是方向性快照，代码可能领先于本文件。
 
 已完成：像素移动与潜行、**2 倍镜头 + 16×24 角色 + 夜间博物馆灯光氛围**、7 间 20×12 小展厅线性推进（相机锁定、左上角房间小地图）、格子化背包（形制占格/旋转/鼠标拖拽整理/拖出丢弃到场景）、目标文物与战利品、警察巡逻/调查/视野/追击/逮捕（手电筒光锥）、据点商店与存档、烟雾弹、噪音与分级警戒、打字机对话、幽灵事件雏形、程序合成音效、中文像素字体。
 待做：趣味性系统（贪心惩罚/藏身柜/诱饵/撬锁/警报大逃亡/评分）、多关卡与主线、大英博物馆关卡与归还/出售分支、文物档案系统、BGM、正式美术。
@@ -61,6 +63,13 @@ description: Use when working on the thief-sim / 小偷模拟器 project (Godot 
   * 两句都要退出码 0；新增功能要补测试。
 * 截图检查：`godot --audio-driver Dummy res://tests/screenshot.tscn` → `/tmp/shot_*.png`。
 * 本机缺少 libasound/libpulse，游戏会以无声模式运行（正常，不影响逻辑）。
+
+## 维护体系（多 agent 协作）
+
+* 根目录 **AGENTS.md** 是所有 agent 的工作手册（硬性规则、命令、完成定义）。开工前先读它，并从 `docs/ROADMAP.md` 认领任务再动手。
+* `tools/verify.sh`：一键全量验证（文档/地图自检 + GDScript 编译检查 + 逻辑单测 + 内容一致性 + 冒烟测试）；收尾必须全绿。
+* `docs/ARCHITECTURE.md`：架构地图、数据流、不变量与改造配方；`docs/DECISIONS.md`：决策记录；`docs/SOURCES.md`：史料来源登记。
+* 多窗口并行：只改自己任务相关的文件、不整文件重排；改前 `git status` 看并行改动；写完按 AGENTS.md「完成定义」收尾。
 
 ## 版本记录流程（强制）
 
