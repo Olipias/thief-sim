@@ -46,6 +46,7 @@ Autoload
 | `tests/*` | 测试与截图 | 见 §7 |
 | `tools/*.py` | 资源生成脚本 | 生成物只能由它们更新 |
 | `tools/verify.sh` | 一键验证 | 收尾必跑 |
+| `tools/blender/build_ram_zun.py` | 双羊尊 3D 模型生成脚本（程序化建模） | 生成物在 `assets/models/`（带 `.gdignore`，不参与 Godot 导入） |
 | `tools/check_level.py` / `check_docs.py` | 生成物同步/文档自检 | 由 verify 调用 |
 
 ## 3. 关键数据
@@ -160,6 +161,14 @@ Autoload
 ### 6.6 加新关卡（规划中）
 
 当前 `Museum` 是单关卡专用实现。多关卡重构方向（见 ROADMAP）：关卡数据加 meta（id/名称/目标文物）、关卡注册表、Hub 选关、结果结算按关卡参数化。**动手前先建任务、先讨论结构**，不要复制粘贴第二个 `museum.gd`。
+
+### 6.7 3D 资产（Blender，与 2D 游戏并行）
+
+- 源脚本：`tools/blender/build_ram_zun.py`（程序化建模，headless 运行，Cycles CPU）。
+- 生成物：`assets/models/ram_zun.blend` + `ram_zun.glb`（+ `ram_zun_preview.png`）；目录带 `.gdignore`，Godot 不导入。
+- 重新生成：`FINAL=1 blender --background --factory-startup --python tools/blender/build_ram_zun.py`。
+- 依赖：本机 Blender 5.x（`~/bin/blender`）；改动形体后按「生成物禁止手改」原则重跑脚本并提交新生成物。
+- 边界：3D 资产不参与游戏运行与测试；若要接入引擎（如 3D 档案视图），先在 ROADMAP 建任务并确认技术方案。
 
 ## 7. 测试与工具分工
 

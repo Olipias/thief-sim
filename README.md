@@ -45,6 +45,7 @@
 * 程序合成复古音效（脚步、拾取、警觉、被捕、烟雾、幽灵、金币等）
 * 中文像素字体（Fusion Pixel 12px，OFL 协议）与 HUD
 * **工程维护**：agent 工作手册 `AGENTS.md`、一键验证 `tools/verify.sh`、内容一致性与编译检查测试（见 CHANGELOG v0.8.1）
+* 双羊尊 3D 模型（Blender 程序化生成，`assets/models/`；渲染/展示用，游戏运行不加载——见 CHANGELOG v0.9.1）
 * **史料登记**：真实文物进游戏须登记 `docs/SOURCES.md`（S-001 商代双羊尊已登记，含史实/演绎分界）
 
 待做：
