@@ -6,12 +6,20 @@ const HUB := preload("res://src/ui/hub.tscn")
 const RESULT_SCREEN := preload("res://src/ui/result_screen.tscn")
 const MUSEUM := preload("res://src/world/museum.tscn")
 
-const BRIEFING := [
-	{"speaker": "老猫", "text": "新人，第一单活：城西博物馆的「青铜面具」。"},
-	{"speaker": "老猫", "text": "路线是单向的：穿过五间展厅才能到后门。目标在中央大厅的展台上。"},
-	{"speaker": "老猫", "text": "包里格子有限，拿不下的就按 B 打开背包调整摆放，腾地方。"},
-	{"speaker": "老猫", "text": "巡逻的警察视野内别乱晃。跑步声会引来他们，撑不住就用烟雾弹。"},
-]
+const BRIEFINGS := {
+	"museum": [
+		{"speaker": "老猫", "text": "新人，第一单活：城西博物馆的「青铜面具」。"},
+		{"speaker": "老猫", "text": "路线是单向的：穿过几间展厅才能到后门。目标在中央大厅的展台上。"},
+		{"speaker": "老猫", "text": "包里格子有限，拿不下的就按 B 打开背包调整摆放，腾地方。"},
+		{"speaker": "老猫", "text": "巡逻的警察视野内别乱晃。跑步声会引来他们，撑不住就用烟雾弹。"},
+	],
+	"british_museum": [
+		{"speaker": "老猫", "text": "这一单不一样。目标在大英博物馆中国馆：「商代双羊尊」。"},
+		{"speaker": "老猫", "text": "它一百多年前流落出去，存世只有两件——另一件在日本。"},
+		{"speaker": "老猫", "text": "中国馆夜里守卫比城西松，但别掉以轻心；路线同样是单向的。"},
+		{"speaker": "老猫", "text": "……这件东西，你带出来之后想怎么处理，再说。"},
+	],
+}
 
 @onready var screen: Node2D = $Screen
 @onready var ui_layer: CanvasLayer = $UILayer
@@ -83,14 +91,16 @@ func show_menu() -> void:
 	ui_layer.add_child(hub)
 
 
-func start_mission() -> void:
+func start_mission(level_id := "museum") -> void:
 	if _busy:
 		return
 	_busy = true
+	Game.set_level(level_id)
 	Game.reset_run()
 	_clear_screen()
 	_clear_ui()
 	var museum := MUSEUM.instantiate() as Museum
+	museum.level_id = level_id
 	museum.escaped.connect(_on_escaped.bind(museum))
 	museum.caught.connect(_on_caught.bind(museum))
 	museum.toast.connect(hud.toast)
@@ -101,8 +111,8 @@ func start_mission() -> void:
 	_museum = museum
 	hud.show_hud()
 	hud.bind_level(museum)
-	hud.set_mission_target(Game.item_name("mask"))
-	_show_dialogue(BRIEFING)
+	hud.set_mission_target(Game.item_name(Game.mission_target_id))
+	_show_dialogue(BRIEFINGS.get(level_id, BRIEFINGS["museum"]))
 	_busy = false
 
 

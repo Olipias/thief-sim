@@ -299,6 +299,27 @@ ART = {
             "................",
         ],
     ),
+    "ram_zun": (
+        {"o": "#1c2a22", "a": "#6f8f6a", "b": "#4a6a48", "c": "#a8c48f", "d": "#d0e0b8", "e": "#2a3a2c"},
+        [
+            "................",
+            "......oooo......",
+            ".....occcco.....",
+            ".....occcco.....",
+            "....ooccccoo....",
+            "..oooaaaaaaooo..",
+            ".oaaeoaaaaoeaao.",
+            "oaaooaaaaaaoaaao",
+            "oaaoaaaaaaaaoaao",
+            ".oaaaaaaaaaaaao.",
+            "..oaaaaaaaaaao..",
+            "..oabaaaaaabo...",
+            "..oabaaaaaabo...",
+            "..ob..oaaao..bo.",
+            "..ob..oaaao..bo.",
+            "..oo..ooooo..oo.",
+        ],
+    ),
 }
 
 

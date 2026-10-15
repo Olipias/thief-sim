@@ -11,6 +11,7 @@ func _initialize() -> void:
 	_test_game_state()
 	_test_bag_geometry()
 	_test_shop()
+	_test_levels()
 	_test_vision_cone()
 	_test_map()
 	if _failures > 0:
@@ -173,6 +174,36 @@ func _test_shop() -> void:
 	check(reader.mission_complete, "target in the saved bag marks the mission")
 	reader.free()
 	DirAccess.remove_absolute(save_path)
+
+
+func _test_levels() -> void:
+	var gs = load("res://src/autoload/game_state.gd").new()
+	gs.reset_progress()
+	gs.backpack_level = 2  # 3x3，够装下两件目标
+
+	check(gs.current_level_id == "museum", "default level is the museum")
+	check(gs.mission_target_id == "mask", "default mission target is the mask")
+
+	gs.set_level("british_museum")
+	check(gs.current_level_id == "british_museum", "level switch updates the current level")
+	check(gs.mission_target_id == "ram_zun", "level switch updates the mission target")
+	check(gs.level_name() == "大英博物馆·中国馆", "level name resolves from the registry")
+	check(gs.mission_reward() == 400, "level reward resolves from the registry")
+
+	check(gs.try_pickup("mask"), "old target can still be picked up as ordinary loot")
+	check(not gs.mission_complete, "carrying another artifact does not complete the mission")
+	check(gs.try_pickup("ram_zun"), "british museum target picked up")
+	check(gs.mission_complete, "carrying the level target completes the mission")
+
+	var summary: Dictionary = gs.finish_run(true)
+	check(summary["success"], "british museum run succeeds")
+	check(summary["target_name"] == "商代双羊尊", "summary names the double-ram zun")
+	check(summary["reward"] == 400, "british museum pays its own reward")
+
+	gs.set_level("museum")
+	check(gs.mission_target_id == "mask", "switching back restores the first level")
+	check(gs.mission_complete, "mission recomputed for the new level (mask is still in the bag)")
+	gs.free()
 
 
 func _test_vision_cone() -> void:

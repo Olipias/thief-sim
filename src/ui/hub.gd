@@ -1,8 +1,8 @@
 class_name Hub
 extends Control
-## Hideout screen: shop for upgrades, then start the next heist.
+## Hideout screen: shop for upgrades, pick a level, start the heist.
 
-signal start_requested
+signal start_requested(level_id: String)
 signal quit_requested
 
 const ROWS := ["backpack", "sneakers", "smoke"]
@@ -10,10 +10,12 @@ const ROWS := ["backpack", "sneakers", "smoke"]
 @onready var money_label: Label = $MoneyLabel
 @onready var feedback: Label = $Feedback
 @onready var start_button: Button = $StartButton
+@onready var bm_button: Button = $StartButtonBM
 
 
 func _ready() -> void:
-	start_button.pressed.connect(func() -> void: start_requested.emit())
+	start_button.pressed.connect(func() -> void: start_requested.emit("museum"))
+	bm_button.pressed.connect(func() -> void: start_requested.emit("british_museum"))
 	$QuitButton.pressed.connect(func() -> void: quit_requested.emit())
 	for id in ROWS:
 		var button: Button = _row(id).get_node("HBox/Buy")
@@ -72,5 +74,5 @@ func _on_buy(id: String) -> void:
 
 func _unhandled_input(event: InputEvent) -> void:
 	if event.is_action_pressed("interact"):
-		start_requested.emit()
+		start_requested.emit("museum")
 		get_viewport().set_input_as_handled()

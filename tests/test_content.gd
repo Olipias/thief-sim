@@ -41,7 +41,9 @@ func _consts(script_path: String) -> Dictionary:
 
 
 func _test_catalog() -> void:
-	var catalog: Dictionary = _consts("res://src/autoload/game_state.gd").get("CATALOG", {})
+	var consts := _consts("res://src/autoload/game_state.gd")
+	var catalog: Dictionary = consts.get("CATALOG", {})
+	var levels: Dictionary = consts.get("LEVELS", {})
 	check(not catalog.is_empty(), "CATALOG 至少有一件文物")
 	var targets := 0
 	for id in catalog:
@@ -53,7 +55,24 @@ func _test_catalog() -> void:
 		check(int(info.get("value", -1)) >= 0, "CATALOG[%s] 价值 >= 0" % id)
 		if bool(info.get("is_target", false)):
 			targets += 1
-	check(targets == 1, "CATALOG 中恰有一件任务目标（当前 %d）" % targets)
+	check(targets >= 1, "CATALOG 至少一件任务目标（当前 %d）" % targets)
+
+	# 关卡注册表 ↔ 目标文物：双向一致
+	check(not levels.is_empty(), "LEVELS 至少一个关卡")
+	var target_ids := {}
+	for id in catalog:
+		if bool((catalog[id] as Dictionary).get("is_target", false)):
+			target_ids[id] = true
+	for level_id in levels:
+		var info: Dictionary = levels[level_id]
+		for key in ["name", "map", "target", "reward"]:
+			check(info.has(key), "LEVELS[%s] 含字段 %s" % [level_id, key])
+		var target := String(info.get("target", ""))
+		check(catalog.has(target), "LEVELS[%s] 目标 %s 存在于 CATALOG" % [level_id, target])
+		check(target_ids.has(target), "LEVELS[%s] 目标 %s 标记 is_target" % [level_id, target])
+		check(String(info.get("map", "")).ends_with(".json"), "LEVELS[%s] 地图为 JSON" % level_id)
+		target_ids.erase(target)
+	check(target_ids.is_empty(), "每件任务目标都被某个关卡引用（未引用：%s）" % [target_ids.keys()])
 
 
 func _test_shapes() -> void:
@@ -150,16 +169,10 @@ func _test_audio_files() -> void:
 
 
 func _test_level_data() -> void:
-	var res := load("res://src/levels/museum_map.json") as JSON
-	check(res != null, "关卡 JSON 可加载")
-	if res == null:
-		return
-	var data: Dictionary = res.data
-	for key in ["tile_size", "rooms", "floors", "tiles", "patrols"]:
-		check(data.has(key), "关卡 JSON 含字段 %s" % key)
-	check(int(data.get("tile_size", 0)) == 16, "tile_size = 16")
+	var consts := _consts("res://src/autoload/game_state.gd")
+	var levels: Dictionary = consts.get("LEVELS", {})
 	var pool: Array = _consts("res://src/world/museum.gd").get("ARTIFACT_POOL", [])
-	var catalog: Dictionary = _consts("res://src/autoload/game_state.gd").get("CATALOG", {})
+	var catalog: Dictionary = consts.get("CATALOG", {})
 	check(not pool.is_empty(), "ARTIFACT_POOL 非空")
 	for id in pool:
 		var sid := String(id)
@@ -168,3 +181,25 @@ func _test_level_data() -> void:
 			not bool((catalog.get(sid, {}) as Dictionary).get("is_target", false)),
 			"战利品池不包含任务目标（%s）" % sid
 		)
+
+	for level_id in levels:
+		var info: Dictionary = levels[level_id]
+		var res := load(String(info["map"])) as JSON
+		check(res != null, "[%s] 关卡 JSON 可加载" % level_id)
+		if res == null:
+			continue
+		var data: Dictionary = res.data
+		for key in ["tile_size", "rooms", "floors", "tiles", "patrols"]:
+			check(data.has(key), "[%s] 关卡 JSON 含字段 %s" % [level_id, key])
+		check(int(data.get("tile_size", 0)) == 16, "[%s] tile_size = 16" % level_id)
+
+		# 每张地图恰有一个出生点 / 一个目标 / 一个出口，且目标可生成
+		var tiles: Array = data.get("tiles", [])
+		var counts := {"P": 0, "T": 0, "X": 0}
+		for row in tiles:
+			for ch in String(row):
+				if counts.has(ch):
+					counts[ch] += 1
+		check(counts["P"] == 1, "[%s] 恰有一个玩家出生点（%d）" % [level_id, counts["P"]])
+		check(counts["T"] == 1, "[%s] 恰有一个任务目标标记（%d）" % [level_id, counts["T"]])
+		check(counts["X"] == 1, "[%s] 恰有一个出口（%d）" % [level_id, counts["X"]])

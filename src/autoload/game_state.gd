@@ -9,6 +9,23 @@ signal items_changed
 const MISSION_REWARD := 200
 const DEFAULT_SAVE_PATH := "user://save.json"
 
+## 关卡注册表：id → 名称 / 地图数据 / 任务目标文物 / 组织报酬。
+## 新增关卡时在此登记，并保证目标文物在 CATALOG 中 is_target=true。
+const LEVELS := {
+	"museum": {
+		"name": "城西博物馆",
+		"map": "res://src/levels/museum_map.json",
+		"target": "mask",
+		"reward": 200,
+	},
+	"british_museum": {
+		"name": "大英博物馆·中国馆",
+		"map": "res://src/levels/british_museum.json",
+		"target": "ram_zun",
+		"reward": 400,
+	},
+}
+
 ## Grid size (in cells) per backpack upgrade level.
 const BAG_SIZES: Array[Vector2i] = [
 	Vector2i(2, 2),
@@ -27,6 +44,7 @@ const SHAPES := {
 	"ingot": [Vector2i(0, 0)],
 	"scroll": [Vector2i(0, 0), Vector2i(0, 1)],
 	"jade": [Vector2i(0, 0), Vector2i(0, 1), Vector2i(0, 2)],
+	"ram_zun": [Vector2i(0, 0), Vector2i(1, 0), Vector2i(0, 1)],
 }
 
 const CATALOG := {
@@ -35,6 +53,12 @@ const CATALOG := {
 		"value": 0,
 		"is_target": true,
 		"story": "出土于城西古墓。据说月圆之夜，它会低声念出陌生人的名字。",
+	},
+	"ram_zun": {
+		"name": "商代双羊尊",
+		"value": 0,
+		"is_target": true,
+		"story": "商代晚期青铜酒器（约前1200–1050年），相传出自湖南，存世仅两件。双羊相背共负一尊，羊角盘曲，是南方青铜器独有的写实与浪漫。另一件如今在东京，这一件自1936年起站在大英博物馆的展柜里。",
 	},
 	"vase": {
 		"name": "青瓷花瓶",
@@ -99,6 +123,10 @@ var smoke_count := 0
 ## Items currently carried: {id: String, x: int, y: int, rot: int}
 var bag_items: Array[Dictionary] = []
 var mission_complete := false
+
+## 当前关卡与本次任务目标（由 set_level 设定；任务判定实时对照它）。
+var current_level_id := "museum"
+var mission_target_id := "mask"
 
 var save_path := DEFAULT_SAVE_PATH
 var _persistent := false
@@ -222,8 +250,7 @@ func place_item(item: Dictionary, gx: int, gy: int, rot: int) -> bool:
 		return false
 	var placed := {"id": item_id, "x": gx, "y": gy, "rot": rot}
 	bag_items.append(placed)
-	if bool((CATALOG.get(item_id, {}) as Dictionary).get("is_target", false)):
-		mission_complete = true
+	_recompute_mission()
 	backpack_changed.emit()
 	return true
 
@@ -239,9 +266,36 @@ func erase_item_at(index: int) -> void:
 func _recompute_mission() -> void:
 	mission_complete = false
 	for item in bag_items:
-		if item_is_target(String(item["id"])):
+		if String(item["id"]) == mission_target_id:
 			mission_complete = true
 			return
+
+
+## --- level registry --------------------------------------------------------
+
+## 切换关卡：设定当前关卡与本次任务目标（进关卡前调用）。
+func set_level(level_id: String) -> void:
+	if not LEVELS.has(level_id):
+		return
+	current_level_id = level_id
+	mission_target_id = String((LEVELS[level_id] as Dictionary)["target"])
+	_recompute_mission()
+
+
+func level_info() -> Dictionary:
+	return LEVELS.get(current_level_id, LEVELS["museum"])
+
+
+func level_name() -> String:
+	return String(level_info().get("name", current_level_id))
+
+
+func level_map_path() -> String:
+	return String(level_info().get("map", "res://src/levels/museum_map.json"))
+
+
+func mission_reward() -> int:
+	return int(level_info().get("reward", MISSION_REWARD))
 
 
 ## --- per-mission state -----------------------------------------------------
@@ -301,18 +355,19 @@ func finish_run(success: bool) -> Dictionary:
 	var sold: Array[Dictionary] = []
 	for item in bag_items:
 		var id := String(item["id"])
-		if not item_is_target(id):
+		if id != mission_target_id:
 			sold.append({"name": item_name(id), "value": item_value(id)})
 		else:
 			summary["target_name"] = item_name(id)
 	var earned := 0
 	for item in sold:
 		earned += int(item["value"])
-	money += earned + MISSION_REWARD
+	var reward := mission_reward()
+	money += earned + reward
 	summary["success"] = true
 	summary["sold_items"] = sold
 	summary["sold_value"] = earned
-	summary["reward"] = MISSION_REWARD
+	summary["reward"] = reward
 	summary["money_total"] = money
 	money_changed.emit()
 	save_game()

@@ -152,22 +152,32 @@ horizontal_alignment = 1
 [node name="StartButton" type="Button" parent="."]
 anchor_left = 0.5
 anchor_right = 0.5
-offset_left = -80.0
-offset_top = 280.0
-offset_right = 80.0
-offset_bottom = 306.0
+offset_left = -110.0
+offset_top = 276.0
+offset_right = 110.0
+offset_bottom = 302.0
 grow_horizontal = 2
-text = "开始任务"
+text = "任务：城西博物馆"
 
-[node name="QuitButton" type="Button" parent="."]
+[node name="StartButtonBM" type="Button" parent="."]
 anchor_left = 0.5
 anchor_right = 0.5
-offset_left = -80.0
-offset_top = 314.0
-offset_right = 80.0
-offset_bottom = 338.0
+offset_left = -110.0
+offset_top = 306.0
+offset_right = 110.0
+offset_bottom = 332.0
 grow_horizontal = 2
-text = "退出游戏"
+text = "任务：大英博物馆·中国馆"
+
+[node name="QuitButton" type="Button" parent="."]
+anchor_left = 1.0
+anchor_right = 1.0
+offset_left = -84.0
+offset_top = 8.0
+offset_right = -8.0
+offset_bottom = 34.0
+grow_horizontal = 0
+text = "退出"
 
 [node name="Hint" type="Label" parent="."]
 anchor_left = 1.0

@@ -26,6 +26,7 @@ func _ready() -> void:
 	await _test_ghost()
 	await _test_haunting()
 	await _test_room_camera()
+	await _test_british_museum_level()
 	await _test_bag_screen()
 	await _test_backpack_drop()
 	await _test_drop_artifact()
@@ -50,8 +51,10 @@ func _shutdown_audio() -> void:
 		await get_tree().process_frame
 
 
-func _make_museum() -> Museum:
+func _make_museum(level_id := "museum") -> Museum:
+	Game.set_level(level_id)
 	var museum := load("res://src/world/museum.tscn").instantiate() as Museum
+	museum.level_id = level_id
 	add_child(museum)
 	await get_tree().physics_frame
 	await get_tree().physics_frame
@@ -324,6 +327,33 @@ func _test_minimap() -> void:
 	museum.end_game()
 	museum.queue_free()
 	await get_tree().process_frame
+
+
+func _test_british_museum_level() -> void:
+	Game.reset_run()
+	var museum := await _make_museum("british_museum")
+	check(museum.rooms.size() == 6, "british museum has six rooms")
+	check(Game.mission_target_id == "ram_zun", "british museum targets the double-ram zun")
+	check(museum.target_item_id() == "ram_zun", "museum resolves the level target")
+
+	var zun: Artifact = null
+	for child in museum.get_children():
+		if child is Artifact and child.item_id == "ram_zun":
+			zun = child
+	check(zun != null, "double-ram zun artifact exists in the level")
+	check(museum.target_room == 3, "double-ram zun stands in the middle gallery")
+	check(museum.exit_room == 5, "exit waits in the loading bay")
+	check(museum.police.size() == 7, "british museum runs seven guards")
+
+	if zun != null:
+		museum.player.global_position = zun.global_position + Vector2(0, 24)
+		check(zun.try_pickup(), "double-ram zun can be picked up")
+		check(Game.mission_complete, "carrying the zun completes the mission")
+
+	museum.end_game()
+	museum.queue_free()
+	await get_tree().process_frame
+	Game.set_level("museum")
 
 
 func _test_bag_screen() -> void:

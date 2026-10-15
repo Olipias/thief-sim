@@ -1,13 +1,17 @@
 #!/usr/bin/env python3
-"""Generate the museum level layout (linear room chain + patrol routes).
+"""Generate the museum level layouts (linear room chains + patrol routes).
 
-Level shape: seven 20x12 rooms arranged in a snake, connected by short door
-corridors.  At the game's 2x camera zoom one room fills the screen, so the
-player explores one small, dense room at a time.
+两个关卡共用同一套"房间蛇形串联"骨架，各自有独立的内容配置：
 
-Writes src/levels/museum_map.json which is loaded by the game at runtime.
+* museum          —— 城西博物馆（任务目标：青铜面具）
+* british_museum  —— 大英博物馆·中国馆（任务目标：商代双羊尊）
+
+At the game's 2x camera zoom one room fills the screen, so the player
+explores one small, dense room at a time.
+
+Writes src/levels/<level>.json which is loaded by the game at runtime.
 Every generated map is validated (borders, connectivity, patrol legality,
-room containment).
+room containment, straight patrol segments).
 
 Tile legend:
     #  wall (solid)          W  wall with painting (solid)
@@ -25,11 +29,7 @@ import sys
 
 ROOM_W, ROOM_H = 20, 12
 GAP = 2
-ROOM_COUNT = 7
 COLS = 2
-ROWS = (ROOM_COUNT + COLS - 1) // COLS
-W = COLS * ROOM_W + (COLS - 1) * GAP
-H = ROWS * ROOM_H + (ROWS - 1) * GAP
 
 WALKABLE = ".~TapXP123456789"
 SOLID = "#o.dprsvLW "
@@ -41,9 +41,11 @@ def room_origin(index):
     return col * (ROOM_W + GAP), row * (ROOM_H + GAP)
 
 
-# Per-room content, relative to the room's top-left corner (interior x1..18,
-# y1..10).  Patrol routes stay inside their own room.
-CONTENT = {
+# ---------------------------------------------------------------------------
+# 关卡 1：城西博物馆（目标：青铜面具，7 间房）
+# ---------------------------------------------------------------------------
+
+MUSEUM_CONTENT = {
     0: {  # 门厅
         "cases": [(5, 2), (6, 2)],
         "plants": [(17, 9)],
@@ -144,10 +146,125 @@ CONTENT = {
     },
 }
 
+# ---------------------------------------------------------------------------
+# 关卡 2：大英博物馆·中国馆（目标：商代双羊尊，6 间房）
+# ---------------------------------------------------------------------------
 
-def build():
-    g = [[" " for _ in range(W)] for _ in range(H)]
-    origins = [room_origin(i) for i in range(ROOM_COUNT)]
+BM_CONTENT = {
+    0: {  # 中国馆入口
+        "cases": [(5, 2), (6, 2)],
+        "plants": [(17, 9)],
+        "statues": [(9, 9)],
+        "carpet": [],
+        "ropes": [],
+        "artifacts": [(16, 2)],
+        "target": None,
+        "player": (2, 9),
+        "exit": None,
+        "lamps": [4, 10, 16],
+        "paintings": [7, 13],
+        "police": {"1": [(3, 3), (16, 3)]},
+    },
+    1: {  # 青铜器馆
+        "cases": [(4, 3), (5, 3), (4, 4), (5, 4), (13, 6), (14, 6)],
+        "plants": [],
+        "statues": [(2, 2), (17, 8)],
+        "carpet": [],
+        "ropes": [],
+        "artifacts": [(9, 8), (17, 2)],
+        "target": None,
+        "player": None,
+        "exit": None,
+        "lamps": [6, 13],
+        "paintings": [3, 16],
+        "police": {"2": [(9, 2), (9, 9)]},
+    },
+    2: {  # 玉器馆
+        "cases": [(9, 5)],
+        "plants": [],
+        "statues": [(3, 8), (16, 3)],
+        "carpet": [(5, 3, 14, 8)],
+        "ropes": [(8, 4), (9, 4), (10, 4), (8, 5), (10, 5), (8, 6), (10, 6)],
+        "artifacts": [(3, 3), (15, 8)],
+        "target": None,
+        "player": None,
+        "exit": None,
+        "lamps": [2, 17],
+        "paintings": [5, 14],
+        "police": {"3": [(4, 2), (4, 9), (15, 9), (15, 2)]},
+    },
+    3: {  # 中央展廊（目标：双羊尊）
+        "cases": [],
+        "plants": [(2, 9), (17, 2)],
+        "statues": [(3, 3), (16, 8)],
+        "carpet": [(4, 3, 15, 8)],
+        "ropes": [(8, 6), (9, 6), (10, 6)],
+        "artifacts": [(2, 2), (17, 9)],
+        "target": (9, 4),
+        "player": None,
+        "exit": None,
+        "lamps": [5, 14],
+        "paintings": [3, 16],
+        "police": {"4": [(4, 2), (4, 9)], "5": [(15, 2), (15, 9)]},
+    },
+    4: {  # 库房通道
+        "cases": [(4, 3), (5, 3), (4, 4), (5, 4), (13, 6), (14, 6), (13, 7), (14, 7)],
+        "plants": [(2, 9)],
+        "statues": [],
+        "carpet": [],
+        "ropes": [],
+        "artifacts": [(3, 2), (16, 9)],
+        "target": None,
+        "player": None,
+        "exit": None,
+        "lamps": [12],
+        "paintings": [6, 13],
+        "police": {"6": [(4, 5), (15, 5)]},
+    },
+    5: {  # 装卸区（出口）
+        "cases": [],
+        "plants": [(2, 2), (17, 9)],
+        "statues": [],
+        "carpet": [],
+        "ropes": [],
+        "artifacts": [(3, 2)],
+        "target": None,
+        "player": None,
+        "exit": (16, 9),
+        "lamps": [5, 12],
+        "paintings": [8, 16],
+        "police": {"7": [(4, 4), (15, 4)]},
+    },
+}
+
+LEVELS = {
+    "museum": {
+        "name": "城西博物馆",
+        "content": MUSEUM_CONTENT,
+        "out": "museum_map.json",
+    },
+    "british_museum": {
+        "name": "大英博物馆·中国馆",
+        "content": BM_CONTENT,
+        "out": "british_museum.json",
+    },
+}
+
+
+def level_size(content):
+    rooms = len(content)
+    rows = (rooms + COLS - 1) // COLS
+    w = COLS * ROOM_W + (COLS - 1) * GAP
+    h = rows * ROOM_H + (rows - 1) * GAP
+    return w, h
+
+
+def build(level_id="museum"):
+    content_by_room = LEVELS[level_id]["content"]
+    room_count = len(content_by_room)
+    w, h = level_size(content_by_room)
+    g = [[" " for _ in range(w)] for _ in range(h)]
+    origins = [room_origin(i) for i in range(room_count)]
     rects = []
 
     def rect(x0, y0, x1, y1, ch):
@@ -183,15 +300,19 @@ def build():
                 g[y][x] = "."
         floors.append([ax + rel_x, ay + ROOM_H - 1, 2, by - (ay + ROOM_H - 1) + 1])
 
-    door_h(0, 1, 5)
-    door_v(1, 2, 9)
-    door_h(3, 2, 5)
-    door_v(3, 4, 9)
-    door_h(4, 5, 5)
-    door_v(5, 6, 9)
+    # 蛇形串联：偶数行从左到右，奇数行从右到左
+    for i in range(room_count - 1):
+        row_a = i // COLS
+        row_b = (i + 1) // COLS
+        if row_a == row_b:
+            if row_a % 2 == 0:
+                door_h(i, i + 1, 5)
+            else:
+                door_h(i + 1, i, 5)
+        else:
+            door_v(i, i + 1, 9)
 
-    for oid, content in CONTENT.items():
-        ox, oy = origins[oid]
+    for oid, content in content_by_room.items():
         for x in content["lamps"]:
             put(oid, x, 0, "L", "#")
         for x in content["paintings"]:
@@ -220,7 +341,7 @@ def build():
             put(oid, *content["exit"], "X")
 
     patrols = {}
-    for oid, content in CONTENT.items():
+    for oid, content in content_by_room.items():
         ox, oy = origins[oid]
         for key, path in content["police"].items():
             abs_path = [[ox + x, oy + y] for x, y in path]
@@ -233,12 +354,10 @@ def build():
 
 def validate(tiles, patrols, rects):
     errors = []
-    if len(tiles) != H:
-        errors.append(f"expected {H} rows, got {len(tiles)}")
-        return errors, None
+    w, h = len(tiles[0]), len(tiles)
     for y, row in enumerate(tiles):
-        if len(row) != W:
-            errors.append(f"row {y}: expected {W} cols, got {len(row)}")
+        if len(row) != w:
+            errors.append(f"row {y}: expected {w} cols, got {len(row)}")
     for y, row in enumerate(tiles):
         for x, ch in enumerate(row):
             if ch not in WALKABLE + SOLID:
@@ -257,7 +376,7 @@ def validate(tiles, patrols, rects):
             x, y = stack.pop()
             for dx, dy in ((1, 0), (-1, 0), (0, 1), (0, -1)):
                 nx, ny = x + dx, y + dy
-                if not (0 <= nx < W and 0 <= ny < H):
+                if not (0 <= nx < w and 0 <= ny < h):
                     continue
                 if (nx, ny) in seen or tiles[ny][nx] not in WALKABLE:
                     continue
@@ -304,26 +423,29 @@ def validate(tiles, patrols, rects):
 
 
 def main():
-    tiles, patrols, rects, floors = build()
-    errors, _ = validate(tiles, patrols, rects)
-    if errors:
-        print("MAP INVALID:")
-        for e in errors:
-            print("  -", e)
+    out_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "src", "levels")
+    failed = False
+    for level_id, info in LEVELS.items():
+        tiles, patrols, rects, floors = build(level_id)
+        errors, _ = validate(tiles, patrols, rects)
+        if errors:
+            failed = True
+            print(f"[{level_id}] MAP INVALID:")
+            for e in errors:
+                print("  -", e)
+            continue
+        out = os.path.join(out_dir, info["out"])
+        with open(out, "w", encoding="utf-8") as f:
+            json.dump(
+                {"tile_size": 16, "rooms": rects, "floors": floors, "tiles": tiles, "patrols": patrols},
+                f,
+                ensure_ascii=False,
+                indent=1,
+            )
+        print(f"[{level_id}] {info['name']} → {os.path.normpath(out)}")
+        print(f"  map {len(tiles[0])}x{len(tiles)}, rooms {len(rects)}, guards {len(patrols)}")
+    if failed:
         sys.exit(1)
-
-    out = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "src", "levels", "museum_map.json")
-    with open(out, "w", encoding="utf-8") as f:
-        json.dump(
-            {"tile_size": 16, "rooms": rects, "floors": floors, "tiles": tiles, "patrols": patrols},
-            f,
-            ensure_ascii=False,
-            indent=1,
-        )
-    print("wrote", os.path.normpath(out))
-    print(f"map {W}x{H}, rooms {len(rects)}, guards {len(patrols)}")
-    for i, (x, y, w, h) in enumerate(rects):
-        print(f"  room {i}: tiles x{x}..{x + w - 1} y{y}..{y + h - 1}")
 
 
 if __name__ == "__main__":

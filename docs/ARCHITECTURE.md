@@ -26,10 +26,10 @@ Autoload
 
 | 文件 | 职责 | 关键点 |
 | --- | --- | --- |
-| `src/main.gd` | 场景流程编排、暂停控制、任务简报 | 世界加到 `Screen`；HUD/对话/背包的信号在这里接线 |
+| `src/main.gd` | 场景流程编排、暂停控制、任务简报 | 世界加到 `Screen`；HUD/对话/背包的信号在这里接线；`start_mission(level_id)` 设定关卡并显示对应简报 |
 | `src/actors/player.gd` | 玩家移动（走/跑）、拾取、道具、噪音、脚步 | 信号 `used_item` / `made_noise`；分组 `player`；`controls_enabled` 冻结操控；场景内 `Camera2D`（zoom 2×，即一屏 20×11 格）+ 玩家微光 `Aura` |
 | `src/actors/police.gd` | 警察 AI：巡逻 → 调查 → 追击 → 逮捕 | 状态机 `State{PATROL,INVESTIGATE,CHASE}`；`in_cone()` 纯函数（可单测）；视野射线仅被墙阻挡（mask=1）；`blind()` 烟雾致盲（同时熄灭手电）；`alert_level()` 0/1/2；`set_ai_enabled()` 供演出/截图暂停感知 |
-| `src/world/museum.gd` | 关卡构建与全部关卡规则 | 读 `museum_map.json` 建碰撞/灯光/角色；房间相机；小地图数据；幽灵事件；烟雾弹；噪音与哀嚎按房间分流；出口锁 |
+| `src/world/museum.gd` | 关卡构建与全部关卡规则 | `level_id` → 地图/目标/器灵台词按关卡解析（`target_item_id()`）；读 JSON 建碰撞/灯光/角色；房间相机；小地图数据；幽灵事件；烟雾弹；噪音与哀嚎按房间分流；出口锁 |
 | `src/world/artifact.gd` | 场景中的可拾取文物 | 贴图约定 `artifact_<id>.png`；拾取成功/失败信号 |
 | `src/world/ghost.gd` | 幽灵：尾随 + 周期哀嚎 + 寿命渐隐 | `wailed(position)` 由 museum 转给附近警察 |
 | `src/world/smoke_puff.gd` | 烟雾视觉（纯表现） | 不承载规则 |
@@ -40,9 +40,9 @@ Autoload
 | `src/ui/bag_grid.gd` | 背包格子绘制 | 只负责画，不存数据 |
 | `src/ui/dialogue_box.gd` | 打字机对话 | `advance()`；暂停由调用方控制 |
 | `src/ui/result_screen.gd` | 结算界面 | 展示 `Game.finish_run()` 返回的 summary |
-| `src/autoload/game_state.gd` | 全部可持久化状态与规则 | 内容表 `CATALOG/SHAPES/UPGRADES/BAG_SIZES` 目前在这里（技术债，见 §8） |
+| `src/autoload/game_state.gd` | 全部可持久化状态与规则 | 内容表 `CATALOG/SHAPES/UPGRADES/BAG_SIZES` 目前在这里（技术债，见 §8）；**关卡注册表 `LEVELS`**（id/名称/地图/目标/报酬）+ `set_level()` + `mission_target_id` |
 | `src/autoload/audio.gd` | 音效播放 | `SFX` 键→路径；播放器池轮转；退出前 `shutdown()` |
-| `src/levels/museum_map.json` | 关卡数据（**生成物**） | 由 `tools/gen_museum_map.py` 生成；verify 校验同步 |
+| `src/levels/*.json` | 关卡数据（**生成物**） | `museum_map.json`（城西博物馆）/ `british_museum.json`（大英博物馆·中国馆）；由 `tools/gen_museum_map.py` 生成；verify 校验同步 |
 | `tests/*` | 测试与截图 | 见 §7 |
 | `tools/*.py` | 资源生成脚本 | 生成物只能由它们更新 |
 | `tools/verify.sh` | 一键验证 | 收尾必跑 |
@@ -71,7 +71,9 @@ Autoload
 - `BAG_SIZES`：等级 0..5 的格子数（2×2 → 5×4）。
 - 相关测试：`tests/test_logic.gd::_test_bag_geometry`。
 
-### 3.3 关卡数据（`src/levels/museum_map.json`，生成物）
+### 3.3 关卡数据（`src/levels/*.json`，生成物）
+
+多关卡：`museum_map.json`（城西博物馆）与 `british_museum.json`（大英博物馆·中国馆），由 `tools/gen_museum_map.py` 的 `LEVELS` 配置生成；关卡注册表在 `Game.LEVELS`（id → 名称/地图/目标文物/报酬）。
 
 ```json
 { "tile_size": 16,

@@ -79,6 +79,35 @@ func _ready() -> void:
 		museum.player.global_position = catcher.global_position
 	await _wait(2.0)
 	await _shot("/tmp/shot_result.png")
+
+	# 大英博物馆·中国馆：目标「商代双羊尊」与器灵
+	main.show_menu()
+	await _wait(0.3)
+	main.start_mission("british_museum")
+	await _wait(0.6)
+	_skip_dialogue(main)
+	var bm: Museum = null
+	for child in main.get_node("Screen").get_children():
+		if child is Museum:
+			bm = child
+	if bm != null and bm.player != null:
+		for bm_cop in bm.police:
+			bm_cop.set_ai_enabled(false)
+		bm.ghost_delay = 0.3
+		var zun: Artifact = null
+		for child in bm.get_children():
+			if child is Artifact and child.item_id == "ram_zun":
+				zun = child
+		if zun != null:
+			bm.player.global_position = zun.global_position + Vector2(0, 28)
+			await _wait(1.2)
+			await _shot("/tmp/shot_bm_zun.png")
+			zun.try_pickup()
+			await _wait(0.8)
+			_skip_dialogue(main)
+			await _wait(0.4)
+			await _shot("/tmp/shot_bm_ghost.png")
+	Audio.shutdown()
 	get_tree().quit()
 
 

@@ -52,6 +52,7 @@ step() {
 
 step "文档自检（链接 / CHANGELOG 格式）" python3 tools/check_docs.py
 step "关卡数据自检（生成物与脚本同步）" python3 tools/check_level.py
+step "资源导入（新增/改动贴图与音效）" "$GODOT" --headless --import
 step "GDScript 编译检查（src + tests）" "$GODOT" --headless res://tests/test_scripts.tscn
 step "逻辑单测" "$GODOT" --headless --script tests/test_logic.gd
 step "内容一致性测试" "$GODOT" --headless res://tests/test_content.tscn

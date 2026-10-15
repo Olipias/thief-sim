@@ -15,6 +15,11 @@ const SMOKE_BLIND_TIME := 3.5
 const WALKABLE := ".~TapXP123456789"
 const NIGHT_TINT := Color(0.33, 0.37, 0.55)
 const ARTIFACT_POOL: Array[String] = ["vase", "gem", "scroll", "ingot", "jade"]
+## 任务目标被拾取后，其"器灵"的台词（按关卡目标文物 id 取）。
+const GHOST_LINES := {
+	"mask": "把……面具……放……回去……",
+	"ram_zun": "千年了……我听见另一只羊，隔着海……带我们……回家……",
+}
 const SOLID_CHARS := {
 	"#": "wall",
 	"o": "pillar",
@@ -49,6 +54,9 @@ var floors: Array[Rect2] = []
 var player: Player = null
 var police: Array[Police] = []
 
+## 关卡 id（由 main 在加入场景树前设置；默认第一关）。
+var level_id := "museum"
+
 var _ended := false
 var _last_prompt := ""
 var _noise_warned := false
@@ -67,7 +75,7 @@ func _ready() -> void:
 
 
 func _load_map() -> void:
-	var res := load("res://src/levels/museum_map.json") as JSON
+	var res := load(_map_path()) as JSON
 	var data: Dictionary = res.data
 	tiles = data.get("tiles", [])
 	patrols = data.get("patrols", {})
@@ -85,6 +93,16 @@ func _load_map() -> void:
 		))
 
 
+func _map_path() -> String:
+	var info: Dictionary = Game.LEVELS.get(level_id, {})
+	return String(info.get("map", "res://src/levels/museum_map.json"))
+
+
+func target_item_id() -> String:
+	var info: Dictionary = Game.LEVELS.get(level_id, {})
+	return String(info.get("target", "mask"))
+
+
 func _build_level() -> void:
 	_build_collision()
 	_add_night_tint()
@@ -98,7 +116,7 @@ func _build_level() -> void:
 				"P":
 					_spawn_player(pos)
 				"T":
-					_spawn_artifact("mask", pos)
+					_spawn_artifact(target_item_id(), pos)
 				"a":
 					_spawn_artifact(ARTIFACT_POOL[artifact_index % ARTIFACT_POOL.size()], pos)
 					artifact_index += 1
@@ -164,7 +182,7 @@ func _spawn_artifact(item_id: String, pos: Vector2) -> void:
 	artifact.picked.connect(_on_artifact_picked)
 	artifact.pickup_blocked.connect(_on_pickup_blocked)
 	add_child(artifact)
-	if item_id == "mask":
+	if item_id == target_item_id():
 		target_room = room_index_at(pos)
 
 
@@ -264,7 +282,7 @@ func _on_artifact_picked(item_id: String) -> void:
 	Audio.play("pickup", -7.0)
 	var name := Game.item_name(item_id)
 	var story := Game.item_story(item_id)
-	if Game.CATALOG.get(item_id, {}).get("is_target", false):
+	if item_id == target_item_id():
 		toast.emit("拿到任务目标：%s！\n快从出口撤离。" % name)
 		_start_haunting()
 	elif story != "":
@@ -308,7 +326,7 @@ func _spawn_ghost() -> void:
 	if _ended or player == null:
 		return
 	dialogue_requested.emit([
-		{"speaker": "？？？", "text": "把……面具……放……回去……"},
+		{"speaker": "？？？", "text": String(GHOST_LINES.get(target_item_id(), "……"))},
 	])
 	var ghost := GHOST_SCENE.instantiate() as Ghost
 	ghost.position = player.global_position + Vector2(-10, 8)
