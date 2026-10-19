@@ -54,7 +54,7 @@ MUSEUM_CONTENT = {
         "ropes": [],
         "artifacts": [(16, 2)],
         "target": None,
-        "player": (2, 9),
+        "player": (2, 2),
         "exit": None,
         "lamps": [4, 10, 16],
         "paintings": [7, 13],
@@ -72,7 +72,7 @@ MUSEUM_CONTENT = {
         "exit": None,
         "lamps": [3, 10, 17],
         "paintings": [6, 13],
-        "police": {"2": [(3, 5), (16, 5)]},
+        "police": {"2": [(16, 4), (16, 8)]},
     },
     2: {  # 陈列室
         "cases": [(9, 5)],
@@ -86,7 +86,7 @@ MUSEUM_CONTENT = {
         "exit": None,
         "lamps": [4, 15],
         "paintings": [8, 12],
-        "police": {"3": [(4, 2), (4, 8), (15, 8), (15, 2)]},
+        "police": {"3": [(4, 8), (15, 8)]},
     },
     3: {  # 中央大厅（目标）
         "cases": [],
@@ -100,7 +100,7 @@ MUSEUM_CONTENT = {
         "exit": None,
         "lamps": [2, 17],
         "paintings": [5, 14],
-        "police": {"4": [(4, 2), (4, 9), (15, 9), (15, 2)], "5": [(17, 2), (17, 9)]},
+        "police": {"4": [(4, 3), (12, 3)], "5": [(2, 2), (2, 8)]},
     },
     4: {  # 库房
         "cases": [(4, 3), (5, 3), (4, 4), (5, 4), (13, 6), (14, 6), (13, 7), (14, 7)],
@@ -114,7 +114,7 @@ MUSEUM_CONTENT = {
         "exit": None,
         "lamps": [11],
         "paintings": [6, 13],
-        "police": {"6": [(9, 2), (9, 9)]},
+        "police": {"6": [(4, 9), (15, 9)]},
     },
     5: {  # 画廊 B（喘息间）
         "cases": [(3, 8)],
@@ -142,7 +142,7 @@ MUSEUM_CONTENT = {
         "exit": (16, 9),
         "lamps": [5, 12],
         "paintings": [8, 16],
-        "police": {"7": [(4, 4), (15, 4)]},
+        "police": {"7": [(4, 6), (15, 6)]},
     },
 }
 
@@ -163,7 +163,7 @@ BM_CONTENT = {
         "exit": None,
         "lamps": [4, 10, 16],
         "paintings": [7, 13],
-        "police": {"1": [(3, 3), (16, 3)]},
+        "police": {"1": [(3, 7), (13, 7)]},
     },
     1: {  # 青铜器馆
         "cases": [(4, 3), (5, 3), (4, 4), (5, 4), (13, 6), (14, 6)],
@@ -177,7 +177,7 @@ BM_CONTENT = {
         "exit": None,
         "lamps": [6, 13],
         "paintings": [3, 16],
-        "police": {"2": [(9, 2), (9, 9)]},
+        "police": {"2": [(6, 2), (6, 8)]},
     },
     2: {  # 玉器馆
         "cases": [(9, 5)],
@@ -191,7 +191,7 @@ BM_CONTENT = {
         "exit": None,
         "lamps": [2, 17],
         "paintings": [5, 14],
-        "police": {"3": [(4, 2), (4, 9), (15, 9), (15, 2)]},
+        "police": {"3": [(5, 2), (5, 9), (15, 9), (15, 2)]},
     },
     3: {  # 中央展廊（目标：双羊尊）
         "cases": [],
@@ -205,7 +205,7 @@ BM_CONTENT = {
         "exit": None,
         "lamps": [5, 14],
         "paintings": [3, 16],
-        "police": {"4": [(4, 2), (4, 9)], "5": [(15, 2), (15, 9)]},
+        "police": {"4": [(4, 2), (4, 9)], "5": [(13, 2), (13, 7)]},
     },
     4: {  # 库房通道
         "cases": [(4, 3), (5, 3), (4, 4), (5, 4), (13, 6), (14, 6), (13, 7), (14, 7)],
@@ -219,7 +219,7 @@ BM_CONTENT = {
         "exit": None,
         "lamps": [12],
         "paintings": [6, 13],
-        "police": {"6": [(4, 5), (15, 5)]},
+        "police": {"6": [(4, 9), (14, 9)]},
     },
     5: {  # 装卸区（出口）
         "cases": [],
@@ -233,7 +233,7 @@ BM_CONTENT = {
         "exit": (16, 9),
         "lamps": [5, 12],
         "paintings": [8, 16],
-        "police": {"7": [(4, 4), (15, 4)]},
+        "police": {"7": [(6, 4), (15, 4)]},
     },
 }
 
@@ -284,6 +284,8 @@ def build(level_id="museum"):
 
     floors = [[ox + 1, oy + 1, ROOM_W - 2, ROOM_H - 2] for ox, oy in origins]
 
+    room_doors = {i: [] for i in range(room_count)}
+
     def door_h(ra, rb, rel_y):
         ax, ay = origins[ra]
         bx, _ = origins[rb]
@@ -291,6 +293,11 @@ def build(level_id="museum"):
             for x in range(ax + ROOM_W - 1, bx + 1):
                 g[y][x] = "."
         floors.append([ax + ROOM_W - 1, ay + rel_y, bx - (ax + ROOM_W - 1) + 1, 2])
+        # 门口两侧房间内相邻的格子（玩家进出时踩到的位置）
+        room_doors[ra].append((ax + ROOM_W - 2, ay + rel_y))
+        room_doors[ra].append((ax + ROOM_W - 2, ay + rel_y + 1))
+        room_doors[rb].append((bx + 1, ay + rel_y))
+        room_doors[rb].append((bx + 1, ay + rel_y + 1))
 
     def door_v(ra, rb, rel_x):
         ax, ay = origins[ra]
@@ -299,6 +306,10 @@ def build(level_id="museum"):
             for y in range(ay + ROOM_H - 1, by + 1):
                 g[y][x] = "."
         floors.append([ax + rel_x, ay + ROOM_H - 1, 2, by - (ay + ROOM_H - 1) + 1])
+        room_doors[ra].append((ax + rel_x, ay + ROOM_H - 2))
+        room_doors[ra].append((ax + rel_x + 1, ay + ROOM_H - 2))
+        room_doors[rb].append((ax + rel_x, by + 1))
+        room_doors[rb].append((ax + rel_x + 1, by + 1))
 
     # 蛇形串联：偶数行从左到右，奇数行从右到左
     for i in range(room_count - 1):
@@ -349,10 +360,10 @@ def build(level_id="museum"):
             sx, sy = abs_path[0]
             g[sy][sx] = key
 
-    return ["".join(row) for row in g], patrols, rects, floors
+    return ["".join(row) for row in g], patrols, rects, floors, room_doors
 
 
-def validate(tiles, patrols, rects):
+def validate(tiles, patrols, rects, room_doors=None):
     errors = []
     w, h = len(tiles[0]), len(tiles)
     for y, row in enumerate(tiles):
@@ -397,6 +408,35 @@ def validate(tiles, patrols, rects):
         for x, ch in enumerate(row):
             if ch in "TXa123456789" and (x, y) not in seen:
                 errors.append(f"{ch!r} at {(x, y)} not reachable from player spawn")
+    # 教学/公平性规则：巡逻路线（含线段采样点）不得靠近本房间的门口格子，
+    # 否则玩家一进门就撞上手电光锥（试玩反馈：容错太低）。
+    if room_doors is not None:
+        min_door_distance = 3.5
+        for key, path in patrols.items():
+            room_of_path = in_room(path[0][0], path[0][1])
+            doors = room_doors.get(room_of_path, [])
+            samples = []
+            for a, b in zip(path, path[1:]):
+                ax, ay = a
+                bx, by = b
+                steps = max(abs(bx - ax), abs(by - ay))
+                for i in range(steps + 1):
+                    samples.append((
+                        round(ax + (bx - ax) * i / steps) if steps else ax,
+                        round(ay + (by - ay) * i / steps) if steps else ay,
+                    ))
+            if not samples:
+                samples = [tuple(path[0])]
+            for sx, sy in samples:
+                for dx, dy in doors:
+                    dist = ((sx - dx) ** 2 + (sy - dy) ** 2) ** 0.5
+                    if dist < min_door_distance:
+                        errors.append(
+                            "patrol %s: 巡逻点 (%d,%d) 距门口 (%d,%d) 仅 %.1f 格（需 >= %.1f）"
+                            % (key, sx, sy, dx, dy, dist, min_door_distance)
+                        )
+                        break
+
     for key, path in patrols.items():
         room_of_spawn = in_room(path[0][0], path[0][1])
         if room_of_spawn < 0:
@@ -426,8 +466,8 @@ def main():
     out_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "src", "levels")
     failed = False
     for level_id, info in LEVELS.items():
-        tiles, patrols, rects, floors = build(level_id)
-        errors, _ = validate(tiles, patrols, rects)
+        tiles, patrols, rects, floors, room_doors = build(level_id)
+        errors, _ = validate(tiles, patrols, rects, room_doors)
         if errors:
             failed = True
             print(f"[{level_id}] MAP INVALID:")

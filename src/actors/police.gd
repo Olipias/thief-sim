@@ -41,6 +41,8 @@ var _wait_timer := 0.0
 var _walk_time := 0.0
 var _caught_emitted := false
 var _blind_timer := 0.0
+## 警觉速度倍率（>1 = 更慢发现玩家；教学关用它提高容错）。
+var spot_delay_scale := 1.0
 var _investigate_pos := Vector2.ZERO
 var _investigate_timer := 0.0
 var _look_timer := 0.0
@@ -77,6 +79,10 @@ func alert_level() -> int:
 
 func is_chasing() -> bool:
 	return state == State.CHASE
+
+
+func _spot_delay() -> float:
+	return SPOT_DELAY * spot_delay_scale
 
 
 ## Noise response: walk over to the position and look around.
@@ -137,7 +143,7 @@ func _physics_process(delta: float) -> void:
 func _process_patrol(delta: float) -> void:
 	if _player != null and can_see_player():
 		_spot_timer += delta
-		if _spot_timer >= SPOT_DELAY:
+		if _spot_timer >= _spot_delay():
 			_enter_chase()
 			return
 	else:
@@ -162,7 +168,7 @@ func _process_patrol(delta: float) -> void:
 func _process_investigate(delta: float) -> void:
 	if _player != null and can_see_player():
 		_spot_timer += delta * INVESTIGATE_SPOT_MULTIPLIER
-		if _spot_timer >= SPOT_DELAY:
+		if _spot_timer >= _spot_delay():
 			_enter_chase()
 			return
 	else:

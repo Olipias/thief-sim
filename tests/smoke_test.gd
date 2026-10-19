@@ -33,6 +33,7 @@ func _ready() -> void:
 	await _test_title_screen()
 	await _test_hub_levels()
 	await _test_mission_phone()
+	await _test_tutorial_balance()
 	await _test_dialogue_tree()
 	await _test_inspect_page()
 	await _test_ghost_talk()
@@ -103,6 +104,7 @@ func _test_smoke_bomb() -> void:
 
 	var cop: Police = museum.police[1]
 	cop.patrol_points = []
+	cop.spot_delay_scale = 1.0  # 固定时序，避免受关卡调参影响
 	cop.global_position = Vector2(10 * 16 + 8, 6 * 16 + 8)
 	museum.player.global_position = cop.global_position + Vector2(40, 0)
 	cop._facing = Vector2.RIGHT
@@ -137,6 +139,7 @@ func _test_noise_alerts() -> void:
 	var museum := await _make_museum()
 	var cop: Police = museum.police[1]
 	cop.patrol_points = []
+	cop.spot_delay_scale = 1.0  # 固定时序，避免受关卡调参影响
 	cop.global_position = Vector2(10 * 16 + 8, 6 * 16 + 8)
 	museum.player.global_position = cop.global_position + Vector2(60, 0)
 	var levels: Array[int] = []
@@ -482,6 +485,30 @@ func _test_mission_phone() -> void:
 	check(Main.toggle_allowed(0.0), "toggle allowed with no cooldown")
 	check(not Main.toggle_allowed(0.2), "toggle blocked during cooldown")
 	phone.queue_free()
+	await get_tree().process_frame
+	Game.set_level("museum")
+
+
+func _test_tutorial_balance() -> void:
+	Game.reset_run()
+	var museum := await _make_museum("museum")
+	var tutorial_scaled := true
+	for cop in museum.police:
+		if cop.spot_delay_scale <= 1.0:
+			tutorial_scaled = false
+	check(tutorial_scaled, "tutorial guards react slower (spot_delay_scale > 1)")
+	museum.end_game()
+	museum.queue_free()
+	await get_tree().process_frame
+
+	var bm := await _make_museum("british_museum")
+	var normal := true
+	for cop in bm.police:
+		if cop.spot_delay_scale != 1.0:
+			normal = false
+	check(normal, "british museum guards keep the normal reaction speed")
+	bm.end_game()
+	bm.queue_free()
 	await get_tree().process_frame
 	Game.set_level("museum")
 

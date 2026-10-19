@@ -43,8 +43,8 @@ def main() -> int:
 
     # 2) + 3) 每个关卡：生成器自检通过，且磁盘文件与生成输出一致
     for level_id, info in gen.LEVELS.items():
-        tiles, patrols, rects, floors = gen.build(level_id)
-        map_errors, _ = gen.validate(tiles, patrols, rects)
+        tiles, patrols, rects, floors, room_doors = gen.build(level_id)
+        map_errors, _ = gen.validate(tiles, patrols, rects, room_doors)
         for err in map_errors:
             errors.append("[%s] 生成器校验失败：%s" % (level_id, err))
 

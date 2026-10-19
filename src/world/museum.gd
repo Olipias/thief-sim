@@ -196,6 +196,7 @@ var level_id := "museum"
 var _ended := false
 var _last_prompt := ""
 var _noise_warned := false
+var _patrol_hint_shown := false
 var _ghost_spawned := false
 var ghost: Ghost = null
 var ghost_delay := 3.5
@@ -387,6 +388,8 @@ func _spawn_police(id: String, pos: Vector2) -> void:
 	for p in path:
 		points.append(_cell_center(int(p[0]), int(p[1])))
 	cop.patrol_points = points
+	if level_id == "museum":
+		cop.spot_delay_scale = 1.6  # 教学关：守卫反应更慢，提高容错
 	cop.caught.connect(_on_police_caught)
 	cop.alert_changed.connect(_on_police_alert_changed)
 	police.append(cop)
@@ -458,6 +461,9 @@ func _process(delta: float) -> void:
 		current_room = idx
 		visited_rooms[idx] = true
 		_apply_camera_limits(rooms[idx])
+		if not _patrol_hint_shown and _room_has_police(idx):
+			_patrol_hint_shown = true
+			toast.emit("前面有守卫在巡逻——先看清手电光锥的方向，再贴着边走。")
 	var prompt := ""
 	if _ghost_near():
 		prompt = "按 E 与器灵交谈"
@@ -469,6 +475,13 @@ func _process(delta: float) -> void:
 		prompt_changed.emit(prompt)
 	if _ghost_near() and Input.is_action_just_pressed("interact"):
 		_talk_to_ghost()
+
+
+func _room_has_police(idx: int) -> bool:
+	for cop in police:
+		if is_instance_valid(cop) and room_index_at(cop.global_position) == idx:
+			return true
+	return false
 
 
 func _ghost_near() -> bool:
