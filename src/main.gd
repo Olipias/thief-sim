@@ -77,6 +77,9 @@ func open_phone() -> void:
 
 
 func _on_phone_closed() -> void:
+	# 兜底：任何关闭手机的路径（P/ESC/点暗区/程序化）都不该把卡片层留在屏幕上
+	if dialogue_tree.is_active():
+		dialogue_tree.close()
 	get_tree().paused = false
 	hud.set_compact(false)
 	_phone_cooldown = 0.2
@@ -100,8 +103,9 @@ func _on_lore_finished(item_id: String) -> void:
 
 
 ## 展签卡（史实）：手机档案页点击卡片时用对谈层展示；不改变暂停状态（手机仍开着）。
+## escapable=true：按 P / ESC 先收掉卡片层，逐层返回到手机（见 tests/test_input_flow.gd）。
 func _on_card_requested(item_id: String, card_id: String) -> void:
-	dialogue_tree.play([{"card": card_id}], Lore.cards(item_id))
+	dialogue_tree.play([{"card": card_id}], Lore.cards(item_id), Callable(), true)
 
 
 func open_backpack() -> void:

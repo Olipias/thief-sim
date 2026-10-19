@@ -56,6 +56,7 @@ step "资源导入（新增/改动贴图与音效）" "$GODOT" --headless --impo
 step "GDScript 编译检查（src + tests）" "$GODOT" --headless res://tests/test_scripts.tscn
 step "逻辑单测" "$GODOT" --headless --script tests/test_logic.gd
 step "内容一致性测试" "$GODOT" --headless res://tests/test_content.tscn
+step "输入流自检（真实按键驱动 UI 覆盖层）" "$GODOT" --headless res://tests/test_input_flow.tscn
 if [ "$FAST" -eq 0 ]; then
 	step "冒烟测试（场景集成）" "$GODOT" --headless res://tests/smoke_test.tscn
 fi

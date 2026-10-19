@@ -134,6 +134,7 @@ Autoload
 6. 测试存档隔离 `/tmp`；冒烟测试退出前 `Audio.shutdown()`。
 7. 存档只增字段且带默认值；UI 文案中文；640×360 布局假设。
 8. 背包放置判定单点实现（`Game.bag_can_place`）——UI 不得复制一套碰撞逻辑。
+9. **UI 覆盖层契约**（由 `tests/test_input_flow.tscn` 守卫）：有覆盖层打开 ⇔ `get_tree().paused`；B/P/ESC 关闭且**逐层返回**（卡片叠层先收卡片、再关手机）；覆盖层根节点必须 `process_mode=3`（ALWAYS，暂停中才能响应按键）；关闭后的短冷却（0.2s）防止同一按键"刚关又开"。新增/修改覆盖层必须在输入流自检补用例——**只调 `open()/close()` 的测试测不到按键路由 bug**。
 
 ## 6. 改造配方（Recipes）
 
@@ -210,6 +211,7 @@ Autoload
 | 内容一致性 | `tests/test_content.gd` | 新增文物/商店项/音效/关卡数据字段时自动覆盖，必要时扩展 |
 | 编译检查 | `tests/test_scripts.tscn` | 自动扫描 `src/`、`tests/` 全部 .gd |
 | 冒烟测试 | `tests/smoke_test.gd` | 场景行为：拾取/被捕/撤离/警报/幽灵/相机/背包界面 |
+| 输入流自检 | `tests/test_input_flow.tscn` | **UI/输入改动必加**：真实按键/鼠标事件驱动，覆盖层开关、互斥、逐层返回、暂停契约 |
 | 截图 | `tests/screenshot.tscn` | 画面改动后人工核验（输出 `/tmp/shot_*.png`） |
 | 一键验证 | `tools/verify.sh` | 收尾必跑；`--fast` 跳过冒烟（快速迭代用） |
 | 地图自检 | `tools/check_level.py` | 校验 `museum_map.json` 与生成器同步 + 生成器语法 |

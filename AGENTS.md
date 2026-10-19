@@ -35,6 +35,7 @@ tools/verify.sh --fast                  # 快速子集：跳过冒烟测试
 ~/.local/bin/godot --headless --script tests/test_logic.gd       # 纯逻辑单测
 ~/.local/bin/godot --headless res://tests/test_content.tscn      # 内容一致性（文物/商店/音效/关卡数据）
 ~/.local/bin/godot --headless res://tests/test_scripts.tscn      # 全部 GDScript 可编译性
+~/.local/bin/godot --headless res://tests/test_input_flow.tscn   # 输入流自检（真实按键驱动 UI 覆盖层）
 ~/.local/bin/godot --headless res://tests/smoke_test.tscn        # 场景集成冒烟测试
 ~/.local/bin/godot --audio-driver Dummy res://tests/screenshot.tscn  # 截图 → /tmp/shot_*.png
 
@@ -56,6 +57,7 @@ python3 tools/gen_sfx.py                  # 重新生成 assets/sfx 音效
 6. **世界（World）节点不得挂到 CanvasLayer 下**——相机将失效（教训见 `docs/DECISIONS.md` D-003）。
 7. **并行窗口纪律**：只改与你的任务相关的文件；不顺手重构、不整文件重排格式化；动手前先 `git status` / `git diff` 看并行改动；不执行会丢弃他人未提交改动的 git 操作（`reset --hard`、`checkout .`、`clean -fd` 等）。
 8. **学术规范**：真实文物/事件必须登记 `docs/SOURCES.md`（含参考来源与史实/演绎分界）；超自然内容（幽灵、通灵）一律注明虚构演绎。
+9. **UI / 输入改动必须过"按键流"**：新增或修改覆盖层、快捷键、界面开关时，必须在 `tests/test_input_flow.tscn` 补用例——用**真实按键/鼠标事件**驱动（只调 `open()/close()` 的伪测试测不到按键路由 bug）。覆盖层开关契约见 `docs/ARCHITECTURE.md` §5（有覆盖层 ⇔ 暂停、B/P/ESC 逐层返回）。
 
 ## 4. 任务认领协议（多窗口并行）
 
@@ -67,6 +69,7 @@ python3 tools/gen_sfx.py                  # 重新生成 assets/sfx 音效
 ## 5. 完成定义（DoD）
 
 - [ ] `tools/verify.sh` 全绿（含新增测试）
+- [ ] 涉及 UI/输入 → `tests/test_input_flow.tscn` 有对应用例且通过（新覆盖层/新快捷键必须补）
 - [ ] 涉及画面 → 跑过截图场景（`tests/screenshot.tscn`），人眼确认无回归
 - [ ] `CHANGELOG.md` 顶部新增条目（版本号 + 日期 + 新增/修改/修复/测试）
 - [ ] `README.md`「开发进度」与 `docs/ROADMAP.md` 状态已同步

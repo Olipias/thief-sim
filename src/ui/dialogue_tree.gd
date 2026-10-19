@@ -25,6 +25,8 @@ var _cards: Dictionary = {}
 var _labels: Dictionary = {}
 var _index := 0
 var _active := false
+## 允许 P / ESC 直接关闭本层（卡片叠层用；对谈剧本保持 false，须推进完）。
+var escapable := false
 var _on_finished: Callable = Callable()
 var _choice_buttons: Array[Button] = []
 var _choice_index := 0
@@ -39,10 +41,11 @@ func is_active() -> bool:
 
 
 ## 播放一段剧本；on_finished 在本段结束时调用（用于推进文物志进度）。
-func play(entries: Array, cards: Dictionary, on_finished := Callable()) -> void:
+func play(entries: Array, cards: Dictionary, on_finished := Callable(), allow_escape := false) -> void:
 	_script = entries
 	_cards = cards
 	_on_finished = on_finished
+	escapable = allow_escape
 	_index = 0
 	_active = true
 	_labels.clear()
@@ -137,8 +140,24 @@ func _finish() -> void:
 	finished.emit()
 
 
+## 直接关闭本层（不触发 on_finished 回调），用于 ESC/P 逐层返回与兜底清理。
+func close() -> void:
+	if not _active:
+		return
+	_on_finished = Callable()
+	_finish()
+
+
 func _unhandled_input(event: InputEvent) -> void:
 	if not _active:
+		return
+	if escapable and (
+		event.is_action_pressed("phone")
+		or event.is_action_pressed("pause")
+		or event.is_action_pressed("ui_cancel")
+	):
+		close()
+		get_viewport().set_input_as_handled()
 		return
 	if choices_box.visible:
 		var moved := 0
