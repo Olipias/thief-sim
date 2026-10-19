@@ -495,6 +495,32 @@ func save_game() -> void:
 	}))
 
 
+## 从 JSON/Variant 安全取 int：脏数据类型不匹配时返回默认值，绝不抛错。
+func _as_int(value: Variant, default := 0) -> int:
+	match typeof(value):
+		TYPE_INT, TYPE_FLOAT:
+			return int(value)
+		TYPE_BOOL:
+			return 1 if bool(value) else 0
+		TYPE_STRING:
+			return int(value)
+		_:
+			return default
+
+
+## 从 JSON/Variant 安全取 bool：只接受 bool/数值，字符串等一律用默认值。
+func _as_bool(value: Variant, default := false) -> bool:
+	match typeof(value):
+		TYPE_BOOL:
+			return bool(value)
+		TYPE_INT:
+			return int(value) != 0
+		TYPE_FLOAT:
+			return absf(float(value)) > 0.0
+		_:
+			return default
+
+
 func load_game() -> void:
 	if not FileAccess.file_exists(save_path):
 		return
@@ -504,10 +530,11 @@ func load_game() -> void:
 	var data: Variant = JSON.parse_string(file.get_as_text())
 	if typeof(data) != TYPE_DICTIONARY:
 		return
-	money = int(data.get("money", 0))
-	backpack_level = int(data.get("backpack_level", 0))
-	has_sneakers = bool(data.get("has_sneakers", false))
-	smoke_count = int(data.get("smoke_count", 0))
+	# 防御性加载：脏档/手改档不得把负数或越界值带进运行状态（有存档兼容测试守卫）
+	money = maxi(0, int(data.get("money", 0)))
+	backpack_level = clampi(int(data.get("backpack_level", 0)), 0, BAG_SIZES.size() - 1)
+	has_sneakers = _as_bool(data.get("has_sneakers", false))
+	smoke_count = maxi(0, int(data.get("smoke_count", 0)))
 	_restore_bag(data.get("bag_items", []))
 	_restore_lore(data.get("lore_stage", {}), data.get("lore_found", {}))
 	money_changed.emit()
@@ -516,18 +543,21 @@ func load_game() -> void:
 
 
 ## 文物志进度恢复（JSON 数值是 float，统一转 int）。
+## 防御式读取：脏档里的非法类型（字典/数组等）跳过，绝不在加载时抛错。
 func _restore_lore(saved_stage: Variant, saved_found: Variant) -> void:
 	lore_stage.clear()
 	if typeof(saved_stage) == TYPE_DICTIONARY:
 		for key in saved_stage:
-			lore_stage[String(key)] = int(saved_stage[key])
+			lore_stage[str(key)] = maxi(0, _as_int(saved_stage[key]))
 	lore_found.clear()
 	if typeof(saved_found) == TYPE_DICTIONARY:
 		for key in saved_found:
 			var arr: Array[int] = []
-			for value in saved_found[key]:
-				arr.append(int(value))
-			lore_found[String(key)] = arr
+			var values: Variant = saved_found[key]
+			if typeof(values) == TYPE_ARRAY:
+				for value in values:
+					arr.append(_as_int(value))
+			lore_found[str(key)] = arr
 
 
 ## --- 文物志（器灵对谈 / 端详）---------------------------------------------
@@ -564,12 +594,12 @@ func _restore_bag(saved: Variant) -> void:
 	for entry in saved:
 		if typeof(entry) != TYPE_DICTIONARY:
 			continue
-		var id := String(entry.get("id", ""))
+		var id := str(entry.get("id", ""))
 		if not CATALOG.has(id):
 			continue
-		var x := int(entry.get("x", -1))
-		var y := int(entry.get("y", -1))
-		var rot := int(entry.get("rot", 0)) % 4
+		var x := _as_int(entry.get("x", -1), -1)
+		var y := _as_int(entry.get("y", -1), -1)
+		var rot := posmod(_as_int(entry.get("rot", 0)), 4)
 		if x >= 0 and y >= 0 and bag_can_place(id, rot, x, y):
 			bag_items.append({"id": id, "x": x, "y": y, "rot": rot})
 		else:

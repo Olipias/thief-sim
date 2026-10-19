@@ -5,6 +5,25 @@
 
 ---
 
+## [v0.14.3] - 2026-10-20
+
+### 新增（底层自检体系 v2）
+- **引擎报错门禁**：`tools/verify.sh` 每一步都检查输出——出现 `ERROR / WARNING / 泄漏 / 非法访问` 等引擎级日志即失败（允许清单必须写理由）。过去"测试通过但日志有异常"会被忽略。
+- **存档兼容自检** `tests/test_save_compat.gd`（45 项）：老档缺字段、损坏 JSON、类型脏档、未来字段、脏背包/脏文物志、当前档往返；新增存档字段必须补用例。
+- **场景实例化自检** `tests/test_scenes.gd`：`src/` 下全部场景逐一实例化并存活两帧——抓 @onready 路径失效、preload 悬空、`_ready` 崩溃。
+- **随机操作自检（monkey）** `tests/test_monkey.gd`：固定种子随机按键/鼠标驱动真实场景 600 步，逐帧检查不变量（覆盖层⇔暂停、任务目标一致、玩家不卡墙、资源非负）；失败时打印种子 + 最近操作序列；带覆盖统计防止"空跑"，`MONKEY_STEPS` / `MONKEY_SEED` 可加深。
+- **截图视觉回归**：`tests/visual_baseline/`（25 张基线）+ `tools/check_visual.py`；`tools/verify.sh --visual` 跑截图并逐像素对比，超阈值失败并在 `/tmp/opencode/visual_diff/` 产出标红差异图；预期改动用 `--update` 更新基线。
+- **手动 QA 清单** `docs/MANUAL_QA.md`：2 分钟人测项（手感/画面/音频/历史表述）与「自动 vs 手动」对照表。
+- 截图流程隔离存档（`tests/screenshot.gd`）：不再覆盖玩家真实进度，同时提升截图可复现性。
+
+### 修复（新自检当场发现的加载路径 bug）
+- 脏存档 `"id": 42` 会触发 `String(int)` 报错（当前 Godot 版本无此构造器）→ 改用 `str()`；`"has_sneakers": "x"` 触发 `bool(String)` 报错 → 新增 `_as_bool()` 类型安全读取。
+- `lore_found` / `lore_stage` 里的非数组/字典脏值会让加载崩溃 → 防御式读取（`_as_int()`）。
+- 存档中的负数/越界值（money / smoke_count / backpack_level）现在加载时钳制到合法范围。
+
+### 测试
+- `tools/verify.sh`：全量 11 项（新增 存档兼容 / 场景实例化 / monkey）；`--visual` 时 13 项；`--fast` 跳过冒烟与 monkey。全量约 30 秒。
+
 ## [v0.14.2] - 2026-10-19
 
 ### 修复（实测 bug：卡片叠层按 P 关不掉）

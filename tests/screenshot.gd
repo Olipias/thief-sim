@@ -4,6 +4,8 @@ extends Node
 ##   godot --audio-driver Dummy res://tests/screenshot.tscn
 
 func _ready() -> void:
+	# 截图流程隔离存档，避免覆盖玩家真实进度（也让截图更可复现）
+	Game.save_path = "/tmp/thief_sim_screenshot_save.json"
 	Game.money = 650
 	Game.smoke_count = 2
 	Game.lore_stage.clear()  # 截图流程要确定性：文物志从头开始
@@ -178,6 +180,10 @@ func _ready() -> void:
 			main.backpack.close()
 			await _wait(0.2)
 	Audio.shutdown()
+	# 与冒烟测试相同的优雅退出：等音频服务端释放引用、再跑几帧，避免退出时误报泄漏
+	await get_tree().create_timer(0.4).timeout
+	for i in 5:
+		await get_tree().process_frame
 	get_tree().quit()
 
 

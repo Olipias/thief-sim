@@ -51,7 +51,7 @@
 * 结算界面：成功撤离出售战利品 + 组织报酬；失败没收赃物
 * 程序合成复古音效（脚步、拾取、警觉、被捕、烟雾、幽灵、金币等）
 * 中文像素字体（Fusion Pixel 12px，OFL 协议）与 HUD
-* **工程维护**：agent 工作手册 `AGENTS.md`、一键验证 `tools/verify.sh`、内容一致性与编译检查测试（见 CHANGELOG v0.8.1）
+* **工程维护**：agent 工作手册 `AGENTS.md`、一键验证 `tools/verify.sh`、内容一致性与编译检查测试（见 CHANGELOG v0.8.1）；底层自检体系 v2——存档兼容 / 场景实例化 / 随机操作不变量 / 截图视觉回归 / 手动 QA 清单（见 v0.14.3）
 * 双羊尊 3D 模型（Blender 程序化生成，`assets/models/`；渲染/展示用，游戏运行不加载——见 CHANGELOG v0.9.1）
 * **史料登记**：真实文物进游戏须登记 `docs/SOURCES.md`（S-001 商代双羊尊已登记，含史实/演绎分界）
 

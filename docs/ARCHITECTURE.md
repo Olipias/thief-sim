@@ -205,6 +205,8 @@ Autoload
 
 ## 7. 测试与工具分工
 
+> 所有 godot 步骤都经过 `tools/verify.sh` 的**引擎报错门禁**：输出里出现 `ERROR/WARNING/泄漏/非法访问` 即失败（允许清单须注明理由）。因此"测试通过但日志有异常"不再被忽略。
+
 | 工具 | 位置 | 什么时候加用例 |
 | --- | --- | --- |
 | 纯逻辑单测 | `tests/test_logic.gd` | 背包/商店/存档/几何/地图结构等无场景逻辑 |
@@ -212,8 +214,13 @@ Autoload
 | 编译检查 | `tests/test_scripts.tscn` | 自动扫描 `src/`、`tests/` 全部 .gd |
 | 冒烟测试 | `tests/smoke_test.gd` | 场景行为：拾取/被捕/撤离/警报/幽灵/相机/背包界面 |
 | 输入流自检 | `tests/test_input_flow.tscn` | **UI/输入改动必加**：真实按键/鼠标事件驱动，覆盖层开关、互斥、逐层返回、暂停契约 |
+| 存档兼容 | `tests/test_save_compat.gd` | 新增存档字段/改加载逻辑时补老档与脏档用例 |
+| 场景实例化 | `tests/test_scenes.tscn` | 自动覆盖 `src/` 全部场景（新增场景无需改） |
+| 随机操作 | `tests/test_monkey.tscn` | 新增"任何时刻成立"的规则时加不变量；`MONKEY_STEPS` / `MONKEY_SEED` 可加深 |
+| 视觉回归 | `tests/visual_baseline/` + `tools/check_visual.py` | 画面改动后 `verify.sh --visual`；预期改动 `--update` 基线 |
+| 手动 QA | `docs/MANUAL_QA.md` | 每版收尾人工过一遍（观感/手感/音频/历史表述） |
 | 截图 | `tests/screenshot.tscn` | 画面改动后人工核验（输出 `/tmp/shot_*.png`） |
-| 一键验证 | `tools/verify.sh` | 收尾必跑；`--fast` 跳过冒烟（快速迭代用） |
+| 一键验证 | `tools/verify.sh` | 收尾必跑；`--fast` 跳过冒烟+monkey；`--visual` 加视觉回归 |
 | 地图自检 | `tools/check_level.py` | 校验 `museum_map.json` 与生成器同步 + 生成器语法 |
 | 文档自检 | `tools/check_docs.py` | 站内链接可达性 + CHANGELOG 格式 |
 

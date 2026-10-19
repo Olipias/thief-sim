@@ -29,13 +29,17 @@
 ```bash
 ~/.local/bin/godot .                    # 运行游戏（等价：./play.sh）
 tools/verify.sh                         # ★ 一键全量验证（收尾/提交前必跑）
-tools/verify.sh --fast                  # 快速子集：跳过冒烟测试
+tools/verify.sh --fast                  # 快速子集：跳过冒烟测试与 monkey
+tools/verify.sh --visual                # 全量 + 截图视觉回归（画面改动后必跑）
 
 # 分项命令（verify.sh 内部就是这些）
 ~/.local/bin/godot --headless --script tests/test_logic.gd       # 纯逻辑单测
 ~/.local/bin/godot --headless res://tests/test_content.tscn      # 内容一致性（文物/商店/音效/关卡数据）
 ~/.local/bin/godot --headless res://tests/test_scripts.tscn      # 全部 GDScript 可编译性
 ~/.local/bin/godot --headless res://tests/test_input_flow.tscn   # 输入流自检（真实按键驱动 UI 覆盖层）
+~/.local/bin/godot --headless --script tests/test_save_compat.gd # 存档兼容（老档/脏档/未来档）
+~/.local/bin/godot --headless res://tests/test_scenes.tscn       # 场景实例化（src/*.tscn）
+~/.local/bin/godot --headless res://tests/test_monkey.tscn       # 随机操作不变量（MONKEY_STEPS / MONKEY_SEED 可调）
 ~/.local/bin/godot --headless res://tests/smoke_test.tscn        # 场景集成冒烟测试
 ~/.local/bin/godot --audio-driver Dummy res://tests/screenshot.tscn  # 截图 → /tmp/shot_*.png
 
@@ -58,6 +62,11 @@ python3 tools/gen_sfx.py                  # 重新生成 assets/sfx 音效
 7. **并行窗口纪律**：只改与你的任务相关的文件；不顺手重构、不整文件重排格式化；动手前先 `git status` / `git diff` 看并行改动；不执行会丢弃他人未提交改动的 git 操作（`reset --hard`、`checkout .`、`clean -fd` 等）。
 8. **学术规范**：真实文物/事件必须登记 `docs/SOURCES.md`（含参考来源与史实/演绎分界）；超自然内容（幽灵、通灵）一律注明虚构演绎。
 9. **UI / 输入改动必须过"按键流"**：新增或修改覆盖层、快捷键、界面开关时，必须在 `tests/test_input_flow.tscn` 补用例——用**真实按键/鼠标事件**驱动（只调 `open()/close()` 的伪测试测不到按键路由 bug）。覆盖层开关契约见 `docs/ARCHITECTURE.md` §5（有覆盖层 ⇔ 暂停、B/P/ESC 逐层返回）。
+10. **底层逻辑改动必须进机器检查**：
+    - 新增存档字段 / 改加载逻辑 → 在 `tests/test_save_compat.gd` 补"缺该字段的老档"与脏档用例；
+    - 新增场景 → `tests/test_scenes` 自动覆盖；新增脚本 → 编译检查自动覆盖；
+    - 新增"任何时刻都应成立"的规则（资源非负、目标一致、不可入墙…）→ 加进 `tests/test_monkey.gd` 的 `_check_invariants`；
+    - **测试输出必须干净**：引擎输出里出现 `ERROR/WARNING/泄漏/非法访问` 会让 verify 失败；禁止随意往允许清单里加行，加行必须写明理由。
 
 ## 4. 任务认领协议（多窗口并行）
 
@@ -70,7 +79,9 @@ python3 tools/gen_sfx.py                  # 重新生成 assets/sfx 音效
 
 - [ ] `tools/verify.sh` 全绿（含新增测试）
 - [ ] 涉及 UI/输入 → `tests/test_input_flow.tscn` 有对应用例且通过（新覆盖层/新快捷键必须补）
-- [ ] 涉及画面 → 跑过截图场景（`tests/screenshot.tscn`），人眼确认无回归
+- [ ] 涉及存档/场景/规则 → `test_save_compat` / `test_scenes` / `test_monkey` 对应覆盖已更新
+- [ ] 涉及画面 → `tools/verify.sh --visual` 视觉回归通过（预期改动已 `--update` 基线并人眼确认）
+- [ ] 收尾手动过一遍 `docs/MANUAL_QA.md`（约 2 分钟）
 - [ ] `CHANGELOG.md` 顶部新增条目（版本号 + 日期 + 新增/修改/修复/测试）
 - [ ] `README.md`「开发进度」与 `docs/ROADMAP.md` 状态已同步
 - [ ] 架构/决策有变 → 更新 `docs/ARCHITECTURE.md` / `docs/DECISIONS.md`
@@ -91,6 +102,7 @@ docs/ARCHITECTURE.md      架构地图、数据流、不变量、改造配方（
 docs/ROADMAP.md           任务板：里程碑、待办、已知问题（认领处）
 docs/DECISIONS.md         决策记录（ADR-lite）：为什么这样做，防止无意推翻
 docs/SOURCES.md           史料来源登记：真实文物与演绎分界（学术硬要求）
+docs/MANUAL_QA.md         手动 QA 清单：机器测不到的观感/手感/音频/历史表述
 CHANGELOG.md / README.md  版本轨迹与项目说明
 tools/verify.sh           一键验证入口
 ```
