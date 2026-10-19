@@ -26,6 +26,7 @@ func _ready() -> void:
 	_test_upgrades()
 	_test_audio_files()
 	_test_level_data()
+	_test_lore()
 	if _failures > 0:
 		print("FAILED %d / %d checks" % [_failures, _checks])
 		get_tree().quit(1)
@@ -288,3 +289,57 @@ func _test_level_data() -> void:
 		check(counts["P"] == 1, "[%s] 恰有一个玩家出生点（%d）" % [level_id, counts["P"]])
 		check(counts["T"] == 1, "[%s] 恰有一个任务目标标记（%d）" % [level_id, counts["T"]])
 		check(counts["X"] == 1, "[%s] 恰有一个出口（%d）" % [level_id, counts["X"]])
+
+
+## 文物志数据（src/data/lore.gd）：剧本结构、卡片、热点与引用必须自洽。
+func _test_lore() -> void:
+	var consts := _consts("res://src/data/lore.gd")
+	var entries: Dictionary = consts.get("ENTRIES", {})
+	var catalog: Dictionary = _consts("res://src/autoload/game_state.gd").get("CATALOG", {})
+	check(not entries.is_empty(), "文物志至少有一条")
+	for item_id in entries:
+		var entry: Dictionary = entries[item_id]
+		check(catalog.has(item_id), "文物志条目 %s 存在于 CATALOG" % item_id)
+		check(String(entry.get("title", "")) != "", "文物志[%s] 有标题" % item_id)
+
+		var closeup := String(entry.get("closeup", ""))
+		check(closeup != "" and FileAccess.file_exists(closeup), "文物志[%s] 特写图存在（%s）" % [item_id, closeup])
+
+		var cards: Dictionary = entry.get("cards", {})
+		check(not cards.is_empty(), "文物志[%s] 有展签卡" % item_id)
+		for card_id in cards:
+			var card: Dictionary = cards[card_id]
+			check(String(card.get("title", "")) != "", "卡片 %s 有标题" % card_id)
+			check(String(card.get("body", "")).length() >= 30, "卡片 %s 正文有实质内容" % card_id)
+			check(String(card.get("source", "")).contains("SOURCES"), "卡片 %s 标注来源（SOURCES）" % card_id)
+
+		var hotspots: Array = entry.get("hotspots", [])
+		check(hotspots.size() >= 2, "文物志[%s] 至少有 2 个端详热点" % item_id)
+		for hotspot in hotspots:
+			var pos: Vector2 = hotspot.get("pos", Vector2(-1, -1))
+			check(pos.x >= 0.0 and pos.x <= 1.0 and pos.y >= 0.0 and pos.y <= 1.0, "热点坐标在 0..1（%s）" % pos)
+			for key in ["label", "fact", "ghost"]:
+				check(String(hotspot.get(key, "")) != "", "热点含 %s" % key)
+
+		var stages: Array = entry.get("stages", [])
+		check(stages.size() >= 2, "文物志[%s] 至少 2 段" % item_id)
+		for stage_index in stages.size():
+			var stage: Array = stages[stage_index]
+			var labels := {}
+			for entry_item in stage:
+				if entry_item.has("label"):
+					labels[String(entry_item["label"])] = true
+			for entry_item in stage:
+				var keys: Array = entry_item.keys()
+				var known := false
+				for key in ["speaker", "text", "card", "choices", "label", "goto"]:
+					if keys.has(key):
+						known = true
+				check(known, "第 %d 段条目字段合法（%s）" % [stage_index, keys])
+				if entry_item.has("card"):
+					check(cards.has(String(entry_item["card"])), "第 %d 段引用的卡片存在（%s）" % [stage_index, entry_item["card"]])
+				if entry_item.has("goto"):
+					check(labels.has(String(entry_item["goto"])), "第 %d 段跳转目标存在（%s）" % [stage_index, entry_item["goto"]])
+				for choice in entry_item.get("choices", []):
+					check(String(choice.get("text", "")) != "", "选项有文本")
+					check(labels.has(String(choice.get("goto", ""))), "选项跳转目标存在（%s）" % choice.get("goto", ""))

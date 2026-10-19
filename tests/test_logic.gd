@@ -13,6 +13,7 @@ func _initialize() -> void:
 	_test_shop()
 	_test_levels()
 	_test_new_game()
+	_test_lore_progress()
 	_test_vision_cone()
 	_test_map()
 	if _failures > 0:
@@ -52,7 +53,7 @@ func _test_game_state() -> void:
 
 	var summary: Dictionary = gs.finish_run(true)
 	check(summary["success"], "escape with target succeeds")
-	check(summary["target_name"] == "青铜面具", "summary names the target")
+	check(summary["target_name"] == "青铜人面具", "summary names the target")
 	check(summary["sold_value"] == 120 + 300, "extras fetched the expected price")
 	check(summary["reward"] == gs.MISSION_REWARD, "mission reward granted")
 	check(gs.money == 420 + gs.MISSION_REWARD, "money updated")
@@ -236,6 +237,48 @@ func _test_new_game() -> void:
 	reader.save_path = save_path
 	reader.load_game()
 	check(reader.money == 0 and reader.backpack_level == 0, "new game overwrote the old save")
+	reader.free()
+	DirAccess.remove_absolute(save_path)
+
+
+func _test_lore_progress() -> void:
+	var lore_script = load("res://src/data/lore.gd")
+	var gs = load("res://src/autoload/game_state.gd").new()
+	gs.reset_progress()
+	var save_path := "/tmp/thief_sim_lore_save.json"
+	if FileAccess.file_exists(save_path):
+		DirAccess.remove_absolute(save_path)
+	gs.save_path = save_path
+	gs._persistent = true
+
+	check(lore_script.has_lore("mask"), "mask has a lore entry")
+	check(lore_script.stage_count("mask") >= 2, "mask lore has several stages")
+	check(gs.lore_stage_of("mask") == 0, "lore starts at stage 0")
+	check(not gs.hotspot_found("mask", 0), "hotspot starts undiscovered")
+
+	gs.advance_lore_stage("mask")
+	check(gs.lore_stage_of("mask") == 1, "lore stage advances")
+	for i in 10:
+		gs.advance_lore_stage("mask")
+	check(
+		gs.lore_stage_of("mask") == lore_script.stage_count("mask"),
+		"lore stage caps at the script length",
+	)
+
+	gs.mark_hotspot("mask", 1)
+	gs.mark_hotspot("mask", 1)
+	check(gs.hotspot_found("mask", 1), "hotspot marked")
+	check(not gs.hotspot_found("mask", 0), "other hotspots stay undiscovered")
+
+	var reader = load("res://src/autoload/game_state.gd").new()
+	reader.save_path = save_path
+	reader.load_game()
+	check(
+		reader.lore_stage_of("mask") == lore_script.stage_count("mask"),
+		"lore stage survives the save",
+	)
+	check(reader.hotspot_found("mask", 1), "hotspots survive the save")
+	gs.free()
 	reader.free()
 	DirAccess.remove_absolute(save_path)
 

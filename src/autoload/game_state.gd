@@ -49,10 +49,10 @@ const SHAPES := {
 
 const CATALOG := {
 	"mask": {
-		"name": "青铜面具",
+		"name": "青铜人面具",
 		"value": 0,
 		"is_target": true,
-		"story": "出土于城西古墓。据说月圆之夜，它会低声念出陌生人的名字。",
+		"story": "商代晚期青铜人面饰（约前 13—前 11 世纪），1976 年陕西城固苏村小冢窖藏出土，同批面具 23 件。脸形椭圆，嘴角上扬，被观众称作「三千年前的微笑」。现藏城固县博物馆。",
 	},
 	"ram_zun": {
 		"name": "商代双羊尊",
@@ -94,6 +94,15 @@ const CATALOG := {
 
 ## 文物档案（真实文物必填；与 docs/SOURCES.md 一一对应）。
 const ARCHIVE := {
+	"mask": {
+		"era": "商代晚期（约前 13—前 11 世纪）",
+		"origin": "陕西汉中城固、洋县一带（城洋铜器群）",
+		"collection": "城固县博物馆等",
+		"provenance": "1976 年 10 月城固苏村小冢窖藏出土，同坑面具 23 件，同出铜器 400 余件。",
+		"legend": "「三千年前的微笑」是观众印象；古人本意无文献记载。",
+		"source": "S-002 · docs/SOURCES.md",
+		"fiction": "器灵「面具要笑，神才肯来」等台词与对谈剧情为虚构演绎。",
+	},
 	"ram_zun": {
 		"era": "商代晚期（约前 1200–1050 年）",
 		"origin": "湖南（风格/工艺推定，非出土地确证）",
@@ -132,6 +141,10 @@ var money := 0
 var backpack_level := 0
 var has_sneakers := false
 var smoke_count := 0
+
+## 文物志进度：item_id → 下一段序号（0 = 还没聊过）；端详已发现热点：item_id → [索引]
+var lore_stage: Dictionary = {}
+var lore_found: Dictionary = {}
 
 ## Items currently carried: {id: String, x: int, y: int, rot: int}
 var bag_items: Array[Dictionary] = []
@@ -477,6 +490,8 @@ func save_game() -> void:
 		"has_sneakers": has_sneakers,
 		"smoke_count": smoke_count,
 		"bag_items": bag_items,
+		"lore_stage": lore_stage,
+		"lore_found": lore_found,
 	}))
 
 
@@ -494,9 +509,50 @@ func load_game() -> void:
 	has_sneakers = bool(data.get("has_sneakers", false))
 	smoke_count = int(data.get("smoke_count", 0))
 	_restore_bag(data.get("bag_items", []))
+	_restore_lore(data.get("lore_stage", {}), data.get("lore_found", {}))
 	money_changed.emit()
 	items_changed.emit()
 	backpack_changed.emit()
+
+
+## 文物志进度恢复（JSON 数值是 float，统一转 int）。
+func _restore_lore(saved_stage: Variant, saved_found: Variant) -> void:
+	lore_stage.clear()
+	if typeof(saved_stage) == TYPE_DICTIONARY:
+		for key in saved_stage:
+			lore_stage[String(key)] = int(saved_stage[key])
+	lore_found.clear()
+	if typeof(saved_found) == TYPE_DICTIONARY:
+		for key in saved_found:
+			var arr: Array[int] = []
+			for value in saved_found[key]:
+				arr.append(int(value))
+			lore_found[String(key)] = arr
+
+
+## --- 文物志（器灵对谈 / 端详）---------------------------------------------
+
+func lore_stage_of(item_id: String) -> int:
+	return int(lore_stage.get(item_id, 0))
+
+
+func advance_lore_stage(item_id: String) -> void:
+	lore_stage[item_id] = mini(lore_stage_of(item_id) + 1, Lore.stage_count(item_id))
+	save_game()
+
+
+func hotspot_found(item_id: String, index: int) -> bool:
+	var arr: Array = lore_found.get(item_id, [])
+	return arr.has(index)
+
+
+func mark_hotspot(item_id: String, index: int) -> void:
+	var arr: Array = lore_found.get(item_id, [])
+	if arr.has(index):
+		return
+	arr.append(index)
+	lore_found[item_id] = arr
+	save_game()
 
 
 ## Re-places saved items, dropping/fixing any that no longer fit.
@@ -530,4 +586,6 @@ func reset_progress() -> void:
 	backpack_level = 0
 	has_sneakers = false
 	smoke_count = 0
+	lore_stage.clear()
+	lore_found.clear()
 	reset_run()

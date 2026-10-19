@@ -6,6 +6,8 @@ extends Node
 func _ready() -> void:
 	Game.money = 650
 	Game.smoke_count = 2
+	Game.lore_stage.clear()  # 截图流程要确定性：文物志从头开始
+	Game.lore_found.clear()
 	var main := load("res://src/main.tscn").instantiate() as Main
 	add_child(main)
 	await _wait(0.8)
@@ -69,12 +71,44 @@ func _ready() -> void:
 		if child is Artifact and child.item_id == "mask":
 			mask = child
 	if mask != null:
+		museum.ghost_delay = 1.6  # 让 room3 截图先拍到，再触发器灵对谈
 		museum.player.global_position = mask.global_position + Vector2(0, 28)
 		mask.try_pickup()
 		await _wait(0.8)
 		_skip_dialogue(main)
 		await _wait(0.3)
 		await _shot("/tmp/shot_room3.png")
+
+	# 文物志：器灵对谈（选项 → 展签卡）
+	await _wait(0.9)
+	if main.dialogue_tree.is_active():
+		await _shot("/tmp/shot_lore_dialogue.png")
+		main.dialogue_tree.advance()
+		await _wait(0.2)
+		main.dialogue_tree.advance()
+		await _wait(0.2)
+		await _shot("/tmp/shot_lore_choices.png")
+		if not main.dialogue_tree._choice_buttons.is_empty():
+			main.dialogue_tree._choice_buttons[0].pressed.emit()
+			await _wait(0.2)
+			main.dialogue_tree.advance()
+			await _wait(0.2)
+			await _shot("/tmp/shot_lore_card.png")
+		while main.dialogue_tree.is_active():
+			main.dialogue_tree.advance()
+			await _wait(0.05)
+		await _wait(0.2)
+
+	# 手机档案页：端详（热点 + 展签卡）
+	main.open_phone()
+	await _wait(0.3)
+	main.phone._show_tab("archive")
+	await _wait(0.3)
+	main.phone.inspect._select_hotspot(0)
+	await _wait(0.2)
+	await _shot("/tmp/shot_inspect.png")
+	main.phone.close()
+	await _wait(0.2)
 
 	# backpack management screen
 	main.open_backpack()

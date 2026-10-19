@@ -1,0 +1,60 @@
+[gd_scene load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://src/ui/inspect_page.gd" id="1_script"]
+
+[node name="InspectPage" type="HBoxContainer"]
+theme_override_constants/separation = 10
+script = ExtResource("1_script")
+
+[node name="ImageWrap" type="Control" parent="."]
+custom_minimum_size = Vector2(144, 144)
+mouse_filter = 2
+
+[node name="Image" type="TextureRect" parent="ImageWrap"]
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+mouse_filter = 2
+expand_mode = 1
+stretch_mode = 5
+
+[node name="Markers" type="Control" parent="ImageWrap"]
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+mouse_filter = 2
+
+[node name="Info" type="VBoxContainer" parent="."]
+custom_minimum_size = Vector2(220, 0)
+theme_override_constants/separation = 4
+
+[node name="Title" type="Label" parent="Info"]
+theme_override_colors/font_color = Color(0.96, 0.84, 0.4, 1)
+text = "文物"
+
+[node name="Progress" type="Label" parent="Info"]
+theme_override_colors/font_color = Color(0.62, 0.66, 0.74, 1)
+text = "已发现 0 / 0"
+
+[node name="Fact" type="Label" parent="Info"]
+size_flags_vertical = 3
+theme_override_colors/font_color = Color(0.85, 0.87, 0.92, 1)
+autowrap_mode = 2
+text = ""
+
+[node name="Ghost" type="Label" parent="Info"]
+theme_override_colors/font_color = Color(0.72, 0.62, 0.42, 1)
+autowrap_mode = 2
+text = ""
+
+[node name="CardsLabel" type="Label" parent="Info"]
+theme_override_colors/font_color = Color(0.55, 0.5, 0.4, 1)
+theme_override_font_sizes/font_size = 10
+text = "展签卡"
+
+[node name="Cards" type="VBoxContainer" parent="Info"]
+theme_override_constants/separation = 3

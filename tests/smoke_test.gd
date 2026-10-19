@@ -17,6 +17,8 @@ func check(cond: bool, msg: String) -> void:
 func _ready() -> void:
 	Game.save_path = "/tmp/thief_sim_smoke_save.json"
 	Game.reset_progress()
+	Game.lore_stage.clear()
+	Game.lore_found.clear()
 	check(Audio._streams.size() == 10, "audio streams loaded")
 	Audio.play("pickup")
 	await _test_bust_flow()
@@ -31,6 +33,9 @@ func _ready() -> void:
 	await _test_title_screen()
 	await _test_hub_levels()
 	await _test_mission_phone()
+	await _test_dialogue_tree()
+	await _test_inspect_page()
+	await _test_ghost_talk()
 	await _test_backpack_drop()
 	await _test_drop_artifact()
 	await _test_minimap()
@@ -464,6 +469,14 @@ func _test_mission_phone() -> void:
 	check("大英博物馆" in phone.meta_label.text, "phone shows the mission location")
 	check(not phone.archive_label.text.is_empty(), "phone shows the archive card")
 	check("1936" in phone.archive_label.text, "archive card shows the documented acquisition")
+	phone._show_tab("archive")
+	await get_tree().process_frame
+	check(phone.archive_page.visible and not phone.task_page.visible, "archive tab switches pages")
+	check(
+		phone.panel.size.x <= 640.0 and phone.panel.size.y <= 360.0,
+		"phone panel fits the screen（%s）" % phone.panel.size,
+	)
+	check(phone.inspect.size.x >= 300.0, "inspect page is laid out（%s）" % phone.inspect.size)
 	phone.close()
 	check(not phone.is_open(), "phone closes")
 	check(Main.toggle_allowed(0.0), "toggle allowed with no cooldown")
@@ -471,6 +484,97 @@ func _test_mission_phone() -> void:
 	phone.queue_free()
 	await get_tree().process_frame
 	Game.set_level("museum")
+
+
+func _test_dialogue_tree() -> void:
+	var tree := load("res://src/ui/dialogue_tree.tscn").instantiate() as DialogueTree
+	add_child(tree)
+	await get_tree().process_frame
+	var finished := {"value": false}
+	var script_entries: Array = [
+		{"speaker": "器灵", "text": "第一句。"},
+		{"choices": [{"text": "甲", "goto": "a"}, {"text": "乙", "goto": "b"}]},
+		{"label": "a"},
+		{"speaker": "器灵", "text": "选了甲。"},
+		{"goto": "wrap"},
+		{"label": "b"},
+		{"speaker": "器灵", "text": "选了乙。"},
+		{"label": "wrap"},
+		{"card": "mask_1"},
+	]
+	tree.play(script_entries, Lore.cards("mask"), func() -> void: finished["value"] = true)
+	check(tree.is_active(), "dialogue tree becomes active")
+	check(tree.speech_panel.visible, "speech panel shows first")
+
+	tree.advance()
+	check(tree.choices_box.visible, "choices show up")
+	check(tree.choices_box.get_child_count() == 2, "two choices are listed")
+
+	tree._choice_buttons[1].pressed.emit()
+	check(not tree.choices_box.visible, "choices hide after selecting")
+
+	tree.advance()
+	check(tree.card_panel.visible, "dossier card shows")
+	check(tree.card_title.text.contains("商代"), "card carries the historical title")
+
+	tree.advance()
+	check(finished["value"], "dialogue tree finishes and calls back")
+	check(not tree.is_active(), "dialogue tree is inactive after finishing")
+	tree.queue_free()
+	await get_tree().process_frame
+
+
+func _test_inspect_page() -> void:
+	Game.reset_progress()
+	Game.try_pickup("mask")
+	var page := load("res://src/ui/inspect_page.tscn").instantiate() as InspectPage
+	add_child(page)
+	await get_tree().process_frame
+	page.set_item("mask")
+	check(page.image.texture != null, "inspect page loads the closeup")
+	check(page._marker_buttons.size() == Lore.hotspots("mask").size(), "one marker per hotspot")
+
+	var before := page.fact_label.text
+	page._select_hotspot(0)
+	check(page.fact_label.text != before, "selecting a hotspot shows its fact")
+	check(page.fact_label.text.contains("史实"), "fact is labelled as history")
+	check(page.ghost_label.text.contains("器灵"), "ghost line is labelled as fiction")
+	check(Game.hotspot_found("mask", 0), "hotspot discovery is recorded")
+	check(page.cards_box.get_child_count() == Lore.cards("mask").size(), "cards are listed")
+	page.queue_free()
+	await get_tree().process_frame
+
+
+func _test_ghost_talk() -> void:
+	Game.reset_progress()
+	var museum := await _make_museum()
+	var requested := {"item": "", "stage": -1}
+	museum.lore_requested.connect(func(item_id: String, stage: int) -> void:
+		requested["item"] = item_id
+		requested["stage"] = stage
+	)
+	museum.ghost_delay = 0.05
+	var mask: Artifact = null
+	for child in museum.get_children():
+		if child is Artifact and child.item_id == "mask":
+			mask = child
+	mask.try_pickup()
+	await get_tree().create_timer(0.2).timeout
+	check(museum.ghost != null, "ghost spawns for the mask")
+	check(requested["item"] == "mask" and requested["stage"] == 0, "ghost spawn requests lore stage 0")
+
+	Game.advance_lore_stage("mask")
+	museum._talk_to_ghost()
+	check(requested["stage"] == 1, "talking again plays the next lore stage")
+
+	for i in 5:
+		Game.advance_lore_stage("mask")
+	museum._talk_to_ghost()
+	check(requested["stage"] == 1, "no further stage after the script ends")
+
+	museum.end_game()
+	museum.queue_free()
+	await get_tree().process_frame
 
 
 func _test_escape_flow() -> void:

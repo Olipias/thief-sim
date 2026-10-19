@@ -9,10 +9,11 @@ const MUSEUM := preload("res://src/world/museum.tscn")
 
 const BRIEFINGS := {
 	"museum": [
-		{"speaker": "老猫", "text": "新人，第一单活：城西博物馆的「青铜面具」。"},
+		{"speaker": "老猫", "text": "新人，第一单活：城西博物馆的「青铜人面具」。"},
 		{"speaker": "老猫", "text": "路线是单向的：穿过几间展厅才能到后门。目标在中央大厅的展台上。"},
 		{"speaker": "老猫", "text": "包里格子有限，拿不下的就按 B 打开背包调整摆放，腾地方。"},
 		{"speaker": "老猫", "text": "巡逻的警察视野内别乱晃。跑步声会引来他们，撑不住就用烟雾弹。"},
+		{"speaker": "老猫", "text": "还有——那东西有故事。拿到手别急着走，靠近它按 E 听听。"},
 	],
 	"british_museum": [
 		{"speaker": "老猫", "text": "这一单不一样。目标在大英博物馆中国馆：「商代双羊尊」。"},
@@ -28,6 +29,7 @@ const BRIEFINGS := {
 @onready var dialogue: DialogueBox = $Dialogue
 @onready var backpack: BackpackScreen = $Backpack
 @onready var phone: MissionPhone = $Phone
+@onready var dialogue_tree: DialogueTree = $DialogueTree
 
 var _busy := false
 var _museum: Museum = null
@@ -46,6 +48,7 @@ func _ready() -> void:
 	backpack.closed.connect(_on_backpack_closed)
 	backpack.drop_requested.connect(_on_backpack_drop)
 	phone.closed.connect(_on_phone_closed)
+	phone.card_requested.connect(_on_card_requested)
 	hud.phone_requested.connect(open_phone)
 	show_title()
 
@@ -66,6 +69,8 @@ func _process(delta: float) -> void:
 func open_phone() -> void:
 	if _museum == null or not is_instance_valid(_museum) or _busy or phone.is_open():
 		return
+	if dialogue.is_active() or dialogue_tree.is_active():
+		return
 	phone.open()
 	hud.set_compact(true)
 	get_tree().paused = true
@@ -77,7 +82,31 @@ func _on_phone_closed() -> void:
 	_phone_cooldown = 0.2
 
 
+## 文物志对谈（呈现层 A）：播放指定段落，结束时推进进度。
+func _on_lore_requested(item_id: String, stage: int) -> void:
+	var stages := Lore.stages(item_id)
+	if stage < 0 or stage >= stages.size():
+		return
+	dialogue_tree.play(stages[stage], Lore.cards(item_id), func() -> void: _on_lore_finished(item_id))
+	hud.clear_toast()
+	hud.set_compact(true)
+	get_tree().paused = true
+
+
+func _on_lore_finished(item_id: String) -> void:
+	Game.advance_lore_stage(item_id)
+	get_tree().paused = false
+	hud.set_compact(false)
+
+
+## 展签卡（史实）：手机档案页点击卡片时用对谈层展示；不改变暂停状态（手机仍开着）。
+func _on_card_requested(item_id: String, card_id: String) -> void:
+	dialogue_tree.play([{"card": card_id}], Lore.cards(item_id))
+
+
 func open_backpack() -> void:
+	if dialogue.is_active() or dialogue_tree.is_active():
+		return
 	backpack.open()
 	hud.set_compact(true)
 	get_tree().paused = true
@@ -165,6 +194,7 @@ func start_mission(level_id := "museum") -> void:
 	museum.prompt_changed.connect(hud.set_prompt)
 	museum.alert_changed.connect(hud.set_alert)
 	museum.dialogue_requested.connect(_show_dialogue)
+	museum.lore_requested.connect(_on_lore_requested)
 	screen.add_child(museum)
 	_museum = museum
 	hud.show_hud()

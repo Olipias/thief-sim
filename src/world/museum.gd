@@ -8,6 +8,8 @@ signal toast(text: String)
 signal prompt_changed(text: String)
 signal alert_changed(level: int)
 signal dialogue_requested(lines: Array)
+## 文物志对谈请求（item_id 与要播放的段序号；由 main 交给 DialogueTree）。
+signal lore_requested(item_id: String, stage: int)
 
 const TILE := 16
 const SMOKE_RADIUS := 72.0
@@ -195,6 +197,7 @@ var _ended := false
 var _last_prompt := ""
 var _noise_warned := false
 var _ghost_spawned := false
+var ghost: Ghost = null
 var ghost_delay := 3.5
 var current_room := -1
 var visited_rooms := {}
@@ -455,10 +458,26 @@ func _process(delta: float) -> void:
 		current_room = idx
 		visited_rooms[idx] = true
 		_apply_camera_limits(rooms[idx])
-	var prompt: String = player.interactable_name()
+	var prompt := ""
+	if _ghost_near():
+		prompt = "按 E 与器灵交谈"
+	else:
+		var target_name: String = player.interactable_name()
+		prompt = "按 E 拾取：%s" % target_name if target_name != "" else ""
 	if prompt != _last_prompt:
 		_last_prompt = prompt
 		prompt_changed.emit(prompt)
+	if _ghost_near() and Input.is_action_just_pressed("interact"):
+		_talk_to_ghost()
+
+
+func _ghost_near() -> bool:
+	return (
+		ghost != null
+		and is_instance_valid(ghost)
+		and player != null
+		and player.global_position.distance_to(ghost.global_position) < 36.0
+	)
 
 
 func end_game() -> void:
@@ -517,15 +536,32 @@ func _start_haunting() -> void:
 func _spawn_ghost() -> void:
 	if _ended or player == null:
 		return
-	dialogue_requested.emit([
-		{"speaker": "？？？", "text": String(GHOST_LINES.get(target_item_id(), "……"))},
-	])
-	var ghost := GHOST_SCENE.instantiate() as Ghost
+	# 有文物志的文物：走对谈（第一段），否则退回单句台词
+	var target := target_item_id()
+	if Lore.has_lore(target) and Game.lore_stage_of(target) == 0:
+		lore_requested.emit(target, 0)
+	else:
+		dialogue_requested.emit([
+			{"speaker": "？？？", "text": String(GHOST_LINES.get(target, "……"))},
+		])
+	ghost = GHOST_SCENE.instantiate() as Ghost
 	ghost.position = player.global_position + Vector2(-10, 8)
 	ghost.wailed.connect(_on_ghost_wailed)
 	add_child(ghost)
 	Audio.play("ghost", -7.0)
-	toast.emit("一股寒意贴上你的后背……它好像会引来警察。", 4.0)
+	toast.emit("一股寒意贴上你的后背……靠近它可以按 E 交谈（它也会引来警察）。", 5.0)
+
+
+## 与器灵交谈：播放下一段文物志（讲完则提示）。
+func _talk_to_ghost() -> void:
+	if _ended:
+		return
+	var target := target_item_id()
+	var stage := Game.lore_stage_of(target)
+	if Lore.has_lore(target) and stage < Lore.stage_count(target):
+		lore_requested.emit(target, stage)
+	else:
+		toast.emit("器灵已经讲完了——它只是静静地看着你。")
 
 
 func _on_ghost_wailed(pos: Vector2) -> void:

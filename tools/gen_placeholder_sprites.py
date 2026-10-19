@@ -510,6 +510,57 @@ def build_phone_icon():
     return im
 
 
+def build_mask_closeup(size=48):
+    """青铜人面具特写（端详界面用）。程序化绘制：椭圆脸、杏核双目、上扬嘴角、侧缘穿孔。"""
+    im = img(size, size)
+    o = hexc("#1c2a22")
+    a = hexc("#6f8f6a")
+    b = hexc("#4a6a48")
+    c = hexc("#a8c48f")
+    d = hexc("#d0e0b8")
+    e = hexc("#22322a")
+    draw = ImageDraw.Draw(im)
+
+    # 脸盘：圆角矩形 + 顶部略收
+    draw.rounded_rectangle([8, 4, 39, 43], radius=9, fill=a, outline=o, width=1)
+    draw.rounded_rectangle([10, 6, 37, 41], radius=8, outline=c, width=1)
+    # 顶部小脊
+    draw.rectangle([19, 2, 28, 4], fill=b, outline=o)
+    # 眉脊
+    draw.rectangle([12, 13, 35, 14], fill=b)
+    # 双目（杏核）
+    for cx in (17, 30):
+        draw.ellipse([cx - 5, 15, cx + 5, 22], fill=e, outline=o)
+        draw.ellipse([cx - 4, 16, cx + 4, 20], outline=b)
+        draw.rectangle([cx - 1, 17, cx, 19], fill=d)
+        draw.rectangle([cx - 4, 15, cx + 3, 15], fill=c)
+    # 鼻脊
+    draw.rectangle([23, 20, 24, 28], fill=b)
+    draw.rectangle([22, 28, 25, 29], fill=o)
+    # 上扬的嘴角（微笑）
+    smile = [(15, 32), (17, 34), (20, 35), (24, 36), (28, 35), (31, 34), (33, 32)]
+    for x, y in smile:
+        draw.rectangle([x, y, x + 1, y + 1], fill=o)
+    draw.rectangle([16, 33, 32, 34], fill=b)
+    # 侧缘穿孔（悬挂/固定用）
+    for x0 in (3, 40):
+        draw.rounded_rectangle([x0, 20, x0 + 5, 28], radius=2, fill=b, outline=o)
+        draw.rectangle([x0 + 2, 23, x0 + 3, 24], fill=e)
+    # 铜绿斑驳
+    rng = __import__("random").Random(42)
+    for _ in range(90):
+        x, y = rng.randrange(8, 40), rng.randrange(4, 44)
+        if im.getpixel((x, y))[3] == 0:
+            continue
+        im.putpixel((x, y), c if rng.random() < 0.5 else b)
+    for _ in range(24):
+        x, y = rng.randrange(10, 38), rng.randrange(6, 42)
+        if im.getpixel((x, y))[3] == 0:
+            continue
+        im.putpixel((x, y), d)
+    return im
+
+
 def build_icon():
     im = img(64, 64)
     rect(im, 0, 0, 63, 63, hexc("#1a1f30"))
@@ -541,6 +592,7 @@ def main():
     save(build_plant(), "plant.png")
     save(build_exit(), "exit_door.png")
     save(build_phone_icon(), "phone_icon.png")
+    save(build_mask_closeup(), "mask_closeup.png")
     print("lights:")
     save(build_light_soft(), "light_soft.png")
     save(build_light_cone(half_angle=42.0, softness=14.0), "light_cone.png")

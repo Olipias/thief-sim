@@ -73,8 +73,8 @@ func refresh_items() -> void:
 	item_label.text = "烟雾弹 x%d（Q 使用）" % Game.smoke_count
 
 
-func set_prompt(artifact_name: String) -> void:
-	prompt_label.text = "" if artifact_name.is_empty() else "按 E 拾取：%s" % artifact_name
+func set_prompt(text: String) -> void:
+	prompt_label.text = text
 
 
 func set_alert(level: int) -> void:
@@ -91,6 +91,12 @@ func set_alert(level: int) -> void:
 func set_compact(compact: bool) -> void:
 	item_label.visible = not compact
 	bag_label.visible = not compact
+
+
+## Hide the toast early (e.g. when a dialogue takes over the screen).
+func clear_toast() -> void:
+	_toast_seq += 1
+	toast_label.visible = false
 
 
 func toast(text: String, seconds := 3.5) -> void:
