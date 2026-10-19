@@ -21,6 +21,8 @@ func _ready() -> void:
 	_test_catalog()
 	_test_shapes()
 	_test_sprites()
+	_test_bm_assets()
+	_test_archive()
 	_test_upgrades()
 	_test_audio_files()
 	_test_level_data()
@@ -121,9 +123,92 @@ func _check_shape(id: String, cells: Array) -> void:
 
 func _test_sprites() -> void:
 	var catalog: Dictionary = _consts("res://src/autoload/game_state.gd").get("CATALOG", {})
+	var relic_consts := _consts("res://src/world/artifact.gd")
+	var frames := int(relic_consts.get("RELIC_FRAMES", 0))
+	var frame_size: Vector2i = relic_consts.get("RELIC_FRAME_SIZE", Vector2i.ZERO)
 	for id in catalog:
 		var path := "res://assets/sprites/artifact_%s.png" % id
 		check(FileAccess.file_exists(path), "文物贴图存在：%s" % path)
+		# 3D 渲染的转台条（可选）：存在时尺寸必须与 Artifact 常量一致
+		var strip := "res://assets/sprites/relic_%s_strip.png" % id
+		if FileAccess.file_exists(strip):
+			var tex := load(strip) as Texture2D
+			check(tex != null, "转台条可加载：%s" % strip)
+			if tex != null:
+				check(
+					tex.get_width() == frames * frame_size.x,
+					"转台条宽度 = %d 帧 × %d px（%s）" % [frames, frame_size.x, id],
+				)
+				check(tex.get_height() == frame_size.y, "转台条高度 = %d px（%s）" % [frame_size.y, id])
+		# UI 转台条（手机/标题界面用）：存在时尺寸必须与 RelicView 常量一致
+		var ui_consts := _consts("res://src/ui/relic_view.gd")
+		var ui_frames := int(ui_consts.get("UI_STRIP_FRAMES", 0))
+		var ui_frame_size: Vector2i = ui_consts.get("UI_STRIP_FRAME_SIZE", Vector2i.ZERO)
+		var ui_strip := "res://assets/sprites/relic_%s_ui_strip.png" % id
+		if FileAccess.file_exists(ui_strip):
+			var ui_tex := load(ui_strip) as Texture2D
+			check(ui_tex != null, "UI 转台条可加载：%s" % ui_strip)
+			if ui_tex != null:
+				check(
+					ui_tex.get_width() == ui_frames * ui_frame_size.x,
+					"UI 转台条宽度 = %d 帧 × %d px（%s）" % [ui_frames, ui_frame_size.x, id],
+				)
+				check(ui_tex.get_height() == ui_frame_size.y, "UI 转台条高度 = %d px（%s）" % [ui_frame_size.y, id])
+
+
+## 大英博物馆 Room 3 资产包（tools/gen_bm_art.py 生成）：尺寸必须与图集约定一致。
+func _test_bm_assets() -> void:
+	var expected := {
+		"res://assets/sprites/bm/bm_tiles.png": Vector2i(128, 128),
+		"res://assets/sprites/bm/bm_props.png": Vector2i(256, 32),
+		"res://assets/sprites/bm/bm_ui.png": Vector2i(256, 32),
+		"res://assets/sprites/bm/bm_zun_32.png": Vector2i(32, 32),
+		"res://assets/sprites/bm/bm_case.png": Vector2i(32, 48),
+	}
+	for path in expected:
+		check(FileAccess.file_exists(path), "Room 3 资产存在：%s" % path)
+		if not FileAccess.file_exists(path):
+			continue
+		var tex := load(path) as Texture2D
+		check(tex != null, "Room 3 资产可加载：%s" % path)
+		if tex != null:
+			var size: Vector2i = expected[path]
+			check(
+				tex.get_width() == size.x and tex.get_height() == size.y,
+				"Room 3 资产尺寸 %dx%d：%s" % [size.x, size.y, path],
+			)
+	# 装饰层（纯视觉）：存在且尺寸符合约定
+	var decor := {
+		"security_gate": Vector2i(16, 32), "ticket_desk": Vector2i(32, 20), "museum_map": Vector2i(16, 16),
+		"vase_case": Vector2i(32, 32), "jade_case": Vector2i(32, 32), "scroll_case": Vector2i(32, 32),
+		"lacquer_cabinet": Vector2i(32, 32), "mural_panel": Vector2i(48, 32), "crate_stack": Vector2i(32, 32),
+		"pallet": Vector2i(32, 16), "forklift": Vector2i(48, 32), "pipe_panel": Vector2i(32, 16),
+		"bench": Vector2i(24, 12), "security_camera": Vector2i(16, 16), "alarm_beacon": Vector2i(16, 16),
+		"skylight_panel": Vector2i(32, 16),
+	}
+	for key in decor:
+		var path := "res://assets/sprites/bm/decor/%s.png" % key
+		check(FileAccess.file_exists(path), "装饰资产存在：%s" % path)
+		if not FileAccess.file_exists(path):
+			continue
+		var tex := load(path) as Texture2D
+		check(tex != null, "装饰资产可加载：%s" % path)
+		if tex != null:
+			var size: Vector2i = decor[key]
+			check(
+				tex.get_width() == size.x and tex.get_height() == size.y,
+				"装饰尺寸 %dx%d：%s" % [size.x, size.y, path],
+			)
+
+
+## 真实文物档案：与 docs/SOURCES.md 对应的字段必须齐全。
+func _test_archive() -> void:
+	var archive: Dictionary = Game.ARCHIVE
+	check(archive.has("ram_zun"), "ARCHIVE 含双羊尊条目")
+	var entry: Dictionary = archive.get("ram_zun", {})
+	for key in ["era", "origin", "collection", "provenance", "source", "fiction"]:
+		check(entry.has(key) and String(entry.get(key, "")) != "", "ARCHIVE[ram_zun] 含字段 %s" % key)
+	check("SOURCES" in String(entry.get("source", "")), "ARCHIVE 来源指向 docs/SOURCES.md")
 
 
 func _test_upgrades() -> void:

@@ -34,6 +34,21 @@
   - Wang Q. & Priewe S., 2013, *A Technical Study of the Double-ram Zun Ancient Chinese Bronze Vessel in the British Museum*, in K. Chen (ed.), *Radiance between Bronze and Jade*
   - 根津美术馆藏品页（另一件）：https://www.nezu-muse.or.jp/en/collection/detail.php?id=90074
 - 演绎部分（虚构）：游戏内「器灵/幽灵」设定、幽灵台词「另一只羊隔着海」「带我们回家」等拟人化叙事；任务地点、时间、安保配置均为虚构。圆明园传说在游戏内只能以"传闻/无法考证"的口径出现。
+  另：游戏内使用的 3D 模型（`assets/models/`，转台动画）是**展示性演绎再现**——形体、扉棱、乳钉与铜绿按馆藏照片与公开资料概括，细密雷纹/饕餮纹未逐条建模，**不构成考古复原**；仅用于视觉呈现。
+
+#### 2026-10-19 补充核查（D 画面校准）
+
+- **可考**：大英博物馆编号 `1936,1118.1`；1936 年购自 George Eumorfopoulos（1863–1939）收藏。1934 年起，Eumorfopoulos 因经济压力将大批中国艺术品售予大英博物馆与 V&A，双羊尊是其中一件。
+- **可考（风格/工艺）**：器形、羊角先铸后锁接、垫片工艺等指向南方青铜传统；馆方与 Wang & Priewe (2013) 均称其“said to be from Hunan”（传出自湖南），**这是产地推定，不是出土地记录**。
+- **不可考**：Eumorfopoulos 如何获得这件器物、它何时以何种方式离开中国、具体出土于湖南何处，目前没有公开档案或考古记录。
+- **不可作为史实**：所谓“1860 年火烧圆明园时被掠”主要见于现代网络文章、短视频与文学化报道（如长沙晚报 2023 年《两羊圆尊致四羊方尊的家书》），**不是博物馆记录或学术来源**；该文本身也写明馆藏编号只能说明 1936 年入藏。游戏内只能以“民间传说/待考”的口径出现，不能画成确定的劫掠现场。
+- **D 画面方案**：场景锁定“湖南（推定）·商代晚期祭祀原在地”，以商代南方青铜文化为视觉依据；明确标注“意象复原，非考古复原”。时间线区分「可考 / 不可考 / 民间传说」三段，不把圆明园说当史实。
+- **游戏内档案卡对齐（2026-10-19）**：`Game.ARCHIVE["ram_zun"]`（任务终端显示）与本节字段一致，明确区分「可考 / 不可考 / 民间传说 / 虚构演绎」；圆明园说以「民间叙事，无确证」呈现。
+- 补充参考：
+  - British Museum, object 1936,1118.1（馆藏页，含入藏与尺寸信息）
+  - Wang Q. & Priewe S., 2013, *A Technical Study of the Double-ram Zun Ancient Chinese Bronze Vessel in the British Museum*（称“said to be from Hunan”，并记录购自 Eumorfopoulos）
+  - Asian Art Newspaper, *The Oriental Ceramics Society: 100 Years*（1934 年 Eumorfopoulos 因经济压力出售大批藏品给大英博物馆/V&A）
+  - 长沙晚报 2023-09-08《两羊圆尊致四羊方尊的家书》——仅作为“现代民间叙事”样本，不作为史实依据
 
 ## 条目模板
 

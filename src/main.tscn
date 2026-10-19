@@ -1,9 +1,10 @@
-[gd_scene load_steps=5 format=3]
+[gd_scene load_steps=6 format=3]
 
 [ext_resource type="Script" path="res://src/main.gd" id="1_script"]
 [ext_resource type="PackedScene" path="res://src/ui/hud.tscn" id="2_hud"]
 [ext_resource type="PackedScene" path="res://src/ui/dialogue_box.tscn" id="3_dialogue"]
 [ext_resource type="PackedScene" path="res://src/ui/backpack_screen.tscn" id="4_bag"]
+[ext_resource type="PackedScene" path="res://src/ui/mission_phone.tscn" id="5_phone"]
 
 [node name="Main" type="Node"]
 script = ExtResource("1_script")
@@ -16,5 +17,7 @@ layer = 5
 [node name="HUD" parent="." instance=ExtResource("2_hud")]
 
 [node name="Backpack" parent="." instance=ExtResource("4_bag")]
+
+[node name="Phone" parent="." instance=ExtResource("5_phone")]
 
 [node name="Dialogue" parent="." instance=ExtResource("3_dialogue")]

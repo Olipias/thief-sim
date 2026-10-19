@@ -11,6 +11,7 @@ const ICONS := {
 	"scroll": preload("res://assets/sprites/artifact_scroll.png"),
 	"ingot": preload("res://assets/sprites/artifact_ingot.png"),
 	"jade": preload("res://assets/sprites/artifact_jade.png"),
+	"ram_zun": preload("res://assets/sprites/bm/bm_zun_32.png"),
 }
 
 const ITEM_COLORS := {
@@ -20,6 +21,7 @@ const ITEM_COLORS := {
 	"scroll": Color("e8d8a8"),
 	"ingot": Color("e8c34a"),
 	"jade": Color("6fc48a"),
+	"ram_zun": Color("8c7a4e"),
 }
 
 var screen: BackpackScreen = null

@@ -7,3 +7,8 @@ __pycache__/
 
 # 系统杂项
 .DS_Store
+*:Zone.Identifier
+
+# 3D 素材：Blender 备份与下载的源模型（63MB，仅本地参考）
+assets/models/*.blend1
+assets/models/e6b392*.glb

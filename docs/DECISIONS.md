@@ -84,3 +84,12 @@
   - 新关卡 = 生成器加配置 + `Game.LEVELS` 登记 + （可选）专属简报；文物目标必须 `is_target=true` 且被关卡引用（`test_content` 双向校验）。
   - 真实文物目标必须先在 `docs/SOURCES.md` 登记（S-001 双羊尊为第一个）。
   - `CATALOG.is_target` 语义 = "是某个关卡的任务目标"，不再是"唯一目标"。
+
+## D-013 3D 素材只在构建期使用，运行时保持纯 2D
+- 状态：已生效（v0.10.0）
+- 决定：3D 模型（`assets/models/*.blend|glb`）**不进入游戏运行时**——`assets/models/` 放 `.gdignore` 由 Godot 完全忽略；需要 3D 资产的地方（目前是任务目标「商代双羊尊」）走离线渲染管线：Blender headless 渲染转台序列 → `tools/gen_relic_sprite.py` 像素化 → 产出 `assets/sprites/relic_<id>_strip.png`（转台动画条）与 `artifact_<id>.png`（图标）。渲染尺寸/帧数常量同时存在于生成脚本与 `Artifact`（`test_content` 校验一致）。
+- 原因：2D 像素游戏混入运行时 3D 会带来渲染/性能/风格一致性问题；离线渲染能保留 3D 模型的形体精度又完全契合像素管线；同时为将来「文物档案 3D 化」保留了模型资产。
+- 影响：
+  - 改 3D 形体 = 改 `tools/blender/*.py` 重新生成模型 → 重跑渲染与像素化（生成物禁止手改）。
+  - 新增"3D 化"文物 = 复用配方（ARCHITECTURE §6.7）；运行时代码无需改动（`artifact.gd` 自动识别转台条）。
+  - 3D 属演绎性再现，学术口径仍以 `docs/SOURCES.md` 为准（模型说明须注明"非考古复原"）。

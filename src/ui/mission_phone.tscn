@@ -1,0 +1,137 @@
+[gd_scene load_steps=6 format=3]
+
+[ext_resource type="Script" path="res://src/ui/mission_phone.gd" id="1_script"]
+[ext_resource type="Script" path="res://src/ui/relic_view.gd" id="2_relic"]
+
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_phone"]
+content_margin_left = 12.0
+content_margin_top = 6.0
+content_margin_right = 12.0
+content_margin_bottom = 6.0
+bg_color = Color(0.055, 0.062, 0.082, 0.98)
+border_width_left = 2
+border_width_top = 2
+border_width_right = 2
+border_width_bottom = 2
+border_color = Color(0.62, 0.5, 0.22, 0.95)
+corner_radius_top_left = 6
+corner_radius_top_right = 6
+corner_radius_bottom_right = 6
+corner_radius_bottom_left = 6
+
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_paper"]
+content_margin_left = 8.0
+content_margin_top = 8.0
+content_margin_right = 8.0
+content_margin_bottom = 8.0
+bg_color = Color(0.871, 0.839, 0.753, 0.97)
+border_width_left = 1
+border_width_top = 1
+border_width_right = 1
+border_width_bottom = 1
+border_color = Color(0.62, 0.5, 0.22, 0.8)
+corner_radius_top_left = 3
+corner_radius_top_right = 3
+corner_radius_bottom_right = 3
+corner_radius_bottom_left = 3
+
+[node name="MissionPhone" type="CanvasLayer"]
+process_mode = 3
+layer = 12
+script = ExtResource("1_script")
+
+[node name="Root" type="Control" parent="."]
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+mouse_filter = 2
+
+[node name="Dim" type="ColorRect" parent="Root"]
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+color = Color(0.02, 0.02, 0.04, 0.6)
+
+[node name="Panel" type="PanelContainer" parent="Root"]
+anchor_left = 0.5
+anchor_top = 0.5
+anchor_right = 0.5
+anchor_bottom = 0.5
+grow_horizontal = 2
+grow_vertical = 2
+theme_override_styles/panel = SubResource("StyleBoxFlat_phone")
+
+[node name="Margin" type="MarginContainer" parent="Root/Panel"]
+
+[node name="VBox" type="VBoxContainer" parent="Root/Panel/Margin"]
+theme_override_constants/separation = 4
+
+[node name="Header" type="HBoxContainer" parent="Root/Panel/Margin/VBox"]
+
+[node name="OrgLabel" type="Label" parent="Root/Panel/Margin/VBox/Header"]
+size_flags_horizontal = 3
+theme_override_colors/font_color = Color(0.96, 0.84, 0.4, 1)
+theme_override_font_sizes/font_size = 14
+text = "神偷组织 · 任务终端"
+
+[node name="AppLabel" type="Label" parent="Root/Panel/Margin/VBox/Header"]
+theme_override_colors/font_color = Color(0.62, 0.58, 0.45, 1)
+text = "任务发布"
+
+[node name="Body" type="HBoxContainer" parent="Root/Panel/Margin/VBox"]
+theme_override_constants/separation = 8
+
+[node name="RelicCard" type="PanelContainer" parent="Root/Panel/Margin/VBox/Body"]
+theme_override_styles/panel = SubResource("StyleBoxFlat_paper")
+
+[node name="Relic" type="Control" parent="Root/Panel/Margin/VBox/Body/RelicCard"]
+custom_minimum_size = Vector2(72, 84)
+mouse_filter = 2
+script = ExtResource("2_relic")
+
+[node name="Info" type="VBoxContainer" parent="Root/Panel/Margin/VBox/Body"]
+custom_minimum_size = Vector2(390, 0)
+theme_override_constants/separation = 4
+
+[node name="TargetName" type="Label" parent="Root/Panel/Margin/VBox/Body/Info"]
+theme_override_colors/font_color = Color(0.96, 0.84, 0.4, 1)
+theme_override_font_sizes/font_size = 14
+text = "任务目标"
+
+[node name="Meta" type="Label" parent="Root/Panel/Margin/VBox/Body/Info"]
+theme_override_colors/font_color = Color(0.78, 0.8, 0.86, 1)
+theme_override_font_sizes/font_size = 12
+autowrap_mode = 2
+text = "行动地点："
+
+[node name="Story" type="Label" parent="Root/Panel/Margin/VBox/Body/Info"]
+size_flags_vertical = 3
+theme_override_colors/font_color = Color(0.68, 0.7, 0.78, 1)
+theme_override_font_sizes/font_size = 12
+autowrap_mode = 2
+text = ""
+
+[node name="ArchiveCard" type="PanelContainer" parent="Root/Panel/Margin/VBox/Body/Info"]
+theme_override_styles/panel = SubResource("StyleBoxFlat_paper")
+
+[node name="Archive" type="Label" parent="Root/Panel/Margin/VBox/Body/Info/ArchiveCard"]
+theme_override_colors/font_color = Color(0.26, 0.22, 0.16, 1)
+theme_override_font_sizes/font_size = 10
+autowrap_mode = 2
+text = ""
+
+[node name="Notes" type="Label" parent="Root/Panel/Margin/VBox/Body/Info"]
+theme_override_colors/font_color = Color(0.55, 0.5, 0.4, 1)
+theme_override_font_sizes/font_size = 10
+autowrap_mode = 2
+text = ""
+
+[node name="Footer" type="Label" parent="Root/Panel/Margin/VBox"]
+theme_override_colors/font_color = Color(0.45, 0.47, 0.53, 1)
+theme_override_font_sizes/font_size = 10
+text = "文物档案随任务显示 · P 或 Esc 关闭"
+horizontal_alignment = 2

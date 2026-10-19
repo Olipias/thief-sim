@@ -1,8 +1,9 @@
 # 3D 资产：双羊尊（ram_zun）
 
 为游戏任务目标「商代双羊尊」（真实文物，见 `docs/SOURCES.md` S-001）制作的 3D 模型。
-用途：渲染出图、展示、以及后续「文物档案 3D 化」等方向的素材储备。
-**当前游戏（2D 像素）运行时不加载本目录。**
+用途：**离线渲染进游戏**（转台动画与图标，见 `tools/blender/render_relic_turntable.py`
+与 `tools/gen_relic_sprite.py`）、展示、以及后续「文物档案 3D 化」等方向的素材储备。
+**游戏运行时不加载本目录**（`.gdignore` 隔离，决策见 `docs/DECISIONS.md` D-013）。
 
 ## 文件
 

@@ -2,6 +2,8 @@ class_name Hud
 extends CanvasLayer
 ## In-game overlay: mission, money, backpack, prompts and toasts.
 
+signal phone_requested
+
 @onready var root: Control = $Root
 @onready var mission_label: Label = $Root/MissionLabel
 @onready var minimap: Minimap = $Root/Minimap
@@ -19,6 +21,7 @@ func _ready() -> void:
 	Game.backpack_changed.connect(refresh_backpack)
 	Game.money_changed.connect(refresh_money)
 	Game.items_changed.connect(refresh_items)
+	$Root/PhoneButton.pressed.connect(func() -> void: phone_requested.emit())
 	refresh_backpack()
 	refresh_money()
 	refresh_items()

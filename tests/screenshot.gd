@@ -8,6 +8,10 @@ func _ready() -> void:
 	Game.smoke_count = 2
 	var main := load("res://src/main.tscn").instantiate() as Main
 	add_child(main)
+	await _wait(0.8)
+	await _shot("/tmp/shot_title.png")
+
+	main.show_menu()
 	await _wait(0.6)
 	await _shot("/tmp/shot_hub.png")
 
@@ -52,6 +56,13 @@ func _ready() -> void:
 	await _wait(0.25)
 	await _shot("/tmp/shot_smoke.png")
 
+	# 任务终端（手机）
+	main.open_phone()
+	await _wait(0.4)
+	await _shot("/tmp/shot_phone.png")
+	main.phone.close()
+	await _wait(0.2)
+
 	# room 3: central hall, grab the target
 	var mask: Artifact = null
 	for child in museum.get_children():
@@ -94,6 +105,19 @@ func _ready() -> void:
 		for bm_cop in bm.police:
 			bm_cop.set_ai_enabled(false)
 		bm.ghost_delay = 0.3
+		# 六展厅主题巡检（Room 0..5）
+		var bm_spots := {
+			0: Vector2(8 * 16 + 8, 8 * 16 + 8),
+			1: Vector2(31 * 16 + 8, 6 * 16 + 8),
+			2: Vector2(31 * 16 + 8, 20 * 16 + 8),
+			3: Vector2(9 * 16 + 8, 20 * 16 + 8),
+			4: Vector2(9 * 16 + 8, 34 * 16 + 8),
+			5: Vector2(31 * 16 + 8, 34 * 16 + 8),
+		}
+		for room_id in bm_spots:
+			bm.player.global_position = bm_spots[room_id]
+			await _wait(0.8)
+			await _shot("/tmp/shot_bm_room%d.png" % room_id)
 		var zun: Artifact = null
 		for child in bm.get_children():
 			if child is Artifact and child.item_id == "ram_zun":
@@ -102,11 +126,23 @@ func _ready() -> void:
 			bm.player.global_position = zun.global_position + Vector2(0, 28)
 			await _wait(1.2)
 			await _shot("/tmp/shot_bm_zun.png")
+			# 任务终端里的 3D 双羊尊
+			main.open_phone()
+			await _wait(0.4)
+			await _shot("/tmp/shot_bm_phone.png")
+			main.phone.close()
+			await _wait(0.2)
 			zun.try_pickup()
 			await _wait(0.8)
 			_skip_dialogue(main)
 			await _wait(0.4)
 			await _shot("/tmp/shot_bm_ghost.png")
+			# 背包里的双羊尊 32×32 图标（bm_zun_32.png）
+			main.open_backpack()
+			await _wait(0.4)
+			await _shot("/tmp/shot_bm_backpack.png")
+			main.backpack.close()
+			await _wait(0.2)
 	Audio.shutdown()
 	get_tree().quit()
 

@@ -28,6 +28,9 @@ func _ready() -> void:
 	await _test_room_camera()
 	await _test_british_museum_level()
 	await _test_bag_screen()
+	await _test_title_screen()
+	await _test_hub_levels()
+	await _test_mission_phone()
 	await _test_backpack_drop()
 	await _test_drop_artifact()
 	await _test_minimap()
@@ -341,9 +344,31 @@ func _test_british_museum_level() -> void:
 		if child is Artifact and child.item_id == "ram_zun":
 			zun = child
 	check(zun != null, "double-ram zun artifact exists in the level")
+	check(museum.get_node_or_null("BMDisplayCase") != null, "british museum target room has the BM display case")
+	check(museum.bm_decor_count > 0, "british museum has decoration props")
+	check(museum.get_node_or_null("BMDust") != null, "british museum room 3 has dust particles")
+	check(museum.get_node_or_null("BMZunReflection") != null, "british museum room 3 has the zun floor reflection")
+	check(museum.get_node_or_null("BMGlassGlint") != null, "british museum room 3 has the glass glint")
+	if zun != null:
+		var zun_sprite: Sprite2D = zun.get_node("Sprite")
+		check(zun_sprite.hframes == Artifact.RELIC_FRAMES, "zun displays the 3D turntable strip")
+		check(
+			zun_sprite.texture.get_width() == Artifact.RELIC_FRAMES * Artifact.RELIC_FRAME_SIZE.x,
+			"turntable strip width matches the frame count",
+		)
 	check(museum.target_room == 3, "double-ram zun stands in the middle gallery")
 	check(museum.exit_room == 5, "exit waits in the loading bay")
 	check(museum.police.size() == 7, "british museum runs seven guards")
+
+	# 房间独立：门洞可以走，但守卫不会隔房看到玩家。
+	var cop0: Police = museum.police[0]
+	museum.player.global_position = Vector2(280, 88)
+	cop0.global_position = Vector2(264, 88)
+	cop0.investigate(museum.player.global_position)
+	check(cop0.can_see_player(), "guard sees the player in the same room")
+	museum.player.global_position = Vector2(392, 88)
+	cop0.investigate(museum.player.global_position)
+	check(not cop0.can_see_player(), "guard does not see the player across rooms")
 
 	if zun != null:
 		museum.player.global_position = zun.global_position + Vector2(0, 24)
@@ -382,6 +407,70 @@ func _test_bag_screen() -> void:
 
 	screen.queue_free()
 	await get_tree().process_frame
+
+
+func _test_title_screen() -> void:
+	var title := load("res://src/ui/title_screen.tscn").instantiate() as TitleScreen
+	add_child(title)
+	await get_tree().process_frame
+	check(title.art.texture != null, "title screen loads key art (author art or placeholder)")
+	check(title.continue_button != null, "title screen has a continue button")
+	var continued := {"value": false}
+	title.continue_requested.connect(func() -> void: continued["value"] = true)
+	title.continue_button.pressed.emit()
+	check(continued["value"], "continue emits its signal")
+	var quit_requested := {"value": false}
+	title.quit_requested.connect(func() -> void: quit_requested["value"] = true)
+	title.quit_button.pressed.emit()
+	check(quit_requested["value"], "quit emits its signal")
+	title.queue_free()
+	await get_tree().process_frame
+
+
+func _test_hub_levels() -> void:
+	var hub := load("res://src/ui/hub.tscn").instantiate() as Hub
+	add_child(hub)
+	await get_tree().process_frame
+	check(hub.levels_box.get_child_count() == Game.LEVELS.size(), "hub builds one card per level")
+	check(hub.levels_box.visible and not hub.shop_box.visible, "level tab is the default")
+
+	var started := {"id": ""}
+	hub.start_requested.connect(func(level_id: String) -> void: started["id"] = level_id)
+	var card: PanelContainer = hub.levels_box.get_child(1)
+	var button: Button = null
+	for child in card.get_child(0).get_children():
+		if child is Button:
+			button = child
+	check(button != null, "level card has a start button")
+	if button != null:
+		button.pressed.emit()
+	check(started["id"] == "british_museum", "level card starts its own level")
+
+	hub._show_tab("shop")
+	check(hub.shop_box.visible and not hub.levels_box.visible, "shop tab switches content")
+	hub.queue_free()
+	await get_tree().process_frame
+
+
+func _test_mission_phone() -> void:
+	Game.set_level("british_museum")
+	var phone := load("res://src/ui/mission_phone.tscn").instantiate() as MissionPhone
+	add_child(phone)
+	await get_tree().process_frame
+	phone.open()
+	check(phone.is_open(), "phone opens")
+	check(phone.target_label.text == "商代双羊尊", "phone shows the mission target name")
+	check(phone.relic.has_turntable(), "phone shows the 3D turntable of the target")
+	check("大英博物馆" in phone.meta_label.text, "phone shows the mission location")
+	check(not phone.archive_label.text.is_empty(), "phone shows the archive card")
+	check("1936" in phone.archive_label.text, "archive card shows the documented acquisition")
+	phone.close()
+	check(not phone.is_open(), "phone closes")
+	check(Main.toggle_allowed(0.0), "toggle allowed with no cooldown")
+	check(not Main.toggle_allowed(0.2), "toggle blocked during cooldown")
+	phone.queue_free()
+	await get_tree().process_frame
+	Game.set_level("museum")
 
 
 func _test_escape_flow() -> void:

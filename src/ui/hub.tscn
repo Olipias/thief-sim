@@ -20,35 +20,66 @@ color = Color(0.063, 0.071, 0.094, 1)
 mouse_filter = 2
 
 [node name="Title" type="Label" parent="."]
-anchor_left = 0.5
-anchor_right = 0.5
-offset_left = -220.0
-offset_top = 14.0
-offset_right = 220.0
-offset_bottom = 46.0
-grow_horizontal = 2
+offset_left = 16.0
+offset_top = 10.0
+offset_right = 260.0
+offset_bottom = 36.0
 theme_override_colors/font_color = Color(0.96, 0.84, 0.4, 1)
 theme_override_colors/font_outline_color = Color(0, 0, 0, 1)
 theme_override_constants/outline_size = 4
-theme_override_font_sizes/font_size = 24
-text = "神偷据点"
-horizontal_alignment = 1
+theme_override_font_sizes/font_size = 16
+text = "神偷组织 · 据点"
 
 [node name="MoneyLabel" type="Label" parent="."]
-anchor_left = 0.5
-anchor_right = 0.5
-offset_left = -220.0
-offset_top = 52.0
-offset_right = 220.0
-offset_bottom = 72.0
-grow_horizontal = 2
+anchor_left = 1.0
+anchor_right = 1.0
+offset_left = -260.0
+offset_top = 12.0
+offset_right = -16.0
+offset_bottom = 32.0
+grow_horizontal = 0
 theme_override_colors/font_color = Color(0.97, 0.84, 0.35, 1)
 theme_override_colors/font_outline_color = Color(0, 0, 0, 1)
 theme_override_constants/outline_size = 4
 text = "金币 0"
-horizontal_alignment = 1
+horizontal_alignment = 2
+
+[node name="TabLevels" type="Button" parent="."]
+offset_left = 16.0
+offset_top = 42.0
+offset_right = 96.0
+offset_bottom = 66.0
+toggle_mode = true
+button_pressed = true
+text = "任务"
+
+[node name="TabShop" type="Button" parent="."]
+offset_left = 102.0
+offset_top = 42.0
+offset_right = 182.0
+offset_bottom = 66.0
+toggle_mode = true
+text = "商店"
+
+[node name="QuitButton" type="Button" parent="."]
+anchor_left = 1.0
+anchor_right = 1.0
+offset_left = -100.0
+offset_top = 42.0
+offset_right = -16.0
+offset_bottom = 66.0
+grow_horizontal = 0
+text = "返回标题"
+
+[node name="LevelsBox" type="VBoxContainer" parent="."]
+offset_left = 16.0
+offset_top = 74.0
+offset_right = 624.0
+offset_bottom = 330.0
+theme_override_constants/separation = 8
 
 [node name="Shop" type="VBoxContainer" parent="."]
+visible = false
 offset_left = 60.0
 offset_top = 82.0
 offset_right = 580.0
@@ -69,7 +100,7 @@ text = "加固背包"
 
 [node name="Desc" type="Label" parent="Shop/RowBackpack/HBox/Info"]
 theme_override_colors/font_color = Color(0.62, 0.66, 0.74, 1)
-text = "背包容量 +1"
+text = "背包格子扩容"
 
 [node name="Price" type="Label" parent="Shop/RowBackpack/HBox"]
 custom_minimum_size = Vector2(96, 0)
@@ -137,56 +168,26 @@ custom_minimum_size = Vector2(72, 0)
 text = "购买"
 
 [node name="Feedback" type="Label" parent="."]
+visible = false
 anchor_left = 0.5
 anchor_right = 0.5
 offset_left = -260.0
-offset_top = 258.0
+offset_top = 262.0
 offset_right = 260.0
-offset_bottom = 278.0
+offset_bottom = 282.0
 grow_horizontal = 2
 theme_override_colors/font_color = Color(0.78, 0.82, 0.9, 1)
 theme_override_colors/font_outline_color = Color(0, 0, 0, 1)
 theme_override_constants/outline_size = 4
 horizontal_alignment = 1
 
-[node name="StartButton" type="Button" parent="."]
-anchor_left = 0.5
-anchor_right = 0.5
-offset_left = -110.0
-offset_top = 276.0
-offset_right = 110.0
-offset_bottom = 302.0
-grow_horizontal = 2
-text = "任务：城西博物馆"
-
-[node name="StartButtonBM" type="Button" parent="."]
-anchor_left = 0.5
-anchor_right = 0.5
-offset_left = -110.0
-offset_top = 306.0
-offset_right = 110.0
-offset_bottom = 332.0
-grow_horizontal = 2
-text = "任务：大英博物馆·中国馆"
-
-[node name="QuitButton" type="Button" parent="."]
-anchor_left = 1.0
-anchor_right = 1.0
-offset_left = -84.0
-offset_top = 8.0
-offset_right = -8.0
-offset_bottom = 34.0
-grow_horizontal = 0
-text = "退出"
-
 [node name="Hint" type="Label" parent="."]
-anchor_left = 1.0
-anchor_right = 1.0
-offset_left = -260.0
-offset_top = 338.0
-offset_right = -8.0
-offset_bottom = 356.0
-grow_horizontal = 0
+anchor_top = 1.0
+anchor_bottom = 1.0
+offset_left = 16.0
+offset_top = -26.0
+offset_right = 624.0
+offset_bottom = -8.0
+grow_vertical = 0
 theme_override_colors/font_color = Color(0.55, 0.58, 0.64, 1)
-text = "Q 使用烟雾弹"
-horizontal_alignment = 2
+text = "点击卡片开始行动 · 任务详情见手机（P）· 存档自动保存"

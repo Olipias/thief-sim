@@ -12,6 +12,7 @@ func _initialize() -> void:
 	_test_bag_geometry()
 	_test_shop()
 	_test_levels()
+	_test_new_game()
 	_test_vision_cone()
 	_test_map()
 	if _failures > 0:
@@ -204,6 +205,39 @@ func _test_levels() -> void:
 	check(gs.mission_target_id == "mask", "switching back restores the first level")
 	check(gs.mission_complete, "mission recomputed for the new level (mask is still in the bag)")
 	gs.free()
+
+
+func _test_new_game() -> void:
+	var save_path := "/tmp/thief_sim_newgame_save.json"
+	if FileAccess.file_exists(save_path):
+		DirAccess.remove_absolute(save_path)
+	var gs = load("res://src/autoload/game_state.gd").new()
+	gs.save_path = save_path
+	gs._persistent = true
+	check(not gs.has_save(), "no save before playing")
+
+	gs.money = 500
+	gs.backpack_level = 2
+	gs.smoke_count = 3
+	gs.has_sneakers = true
+	var items: Array[Dictionary] = [{"id": "mask", "x": 0, "y": 0, "rot": 0}]
+	gs.bag_items = items
+	gs.save_game()
+	check(gs.has_save(), "save file exists after saving")
+
+	gs.start_new_game()
+	check(gs.money == 0, "new game clears money")
+	check(gs.backpack_level == 0 and gs.bag_cells() == Vector2i(2, 2), "new game resets the bag")
+	check(gs.smoke_count == 0 and not gs.has_sneakers, "new game clears items and upgrades")
+	check(gs.bag_items.is_empty(), "new game empties the backpack")
+	gs.free()
+
+	var reader = load("res://src/autoload/game_state.gd").new()
+	reader.save_path = save_path
+	reader.load_game()
+	check(reader.money == 0 and reader.backpack_level == 0, "new game overwrote the old save")
+	reader.free()
+	DirAccess.remove_absolute(save_path)
 
 
 func _test_vision_cone() -> void:

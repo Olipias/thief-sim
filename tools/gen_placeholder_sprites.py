@@ -299,28 +299,10 @@ ART = {
             "................",
         ],
     ),
-    "ram_zun": (
-        {"o": "#1c2a22", "a": "#6f8f6a", "b": "#4a6a48", "c": "#a8c48f", "d": "#d0e0b8", "e": "#2a3a2c"},
-        [
-            "................",
-            "......oooo......",
-            ".....occcco.....",
-            ".....occcco.....",
-            "....ooccccoo....",
-            "..oooaaaaaaooo..",
-            ".oaaeoaaaaoeaao.",
-            "oaaooaaaaaaoaaao",
-            "oaaoaaaaaaaaoaao",
-            ".oaaaaaaaaaaaao.",
-            "..oaaaaaaaaaao..",
-            "..oabaaaaaabo...",
-            "..oabaaaaaabo...",
-            "..ob..oaaao..bo.",
-            "..ob..oaaao..bo.",
-            "..oo..ooooo..oo.",
-        ],
-    ),
 }
+# 注意：ram_zun（商代双羊尊）的美术不在这里生成——它来自 3D 模型渲染管线：
+#   tools/blender/render_relic_turntable.py → tools/gen_relic_sprite.py
+# 产出 relic_ram_zun_strip.png（关卡内转台动画）与 artifact_ram_zun.png（24×24 图标）。
 
 
 def build_artifact(name):
@@ -514,6 +496,20 @@ def build_light_cone(size=128, half_angle=32.0, softness=16.0):
     return im
 
 
+def build_phone_icon():
+    im = img(16, 16)
+    rect(im, 3, 1, 12, 14, hexc("#1a1c24"))      # 机身
+    rect(im, 3, 1, 12, 1, hexc("#3a3f4e"))
+    rect(im, 4, 2, 11, 11, hexc("#24374e"))      # 屏幕
+    rect(im, 4, 2, 11, 2, hexc("#3a5f8a"))
+    rect(im, 6, 4, 9, 5, hexc("#f8e38e"))        # 任务卡
+    rect(im, 6, 7, 9, 8, hexc("#c9a227"))
+    rect(im, 7, 12, 8, 13, hexc("#8a6a2a"))      # home 键
+    px(im, 11, 3, hexc("#e86a6a"))               # 通知红点
+    px(im, 10, 3, hexc("#e86a6a"))
+    return im
+
+
 def build_icon():
     im = img(64, 64)
     rect(im, 0, 0, 63, 63, hexc("#1a1f30"))
@@ -544,6 +540,7 @@ def main():
     save(build_statue(), "statue.png")
     save(build_plant(), "plant.png")
     save(build_exit(), "exit_door.png")
+    save(build_phone_icon(), "phone_icon.png")
     print("lights:")
     save(build_light_soft(), "light_soft.png")
     save(build_light_cone(half_angle=42.0, softness=14.0), "light_cone.png")

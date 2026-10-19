@@ -3,6 +3,7 @@ extends Node
 ## Scene flow: hideout (shop) -> museum heist -> result screen -> hideout.
 
 const HUB := preload("res://src/ui/hub.tscn")
+const TITLE_SCREEN := preload("res://src/ui/title_screen.tscn")
 const RESULT_SCREEN := preload("res://src/ui/result_screen.tscn")
 const MUSEUM := preload("res://src/world/museum.tscn")
 
@@ -26,25 +27,54 @@ const BRIEFINGS := {
 @onready var hud: Hud = $HUD
 @onready var dialogue: DialogueBox = $Dialogue
 @onready var backpack: BackpackScreen = $Backpack
+@onready var phone: MissionPhone = $Phone
 
 var _busy := false
 var _museum: Museum = null
+## 关闭手机/背包后，同一帧的按键会被 _process 再读到；用短冷却防“刚关就又被打开”。
+var _phone_cooldown := 0.0
+var _bag_cooldown := 0.0
+
+
+## 关闭手机/背包后短冷却内不再响应同一按键（防止“关了又被同一帧重开”）。
+static func toggle_allowed(cooldown: float) -> bool:
+	return cooldown <= 0.0
 
 
 func _ready() -> void:
 	dialogue.finished.connect(_on_dialogue_finished)
 	backpack.closed.connect(_on_backpack_closed)
 	backpack.drop_requested.connect(_on_backpack_drop)
-	show_menu()
+	phone.closed.connect(_on_phone_closed)
+	hud.phone_requested.connect(open_phone)
+	show_title()
 
 
-func _process(_delta: float) -> void:
+func _process(delta: float) -> void:
+	_phone_cooldown = maxf(0.0, _phone_cooldown - delta)
+	_bag_cooldown = maxf(0.0, _bag_cooldown - delta)
 	if _museum == null or not is_instance_valid(_museum) or _busy:
 		return
-	if backpack.is_open() or dialogue.is_active():
+	if backpack.is_open() or dialogue.is_active() or phone.is_open():
 		return
-	if Input.is_action_just_pressed("bag"):
+	if Input.is_action_just_pressed("bag") and toggle_allowed(_bag_cooldown):
 		open_backpack()
+	elif Input.is_action_just_pressed("phone") and toggle_allowed(_phone_cooldown):
+		open_phone()
+
+
+func open_phone() -> void:
+	if _museum == null or not is_instance_valid(_museum) or _busy or phone.is_open():
+		return
+	phone.open()
+	hud.set_compact(true)
+	get_tree().paused = true
+
+
+func _on_phone_closed() -> void:
+	get_tree().paused = false
+	hud.set_compact(false)
+	_phone_cooldown = 0.2
 
 
 func open_backpack() -> void:
@@ -56,6 +86,7 @@ func open_backpack() -> void:
 func _on_backpack_closed() -> void:
 	get_tree().paused = false
 	hud.set_compact(false)
+	_bag_cooldown = 0.2
 
 
 func _on_backpack_drop(item_id: String) -> void:
@@ -74,11 +105,38 @@ func _clear_ui() -> void:
 		child.queue_free()
 
 
+func show_title() -> void:
+	_busy = false
+	get_tree().paused = false
+	if backpack.is_open():
+		backpack.close()
+	if phone.is_open():
+		phone.close()
+	_museum = null
+	_clear_screen()
+	_clear_ui()
+	hud.set_compact(false)
+	hud.unbind_level()
+	hud.hide_hud()
+	var title := TITLE_SCREEN.instantiate() as TitleScreen
+	title.continue_requested.connect(show_menu)
+	title.new_game_requested.connect(_on_new_game)
+	title.quit_requested.connect(func() -> void: get_tree().quit())
+	ui_layer.add_child(title)
+
+
+func _on_new_game() -> void:
+	Game.start_new_game()
+	show_menu()
+
+
 func show_menu() -> void:
 	_busy = false
 	get_tree().paused = false
 	if backpack.is_open():
 		backpack.close()
+	if phone.is_open():
+		phone.close()
 	_museum = null
 	_clear_screen()
 	_clear_ui()
@@ -87,7 +145,7 @@ func show_menu() -> void:
 	hud.hide_hud()
 	var hub := HUB.instantiate() as Hub
 	hub.start_requested.connect(start_mission)
-	hub.quit_requested.connect(func() -> void: get_tree().quit())
+	hub.quit_requested.connect(show_title)
 	ui_layer.add_child(hub)
 
 
@@ -142,6 +200,8 @@ func _finish(museum: Museum, success: bool) -> void:
 	get_tree().paused = false
 	if backpack.is_open():
 		backpack.close()
+	if phone.is_open():
+		phone.close()
 	_museum = null
 	museum.end_game()
 	hud.set_alert(0)

@@ -92,6 +92,19 @@ const CATALOG := {
 	},
 }
 
+## 文物档案（真实文物必填；与 docs/SOURCES.md 一一对应）。
+const ARCHIVE := {
+	"ram_zun": {
+		"era": "商代晚期（约前 1200–1050 年）",
+		"origin": "湖南（风格/工艺推定，非出土地确证）",
+		"collection": "大英博物馆 · 1936,1118.1",
+		"provenance": "1936 年购自 Eumorfopoulos 收藏；更早流转无公开确证。",
+		"legend": "“1860 圆明园劫掠”为民间叙事，无确证。",
+		"source": "S-001 · docs/SOURCES.md",
+		"fiction": "器灵、通灵与关卡剧情为虚构演绎。",
+	},
+}
+
 const UPGRADES := {
 	"backpack": {
 		"name": "加固背包",
@@ -280,6 +293,17 @@ func set_level(level_id: String) -> void:
 	current_level_id = level_id
 	mission_target_id = String((LEVELS[level_id] as Dictionary)["target"])
 	_recompute_mission()
+
+
+## 是否存在存档（标题界面据此决定「继续游戏」是否可用）。
+func has_save() -> bool:
+	return FileAccess.file_exists(save_path)
+
+
+## 新游戏：清空进度并覆盖存档文件。
+func start_new_game() -> void:
+	reset_progress()
+	save_game()
 
 
 func level_info() -> Dictionary:

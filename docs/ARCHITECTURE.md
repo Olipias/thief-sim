@@ -9,42 +9,49 @@
 main.tscn (Main, src/main.gd) —— 唯一场景编排者
 ├── Screen (Node2D)          世界层：Hub / Museum 场景挂在这里
 │                            ⚠ 必须挂在默认画布，不能塞进 CanvasLayer（相机失效，见 D-003）
-├── UILayer (CanvasLayer)    全屏界面：据点 Hub、结算 ResultScreen
-├── HUD (CanvasLayer)        任务/金币/背包/提示/警戒/小地图
-├── Dialogue (CanvasLayer)   打字机对话框
-└── Backpack (CanvasLayer)   格子背包整理界面
+├── UILayer (CanvasLayer)    全屏界面：标题 TitleScreen、据点 Hub、结算 ResultScreen
+├── HUD (CanvasLayer)        任务/金币/背包/提示/警戒/小地图 + 右下角任务终端按钮
+├── Backpack (CanvasLayer)   格子背包整理界面
+├── Phone (CanvasLayer)      任务终端（手机）：任务发布 app（含 3D 目标文物转台）
+└── Dialogue (CanvasLayer)   打字机对话框
 
 Autoload
-├── Game  (src/autoload/game_state.gd)   全局状态：金钱/背包/升级/存档
+├── Game  (src/autoload/game_state.gd)   全局状态：金钱/背包/升级/关卡注册表/存档
 └── Audio (src/autoload/audio.gd)        音效池
 ```
 
-场景流：`Hub`（据点商店）—开始任务→ `Museum`（潜行关卡）—撤离/被捕→ `Result`（结算）→ `Hub`。
+场景流：`Title`（标题/存档）→ `Hub`（据点商店 + 选关）—开始任务→ `Museum`（潜行关卡）—撤离/被捕→ `Result`（结算）→ `Hub`。
 界面之间**不互相引用**：一切通过 `main.gd` 连接信号、切换场景、控制暂停（`get_tree().paused`）。
 
 ## 2. 模块职责表
 
 | 文件 | 职责 | 关键点 |
 | --- | --- | --- |
-| `src/main.gd` | 场景流程编排、暂停控制、任务简报 | 世界加到 `Screen`；HUD/对话/背包的信号在这里接线；`start_mission(level_id)` 设定关卡并显示对应简报 |
+| `src/main.gd` | 场景流程编排、暂停控制、任务简报 | 手机/背包开关带 0.2s 冷却（`toggle_allowed()`），防关闭后同帧被重开； 世界加到 `Screen`；HUD/对话/背包的信号在这里接线；`start_mission(level_id)` 设定关卡并显示对应简报 |
 | `src/actors/player.gd` | 玩家移动（走/跑）、拾取、道具、噪音、脚步 | 信号 `used_item` / `made_noise`；分组 `player`；`controls_enabled` 冻结操控；场景内 `Camera2D`（zoom 2×，即一屏 20×11 格）+ 玩家微光 `Aura` |
-| `src/actors/police.gd` | 警察 AI：巡逻 → 调查 → 追击 → 逮捕 | 状态机 `State{PATROL,INVESTIGATE,CHASE}`；`in_cone()` 纯函数（可单测）；视野射线仅被墙阻挡（mask=1）；`blind()` 烟雾致盲（同时熄灭手电）；`alert_level()` 0/1/2；`set_ai_enabled()` 供演出/截图暂停感知 |
-| `src/world/museum.gd` | 关卡构建与全部关卡规则 | `level_id` → 地图/目标/器灵台词按关卡解析（`target_item_id()`）；读 JSON 建碰撞/灯光/角色；房间相机；小地图数据；幽灵事件；烟雾弹；噪音与哀嚎按房间分流；出口锁 |
-| `src/world/artifact.gd` | 场景中的可拾取文物 | 贴图约定 `artifact_<id>.png`；拾取成功/失败信号 |
+| `src/actors/police.gd` | 警察 AI：巡逻 → 调查 → 追击 → 逮捕 | 状态机 `State{PATROL,INVESTIGATE,CHASE}`；`in_cone()` 纯函数（可单测）；视野射线仅被墙阻挡（mask=1）；**视物与逮捕要求与玩家同房间**（`can_see_player()` + `museum.room_index_at`，门洞可走但不隔房索敌）；`blind()` 烟雾致盲（同时熄灭手电）；`alert_level()` 0/1/2；`set_ai_enabled()` 供演出/截图暂停感知 |
+| `src/world/museum.gd` | 关卡构建与全部关卡规则 | `level_id` → 地图/目标/器灵台词按关卡解析（`target_item_id()`）；读 JSON 建碰撞/灯光/角色；房间相机；小地图数据；幽灵事件；烟雾弹；噪音与哀嚎按房间分流；出口锁；**大英博物馆六展厅主题**（`BM_THEMES` + `_room_of_tile` + `_draw_bm_tile()`）+ **纯视觉装饰层**（`BM_DECOR` + `_build_bm_decor()`，不新增碰撞）+ **装饰动效与 Room 3 光影**（`_animate_bm_decor()`、`BMDust`/`BMZunReflection`/`BMGlassGlint`） |
+| `src/world/artifact.gd` | 场景中的可拾取文物 | 贴图约定 `artifact_<id>.png`（16×16 图标）；若存在 `relic_<id>_strip.png` 则显示 3D 渲染转台动画（12 帧 × 24×28，常量在脚本内）；拾取成功/失败信号 |
 | `src/world/ghost.gd` | 幽灵：尾随 + 周期哀嚎 + 寿命渐隐 | `wailed(position)` 由 museum 转给附近警察 |
 | `src/world/smoke_puff.gd` | 烟雾视觉（纯表现） | 不承载规则 |
 | `src/ui/hub.gd` | 据点：商店购买 + 开始任务 | `ROWS` 决定货架顺序，须与 `Game.UPGRADES` 一致（有测试） |
 | `src/ui/hud.gd` | HUD 全部显示 | 监听 `Game` 三信号；`bind_level()` 绑小地图；`toast()` 提示 |
 | `src/ui/minimap.gd` | 房间小地图 | 从 `museum.rooms` 坐标自动推列/行；标目标/出口/当前房间/玩家点 |
 | `src/ui/backpack_screen.gd` | 背包整理（键盘 + 鼠标拖拽） | 拖出方框 → `drop_requested` 交给 main 丢到场景；打开时由 main 暂停 |
-| `src/ui/bag_grid.gd` | 背包格子绘制 | 只负责画，不存数据 |
+| `src/ui/bag_grid.gd` | 背包格子绘制 | 只负责画，不存数据；`ram_zun` 使用 `bm_zun_32.png` 图标 |
 | `src/ui/dialogue_box.gd` | 打字机对话 | `advance()`；暂停由调用方控制 |
 | `src/ui/result_screen.gd` | 结算界面 | 展示 `Game.finish_run()` 返回的 summary |
-| `src/autoload/game_state.gd` | 全部可持久化状态与规则 | 内容表 `CATALOG/SHAPES/UPGRADES/BAG_SIZES` 目前在这里（技术债，见 §8）；**关卡注册表 `LEVELS`**（id/名称/地图/目标/报酬）+ `set_level()` + `mission_target_id` |
+| `src/ui/title_screen.gd` | 标题界面（立绘 + UI） | 立绘优先 `assets/art/title_key_art.jpg` / `.png`（作者图），缺省 `title_key_art_placeholder.png`；渐隐遮罩 `shade_*.png`；继续/新游戏（二次确认）/退出 |
+| `src/ui/hub.gd` | 据点：关卡选择 + 商店 | 任务页由 `Game.LEVELS` 动态生成卡片（`RelicView` 展示目标文物）；商店页保留货架；`ROWS` 须与 `UPGRADES` 一致（有测试） |
+| `src/ui/mission_phone.gd` | 任务终端（手机） | 右下角按钮或 P 打开；任务发布页读 `Game.level_info()/mission_target_id` + `Game.ARCHIVE` 文物档案卡（可考/不可考/演绎）；打开时由 main 暂停 |
+| `src/ui/relic_view.gd` | 文物展示控件 | 优先 `relic_<id>_ui_strip.png`（12 帧 × 48×56，常量在此），否则静态图标放大；手机/关卡卡片共用 |
+| `src/autoload/game_state.gd` | 全部可持久化状态与规则 | 内容表 `CATALOG/SHAPES/UPGRADES/BAG_SIZES` 目前在这里（技术债，见 §8）；**关卡注册表 `LEVELS`**（id/名称/地图/目标/报酬）+ `set_level()` + `mission_target_id`；**`ARCHIVE` 文物档案字段**（与 SOURCES.md 对齐） |
 | `src/autoload/audio.gd` | 音效播放 | `SFX` 键→路径；播放器池轮转；退出前 `shutdown()` |
 | `src/levels/*.json` | 关卡数据（**生成物**） | `museum_map.json`（城西博物馆）/ `british_museum.json`（大英博物馆·中国馆）；由 `tools/gen_museum_map.py` 生成；verify 校验同步 |
 | `tests/*` | 测试与截图 | 见 §7 |
-| `tools/*.py` | 资源生成脚本 | 生成物只能由它们更新 |
+| `tools/*.py` | 资源生成脚本 | 生成物只能由它们更新；含 3D→2D 管线（`gen_relic_sprite.py`） |
+| `tools/gen_bm_art.py` | 大英博物馆资产包生成器 | 生成 `assets/sprites/bm/`（六展厅瓦片/道具/UI/双羊尊 32×32/玻璃展柜）与 `assets/sprites/bm/decor/`（13 类纯视觉装饰）；改样式改脚本后重跑 |
+| `tools/blender/*.py` | Blender 建模与渲染脚本 | headless 可重跑（`~/bin/blender`）；产出 `assets/models/*`（`.gdignore`，运行时不加载）与转台渲染图 |
 | `tools/verify.sh` | 一键验证 | 收尾必跑 |
 | `tools/blender/build_ram_zun.py` | 双羊尊 3D 模型生成脚本（程序化建模） | 生成物在 `assets/models/`（带 `.gdignore`，不参与 Godot 导入） |
 | `tools/check_level.py` / `check_docs.py` | 生成物同步/文档自检 | 由 verify 调用 |
@@ -104,7 +111,7 @@ Autoload
 - 夜间氛围（纯表现，不影响判定）：全局 `CanvasModulate` 夜色 + 展品/壁灯暖色 `PointLight2D` + 警察手电筒光锥（`Flashlight`，随朝向旋转、致盲时熄灭）+ 玩家微光；文物光晕挂在文物节点上，被拿走即熄灭。
 - 感知分流：噪音（`made_noise`）与幽灵哀嚎只惊动**同房间**且距离内的警察。
 - 小地图：从房间坐标去重出列/行自动排布，记录 `visited_rooms`、`target_room`、`exit_room`。
-- 尺寸约定：瓦片/灯光 16×16 起；角色 16×24（帧表 2 列 × 3 行）；文物 16×16。改尺寸要同时改绘制与生成脚本。
+- 尺寸约定：瓦片/灯光 16×16 起；角色 16×24（帧表 2 列 × 3 行）；文物图标 16×16（背包格 24px 内绘制）；**任务目标可用 3D 渲染的转台条** `relic_<id>_strip.png`（12 帧 × 24×28，常量在 `Artifact`）。改尺寸要同时改绘制与生成脚本。
 
 ## 4. 关键数据流
 
@@ -158,9 +165,31 @@ Autoload
 1. `save_game()` / `load_game()` 同步加键，读取用默认值（旧档必须能加载）。
 2. 需要迁移/破坏性变更：写迁移函数 + 记入 `docs/DECISIONS.md`，并在 CHANGELOG「修改」中说明。
 
-### 6.6 加新关卡（规划中）
+### 6.6 加新关卡（v0.9.0 起已支持）
 
-当前 `Museum` 是单关卡专用实现。多关卡重构方向（见 ROADMAP）：关卡数据加 meta（id/名称/目标文物）、关卡注册表、Hub 选关、结果结算按关卡参数化。**动手前先建任务、先讨论结构**，不要复制粘贴第二个 `museum.gd`。
+多关卡已落地（D-012）：`Game.LEVELS` 注册表 + `museum.level_id` 按关卡解析。加一关的步骤：
+
+1. `tools/gen_museum_map.py`：`LEVELS` 加配置（名称/内容字典/输出文件名）并生成 JSON；生成器自带连通性/巡逻校验。
+2. `src/autoload/game_state.gd`：`LEVELS` 加条目（名称/地图/目标文物/报酬），目标文物在 `CATALOG` 标 `is_target` 且形制在 `SHAPES`。
+3. `src/main.gd`：`BRIEFINGS` 加简报（可选）；`src/ui/hub.tscn` + `hub.gd` 加选关按钮。
+4. 目标为**真实文物**时：先在 `docs/SOURCES.md` 登记（含来源与史实/演绎分界）。
+5. 测试：`test_logic._test_map` 的地图断言、`test_content` 会自动覆盖新关卡字段；`tools/verify.sh`。
+
+> 不要复制粘贴第二份 `museum.gd`；关卡差异都应数据化（地图 JSON + 注册表 + 简报）。
+
+### 6.7 3D 素材 → 游戏精灵（v0.10.0 起的管线）
+
+已有 3D 模型（`assets/models/*.blend`，程序化生成）时，用离线渲染把它变成 2D 贴图：
+
+1. 写/改渲染脚本（参考 `tools/blender/render_relic_turntable.py`）：打开 blend、透明背景、固定机位、绕 Z 逐帧渲染到 `/tmp/opencode/<name>/`。
+   ```bash
+   blender --background --factory-startup --python tools/blender/render_relic_turntable.py
+   ```
+2. 改 `tools/gen_relic_sprite.py` 的输入目录/帧数/尺寸常量并运行，产出 `assets/sprites/relic_<id>_strip.png` 与 `artifact_<id>.png`。
+3. 游戏侧无需改代码：`artifact.gd` 检测到 `relic_<id>_strip.png` 即启用转台动画；尺寸常量（`Artifact.RELIC_*`）必须与生成脚本一致（`test_content` 校验）。
+4. `tools/verify.sh`（含资源导入步骤）。
+
+> 原则：3D 只在**构建期**使用，运行时是纯 2D（`.gdignore` 隔离 `assets/models/`，见 D-013）。
 
 ### 6.7 3D 资产（Blender，与 2D 游戏并行）
 

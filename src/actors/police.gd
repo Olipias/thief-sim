@@ -27,6 +27,7 @@ const INVESTIGATE_TIME := 3.0
 @onready var flashlight: PointLight2D = $Flashlight
 
 var patrol_points: Array[Vector2] = []
+var museum: Node = null
 var active := true
 var ai_enabled := true
 var state := State.PATROL
@@ -134,7 +135,7 @@ func _physics_process(delta: float) -> void:
 
 
 func _process_patrol(delta: float) -> void:
-	if _player != null and _can_see_player():
+	if _player != null and can_see_player():
 		_spot_timer += delta
 		if _spot_timer >= SPOT_DELAY:
 			_enter_chase()
@@ -159,7 +160,7 @@ func _process_patrol(delta: float) -> void:
 
 
 func _process_investigate(delta: float) -> void:
-	if _player != null and _can_see_player():
+	if _player != null and can_see_player():
 		_spot_timer += delta * INVESTIGATE_SPOT_MULTIPLIER
 		if _spot_timer >= SPOT_DELAY:
 			_enter_chase()
@@ -185,7 +186,7 @@ func _process_investigate(delta: float) -> void:
 
 
 func _process_chase(delta: float) -> void:
-	if _player != null and _can_see_player():
+	if _player != null and can_see_player():
 		_lose_timer = LOSE_TIME
 		var to_player := _player.global_position - global_position
 		if to_player.length() > CATCH_DISTANCE * 0.5:
@@ -228,12 +229,24 @@ func _nearest_waypoint() -> int:
 	return best
 
 
-func _can_see_player() -> bool:
+## 同一房间检查：门洞可以走，但守卫不会“隔房”看到玩家。
+func same_room(a: int, b: int) -> bool:
+	return a < 0 or b < 0 or a == b
+
+
+func can_see_player() -> bool:
 	if _blind_timer > 0.0:
+		return false
+	if _player == null or not is_instance_valid(_player):
+		_player = get_tree().get_first_node_in_group("player")
+	if _player == null or not is_instance_valid(_player):
 		return false
 	var target: Vector2 = _player.global_position
 	if not in_cone(global_position, _facing, target, VISION_RANGE, VISION_HALF_ANGLE):
 		return false
+	if museum != null and museum.has_method("room_index_at"):
+		if not same_room(museum.room_index_at(global_position), museum.room_index_at(target)):
+			return false
 	# Only walls block sight; the ray mask excludes actors on purpose.
 	var query := PhysicsRayQueryParameters2D.create(global_position, target, 1)
 	var hit := get_world_2d().direct_space_state.intersect_ray(query)
@@ -243,6 +256,9 @@ func _can_see_player() -> bool:
 func _try_catch() -> void:
 	if _caught_emitted or _player == null or not is_instance_valid(_player):
 		return
+	if museum != null and museum.has_method("room_index_at"):
+		if not same_room(museum.room_index_at(global_position), museum.room_index_at(_player.global_position)):
+			return
 	if global_position.distance_to(_player.global_position) <= CATCH_DISTANCE:
 		_caught_emitted = true
 		active = false
