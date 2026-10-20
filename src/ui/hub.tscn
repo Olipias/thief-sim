@@ -61,6 +61,14 @@ offset_bottom = 66.0
 toggle_mode = true
 text = "商店"
 
+[node name="TabSell" type="Button" parent="."]
+offset_left = 188.0
+offset_top = 42.0
+offset_right = 268.0
+offset_bottom = 66.0
+toggle_mode = true
+text = "销赃"
+
 [node name="QuitButton" type="Button" parent="."]
 anchor_left = 1.0
 anchor_right = 1.0
@@ -166,6 +174,39 @@ vertical_alignment = 1
 [node name="Buy" type="Button" parent="Shop/RowSmoke/HBox"]
 custom_minimum_size = Vector2(72, 0)
 text = "购买"
+
+[node name="SellBox" type="VBoxContainer" parent="."]
+visible = false
+offset_left = 60.0
+offset_top = 82.0
+offset_right = 580.0
+offset_bottom = 320.0
+theme_override_constants/separation = 6
+
+[node name="SellHeader" type="HBoxContainer" parent="SellBox"]
+
+[node name="SellTitle" type="Label" parent="SellBox/SellHeader"]
+size_flags_horizontal = 3
+theme_override_colors/font_color = Color(0.96, 0.84, 0.4, 1)
+text = "据点仓库"
+
+[node name="SellTotal" type="Label" parent="SellBox/SellHeader"]
+theme_override_colors/font_color = Color(0.97, 0.84, 0.35, 1)
+text = "估值 0 金币"
+horizontal_alignment = 2
+
+[node name="SellScroll" type="ScrollContainer" parent="SellBox"]
+custom_minimum_size = Vector2(0, 150)
+size_flags_vertical = 3
+horizontal_scroll_mode = 0
+
+[node name="SellList" type="VBoxContainer" parent="SellBox/SellScroll"]
+size_flags_horizontal = 3
+theme_override_constants/separation = 3
+
+[node name="SellAll" type="Button" parent="SellBox"]
+custom_minimum_size = Vector2(0, 26)
+text = "全部出手"
 
 [node name="Feedback" type="Label" parent="."]
 visible = false

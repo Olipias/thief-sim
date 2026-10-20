@@ -142,6 +142,9 @@ var smoke_count := 0
 var lore_stage: Dictionary = {}
 var lore_found: Dictionary = {}
 
+## 据点仓库：成功带出但尚未出售的战利品（item_id 列表，玩家在「销赃」页自行决定是否出手）
+var loot_stash: Array[String] = []
+
 ## Items currently carried: {id: String, x: int, y: int, rot: int}
 var bag_items: Array[Dictionary] = []
 var mission_complete := false
@@ -376,8 +379,8 @@ func loot_value() -> int:
 func finish_run(success: bool) -> Dictionary:
 	var summary := {
 		"success": false,
-		"sold_items": [],
-		"sold_value": 0,
+		"stash_items": [],
+		"stash_value": 0,
 		"reward": 0,
 		"target_name": "",
 		"money_total": money,
@@ -385,26 +388,65 @@ func finish_run(success: bool) -> Dictionary:
 	if not success or not mission_complete:
 		return summary
 
-	var sold: Array[Dictionary] = []
+	var taken: Array[Dictionary] = []
 	for item in bag_items:
 		var id := String(item["id"])
 		if id != mission_target_id:
-			sold.append({"name": item_name(id), "value": item_value(id)})
+			taken.append({"name": item_name(id), "value": item_value(id)})
+			loot_stash.append(id)
 		else:
 			summary["target_name"] = item_name(id)
-	var earned := 0
-	for item in sold:
-		earned += int(item["value"])
+	var stash_value := 0
+	for item in taken:
+		stash_value += int(item["value"])
 	var reward := mission_reward()
-	money += earned + reward
+	money += reward
+	# 赃物不再自动出售：全部存入据点仓库，由玩家在「销赃」页决定
+	bag_items.clear()
+	mission_complete = false
 	summary["success"] = true
-	summary["sold_items"] = sold
-	summary["sold_value"] = earned
+	summary["stash_items"] = taken
+	summary["stash_value"] = stash_value
 	summary["reward"] = reward
 	summary["money_total"] = money
 	money_changed.emit()
+	backpack_changed.emit()
 	save_game()
 	return summary
+
+
+## --- loot stash ------------------------------------------------------------
+
+func stash_value() -> int:
+	var total := 0
+	for id in loot_stash:
+		total += item_value(id)
+	return total
+
+
+## 卖出一件仓库战利品（index 对应 loot_stash），返回卖得金币。
+func sell_stash_item(index: int) -> int:
+	if index < 0 or index >= loot_stash.size():
+		return 0
+	var id := loot_stash[index]
+	var value := item_value(id)
+	loot_stash.remove_at(index)
+	money += value
+	money_changed.emit()
+	save_game()
+	return value
+
+
+## 全部出手，返回总金币。
+func sell_all_stash() -> int:
+	var total := stash_value()
+	if total <= 0:
+		return 0
+	loot_stash.clear()
+	money += total
+	money_changed.emit()
+	save_game()
+	return total
 
 
 ## --- upgrades & shop -------------------------------------------------------
@@ -488,6 +530,7 @@ func save_game() -> void:
 		"bag_items": bag_items,
 		"lore_stage": lore_stage,
 		"lore_found": lore_found,
+		"loot_stash": loot_stash,
 	}))
 
 
@@ -533,6 +576,7 @@ func load_game() -> void:
 	smoke_count = maxi(0, int(data.get("smoke_count", 0)))
 	_restore_bag(data.get("bag_items", []))
 	_restore_lore(data.get("lore_stage", {}), data.get("lore_found", {}))
+	_restore_stash(data.get("loot_stash", []))
 	money_changed.emit()
 	items_changed.emit()
 	backpack_changed.emit()
@@ -554,6 +598,19 @@ func _restore_lore(saved_stage: Variant, saved_found: Variant) -> void:
 				for value in values:
 					arr.append(_as_int(value))
 			lore_found[str(key)] = arr
+
+
+## 仓库恢复：只保留 CATALOG 里存在的 id。
+func _restore_stash(saved: Variant) -> void:
+	loot_stash.clear()
+	if typeof(saved) != TYPE_ARRAY:
+		return
+	for value in saved:
+		if typeof(value) != TYPE_STRING:
+			continue
+		var id: String = value
+		if CATALOG.has(id):
+			loot_stash.append(id)
 
 
 ## --- 文物志（器灵对谈 / 端详）---------------------------------------------
@@ -614,4 +671,5 @@ func reset_progress() -> void:
 	smoke_count = 0
 	lore_stage.clear()
 	lore_found.clear()
+	loot_stash.clear()
 	reset_run()

@@ -54,12 +54,26 @@ func _test_game_state() -> void:
 	var summary: Dictionary = gs.finish_run(true)
 	check(summary["success"], "escape with target succeeds")
 	check(summary["target_name"] == "青铜人面具", "summary names the target")
-	check(summary["sold_value"] == 120 + 300, "extras fetched the expected price")
+	check(summary["stash_items"].size() == 2, "extras are moved to the stash")
+	check(summary["stash_value"] == 120 + 300, "stash value is reported")
 	check(summary["reward"] == gs.MISSION_REWARD, "mission reward granted")
-	check(gs.money == 420 + gs.MISSION_REWARD, "money updated")
+	check(gs.money == gs.MISSION_REWARD, "loot is NOT auto-sold (reward only)")
+	check(gs.loot_stash.size() == 2, "loot waits in the stash")
+	check(gs.bag_items.is_empty(), "backpack is cleared after the run")
+
+	# 手动销赃
+	var before: int = gs.money
+	var sold: int = gs.sell_stash_item(0)
+	check(sold == 120, "selling the first stash item pays its value")
+	check(gs.money == before + 120, "money grows after selling")
+	check(gs.loot_stash.size() == 1, "sold item leaves the stash")
+	var rest: int = gs.sell_all_stash()
+	check(rest == 300, "sell-all pays the remaining value")
+	check(gs.loot_stash.is_empty() and gs.money == before + 420, "stash is empty after sell-all")
 
 	gs.reset_run()
 	check(not gs.finish_run(false)["success"], "busted run reports failure")
+	check(gs.loot_stash.is_empty(), "busted run adds nothing to the stash")
 	gs.free()
 
 
@@ -201,10 +215,11 @@ func _test_levels() -> void:
 	check(summary["success"], "british museum run succeeds")
 	check(summary["target_name"] == "商代双羊尊", "summary names the double-ram zun")
 	check(summary["reward"] == 400, "british museum pays its own reward")
+	check(summary["stash_items"].size() == 1, "british museum loot waits in the stash")
 
 	gs.set_level("museum")
 	check(gs.mission_target_id == "mask", "switching back restores the first level")
-	check(gs.mission_complete, "mission recomputed for the new level (mask is still in the bag)")
+	check(not gs.mission_complete, "settlement cleared the bag, so the mission is not complete")
 	gs.free()
 
 

@@ -157,8 +157,8 @@ func _ready() -> void:
 		var bm_spots := {
 			0: Vector2(8 * 16 + 8, 8 * 16 + 8),
 			1: Vector2(31 * 16 + 8, 6 * 16 + 8),
-			2: Vector2(31 * 16 + 8, 20 * 16 + 8),
-			3: Vector2(9 * 16 + 8, 20 * 16 + 8),
+			2: Vector2(31 * 16 + 8, 16 * 16 + 8),
+			3: Vector2(6 * 16 + 8, 21 * 16 + 8),
 			4: Vector2(9 * 16 + 8, 34 * 16 + 8),
 			5: Vector2(31 * 16 + 8, 34 * 16 + 8),
 		}
@@ -171,9 +171,15 @@ func _ready() -> void:
 			if child is Artifact and child.item_id == "ram_zun":
 				zun = child
 		if zun != null:
-			bm.player.global_position = zun.global_position + Vector2(0, 28)
+			bm.player.global_position = zun.global_position + Vector2(-28, 0)
 			await _wait(1.2)
 			await _shot("/tmp/shot_bm_zun.png")
+			# 2.5D 互动特写层（按 E 触碰文物）
+			main.open_relic_closeup("ram_zun")
+			await _wait(0.5)
+			await _shot("/tmp/shot_bm_closeup.png")
+			main.relic_closeup.close()
+			await _wait(0.2)
 			# 任务终端里的 3D 双羊尊
 			main.open_phone()
 			await _wait(0.4)
@@ -191,6 +197,20 @@ func _ready() -> void:
 			await _shot("/tmp/shot_bm_backpack.png")
 			main.backpack.close()
 			await _wait(0.2)
+	# 据点：销赃页
+	var stash: Array[String] = ["vase", "gem", "jade"]
+	Game.loot_stash = stash
+	main.show_menu()
+	await _wait(0.4)
+	var hub: Hub = null
+	for child in main.get_node("UILayer").get_children():
+		if child is Hub:
+			hub = child
+	if hub != null:
+		hub._show_tab("sell")
+		await _wait(0.3)
+		await _shot("/tmp/shot_sell.png")
+
 	Audio.shutdown()
 	# 与冒烟测试相同的优雅退出：等音频服务端释放引用、再跑几帧，避免退出时误报泄漏
 	await get_tree().create_timer(0.4).timeout

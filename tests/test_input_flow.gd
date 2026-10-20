@@ -78,6 +78,7 @@ func _any_overlay_open() -> bool:
 		or main.phone.is_open()
 		or main.dialogue.is_active()
 		or main.dialogue_tree.is_active()
+		or main.relic_closeup.is_open()
 	)
 
 
@@ -251,6 +252,27 @@ func _test_hud_button_while_bag() -> void:
 	_check_pause_contract("HUD 用例清理后")
 
 
+func _test_relic_closeup() -> void:
+	# 互动特写层（2.5D）：打开即暂停；E 拾取 / Esc 离开
+	await _wait(0.3)
+	main.open_relic_closeup("ram_zun")
+	await _frames(3)
+	check(main.relic_closeup.is_open(), "互动特写层已打开")
+	_check_pause_contract("互动特写层打开后")
+
+	await _tap(KEY_E)
+	check(not main.relic_closeup.is_open(), "E 关闭特写层（拾取/离开）")
+	_check_pause_contract("互动特写层关闭后")
+
+	await _wait(0.3)
+	main.open_relic_closeup("ram_zun")
+	await _frames(3)
+	check(main.relic_closeup.is_open(), "互动特写层再次打开")
+	await _tap(KEY_ESCAPE)
+	check(not main.relic_closeup.is_open(), "ESC 关闭特写层")
+	_check_pause_contract("ESC 关闭特写层后")
+
+
 func _test_statements_from_title() -> void:
 	# 回到标题，真实鼠标点击「声明与说明」，ESC 关闭
 	main.show_title()
@@ -270,6 +292,40 @@ func _test_statements_from_title() -> void:
 	check(main.statements.is_open(), "点击按钮打开声明页")
 	await _tap(KEY_ESCAPE)
 	check(not main.statements.is_open(), "ESC 关闭声明页")
+
+
+func _test_sell_tab() -> void:
+	# 据点「销赃」页：真实点击标签 → 逐件卖出 → 全部出手
+	Game.loot_stash = [] as Array[String]
+	var items: Array[String] = ["vase", "gem"]
+	Game.loot_stash = items
+	main.show_menu()
+	await _frames(4)
+	var hub: Hub = null
+	for child in main.get_node("UILayer").get_children():
+		if child is Hub:
+			hub = child
+	check(hub != null, "据点已打开")
+	if hub == null:
+		return
+	var tab: Button = hub.get_node_or_null("TabSell")
+	check(tab != null, "据点有「销赃」标签")
+	if tab == null:
+		return
+	await _click(tab.get_global_rect().get_center())
+	check(hub.sell_box.visible, "点击「销赃」切换到仓库页")
+	check(hub.sell_list.get_child_count() == 2, "仓库列出两件战利品")
+
+	var money_before := Game.money
+	var first_row: HBoxContainer = hub.sell_list.get_child(0)
+	var sell_button: Button = first_row.get_child(2)
+	await _click(sell_button.get_global_rect().get_center())
+	check(Game.money == money_before + 120, "点击卖出获得对应金币")
+	check(Game.loot_stash.size() == 1, "卖出的物品移出仓库")
+
+	await _click(hub.sell_all_button.get_global_rect().get_center())
+	check(Game.loot_stash.is_empty(), "全部出手后仓库清空")
+	check(Game.money == money_before + 420, "全部出手结清剩余金币")
 
 
 func _test_leave_scene_clean() -> void:
@@ -308,8 +364,14 @@ func _ready() -> void:
 	await _test_lore_over_museum()
 	await _test_hud_button_while_bag()
 	await _test_leave_scene_clean()
+	await _test_relic_closeup()
 	await _test_statements_from_title()
+	await _test_sell_tab()
 
+	# 停止音频并给音频服务端一点真实时间释放播放引用（否则退出时报假泄漏）
+	Audio.shutdown()
+	await get_tree().create_timer(0.4, true).timeout
+	await _frames(5)
 	if _failures > 0:
 		print("FAILED %d / %d checks" % [_failures, _checks])
 		get_tree().quit(1)

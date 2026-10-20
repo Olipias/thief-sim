@@ -1,0 +1,150 @@
+[gd_scene load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://src/ui/relic_closeup.gd" id="1_script"]
+
+[node name="RelicCloseup" type="CanvasLayer"]
+process_mode = 3
+layer = 14
+script = ExtResource("1_script")
+
+[node name="Root" type="Control" parent="."]
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+mouse_filter = 2
+
+[node name="Backdrop" type="ColorRect" parent="Root"]
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+color = Color(0.035, 0.028, 0.022, 1)
+
+[node name="Glow" type="TextureRect" parent="Root"]
+anchor_left = 0.5
+anchor_top = 0.5
+anchor_right = 0.5
+anchor_bottom = 0.5
+offset_left = -260.0
+offset_top = -260.0
+offset_right = 260.0
+offset_bottom = 260.0
+grow_horizontal = 2
+grow_vertical = 2
+mouse_filter = 2
+modulate = Color(1, 0.82, 0.55, 0.35)
+expand_mode = 1
+stretch_mode = 5
+
+[node name="ArtWrap" type="Control" parent="Root"]
+anchor_left = 0.5
+anchor_top = 0.5
+anchor_right = 0.5
+anchor_bottom = 0.5
+offset_left = -108.0
+offset_top = -146.0
+offset_right = 108.0
+offset_bottom = 70.0
+grow_horizontal = 2
+grow_vertical = 2
+mouse_filter = 2
+pivot_offset = Vector2(108, 108)
+
+[node name="Art" type="TextureRect" parent="Root/ArtWrap"]
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+mouse_filter = 2
+expand_mode = 1
+stretch_mode = 5
+
+[node name="TopBar" type="ColorRect" parent="Root"]
+anchor_right = 1.0
+offset_bottom = 30.0
+grow_horizontal = 2
+mouse_filter = 2
+color = Color(0.01, 0.01, 0.01, 1)
+
+[node name="BottomBar" type="ColorRect" parent="Root"]
+anchor_top = 1.0
+anchor_right = 1.0
+anchor_bottom = 1.0
+offset_top = -32.0
+grow_horizontal = 2
+grow_vertical = 0
+mouse_filter = 2
+color = Color(0.01, 0.01, 0.01, 1)
+
+[node name="Title" type="Label" parent="Root"]
+anchor_right = 1.0
+offset_top = 5.0
+offset_bottom = 27.0
+grow_horizontal = 2
+theme_override_colors/font_color = Color(0.96, 0.84, 0.4, 1)
+theme_override_colors/font_outline_color = Color(0, 0, 0, 1)
+theme_override_constants/outline_size = 4
+theme_override_font_sizes/font_size = 16
+text = "文物"
+horizontal_alignment = 1
+
+[node name="Story" type="Label" parent="Root"]
+anchor_top = 1.0
+anchor_right = 1.0
+anchor_bottom = 1.0
+offset_left = 60.0
+offset_top = -92.0
+offset_right = -60.0
+offset_bottom = -38.0
+grow_horizontal = 2
+grow_vertical = 0
+theme_override_colors/font_color = Color(0.85, 0.8, 0.68, 1)
+theme_override_colors/font_outline_color = Color(0, 0, 0, 1)
+theme_override_constants/outline_size = 3
+theme_override_font_sizes/font_size = 11
+text = ""
+horizontal_alignment = 1
+autowrap_mode = 2
+
+[node name="Actions" type="HBoxContainer" parent="Root"]
+anchor_left = 0.5
+anchor_top = 1.0
+anchor_right = 0.5
+anchor_bottom = 1.0
+offset_left = -150.0
+offset_top = -32.0
+offset_right = 150.0
+offset_bottom = -6.0
+grow_horizontal = 2
+grow_vertical = 0
+theme_override_constants/separation = 8
+
+[node name="Pickup" type="Button" parent="Root/Actions"]
+size_flags_horizontal = 3
+theme_override_font_sizes/font_size = 11
+text = "拾取（E）"
+
+[node name="Leave" type="Button" parent="Root/Actions"]
+size_flags_horizontal = 3
+theme_override_font_sizes/font_size = 11
+text = "离开（Esc）"
+
+[node name="Hint" type="Label" parent="Root"]
+anchor_left = 1.0
+anchor_right = 1.0
+anchor_top = 1.0
+anchor_bottom = 1.0
+offset_left = -300.0
+offset_top = -30.0
+offset_right = -12.0
+offset_bottom = -10.0
+grow_horizontal = 0
+grow_vertical = 0
+theme_override_colors/font_color = Color(0.55, 0.52, 0.45, 1)
+theme_override_font_sizes/font_size = 10
+text = "E 拾取 · Esc 离开"
+horizontal_alignment = 2

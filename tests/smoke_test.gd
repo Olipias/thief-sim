@@ -353,6 +353,10 @@ func _test_british_museum_level() -> void:
 			zun = child
 	check(zun != null, "double-ram zun artifact exists in the level")
 	check(museum.get_node_or_null("BMDisplayCase") != null, "british museum target room has the BM display case")
+	if zun != null:
+		var zun_cell := Vector2i(int(zun.global_position.x / 16), int(zun.global_position.y / 16))
+		check(museum.is_cell_blocked(zun_cell.x, zun_cell.y), "BM target pedestal blocks movement")
+	check(museum.bm_solid_decor_count > 0, "BM solid decor collision exists")
 	check(museum.bm_decor_count > 0, "british museum has decoration props")
 	check(museum.get_node_or_null("BMDust") != null, "british museum room 3 has dust particles")
 	check(museum.get_node_or_null("BMZunReflection") != null, "british museum room 3 has the zun floor reflection")
@@ -379,7 +383,7 @@ func _test_british_museum_level() -> void:
 	check(not cop0.can_see_player(), "guard does not see the player across rooms")
 
 	if zun != null:
-		museum.player.global_position = zun.global_position + Vector2(0, 24)
+		museum.player.global_position = zun.global_position + Vector2(-24, 0)
 		check(zun.try_pickup(), "double-ram zun can be picked up")
 		check(Game.mission_complete, "carrying the zun completes the mission")
 

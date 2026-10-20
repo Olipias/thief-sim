@@ -133,7 +133,7 @@ func _check_invariants(step: int) -> void:
 	# 2) 任务目标一致性：mission_complete 必须与背包实时内容一致
 	var has_target := false
 	for item in Game.bag_items:
-		if Game.item_is_target(String(item["id"])):
+		if String(item["id"]) == Game.mission_target_id:
 			has_target = true
 	if has_target != Game.mission_complete:
 		_fail(step, "mission_complete=%s 但背包中目标物=%s" % [Game.mission_complete, has_target])
@@ -142,6 +142,13 @@ func _check_invariants(step: int) -> void:
 	# 3) 数值不变量
 	if Game.money < 0 or Game.smoke_count < 0 or Game.backpack_level < 0:
 		_fail(step, "资源出现负值：money=%d smoke=%d bag_lv=%d" % [Game.money, Game.smoke_count, Game.backpack_level])
+		return
+	for id in Game.loot_stash:
+		if not Game.CATALOG.has(id) or Game.item_value(id) < 0:
+			_fail(step, "仓库出现非法条目：%s" % id)
+			return
+	if Game.stash_value() < 0:
+		_fail(step, "仓库估值出现负值")
 		return
 
 	# 4) 玩家永远不该卡进实心格；坐标必须有限
@@ -155,7 +162,7 @@ func _check_invariants(step: int) -> void:
 		var ty := int(pos.y / m.TILE)
 		if ty >= 0 and ty < m.tiles.size() and tx >= 0 and tx < String(m.tiles[ty]).length():
 			var ch := String(m.tiles[ty])[tx]
-			if not m.WALKABLE.contains(ch):
+			if m.is_cell_blocked(tx, ty):
 				_fail(step, "玩家进入实心格 %s：tile='%s'（%s）" % [Vector2i(tx, ty), ch, pos])
 				return
 

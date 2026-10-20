@@ -12,13 +12,20 @@ const RELIC_ZOOM := 0.75
 @onready var feedback: Label = $Feedback
 @onready var levels_box: VBoxContainer = $LevelsBox
 @onready var shop_box: VBoxContainer = $Shop
+@onready var sell_box: VBoxContainer = $SellBox
+@onready var sell_list: VBoxContainer = $SellBox/SellScroll/SellList
+@onready var sell_total: Label = $SellBox/SellHeader/SellTotal
+@onready var sell_all_button: Button = $SellBox/SellAll
 @onready var tab_levels: Button = $TabLevels
 @onready var tab_shop: Button = $TabShop
+@onready var tab_sell: Button = $TabSell
 
 
 func _ready() -> void:
 	tab_levels.pressed.connect(func() -> void: _show_tab("levels"))
 	tab_shop.pressed.connect(func() -> void: _show_tab("shop"))
+	tab_sell.pressed.connect(func() -> void: _show_tab("sell"))
+	sell_all_button.pressed.connect(_on_sell_all)
 	$QuitButton.pressed.connect(func() -> void: quit_requested.emit())
 	for id in ROWS:
 		var button: Button = _row(id).get_node("HBox/Buy")
@@ -33,12 +40,15 @@ func _row(id: String) -> PanelContainer:
 
 
 func _show_tab(tab: String) -> void:
-	var levels_active := tab == "levels"
-	levels_box.visible = levels_active
-	feedback.visible = not levels_active
-	shop_box.visible = not levels_active
-	tab_levels.button_pressed = levels_active
-	tab_shop.button_pressed = not levels_active
+	levels_box.visible = tab == "levels"
+	shop_box.visible = tab == "shop"
+	sell_box.visible = tab == "sell"
+	feedback.visible = tab == "shop"
+	tab_levels.button_pressed = tab == "levels"
+	tab_shop.button_pressed = tab == "shop"
+	tab_sell.button_pressed = tab == "sell"
+	if tab == "sell":
+		_build_sell_list()
 
 
 ## 每个关卡一张卡片：目标文物（有 3D 转台条则播放动画）+ 名称/报酬 + 开始按钮。
@@ -86,6 +96,58 @@ func _refresh() -> void:
 	money_label.text = "金币 %d" % Game.money
 	for id in ROWS:
 		_setup_row(id)
+	_build_sell_list()
+
+
+## 销赃页：列出据点仓库里的战利品，逐件或一次性出手。
+func _build_sell_list() -> void:
+	for child in sell_list.get_children():
+		child.queue_free()
+	sell_total.text = "估值 %d 金币" % Game.stash_value()
+	sell_all_button.disabled = Game.loot_stash.is_empty()
+	if Game.loot_stash.is_empty():
+		var empty := Label.new()
+		empty.text = "仓库里还没有战利品。成功撤离并带回文物后，会存放在这里。"
+		empty.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+		empty.add_theme_color_override("font_color", Color("8a8f9c"))
+		sell_list.add_child(empty)
+		return
+	for i in Game.loot_stash.size():
+		var id := String(Game.loot_stash[i])
+		var row := HBoxContainer.new()
+		var name_label := Label.new()
+		name_label.text = Game.item_name(id)
+		name_label.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		row.add_child(name_label)
+		var value_label := Label.new()
+		value_label.text = "%d 金币" % Game.item_value(id)
+		value_label.custom_minimum_size = Vector2(90, 0)
+		value_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
+		value_label.add_theme_color_override("font_color", Color("f5d766"))
+		row.add_child(value_label)
+		var button := Button.new()
+		button.text = "卖出"
+		button.custom_minimum_size = Vector2(64, 0)
+		button.pressed.connect(_on_sell.bind(i))
+		row.add_child(button)
+		sell_list.add_child(row)
+
+
+func _on_sell(index: int) -> void:
+	var id := String(Game.loot_stash[index]) if index < Game.loot_stash.size() else ""
+	var value := Game.sell_stash_item(index)
+	if value > 0:
+		Audio.play("coin", -7.0)
+		feedback.text = "已卖出：%s（+%d 金币）" % [Game.item_name(id), value]
+		_refresh()
+
+
+func _on_sell_all() -> void:
+	var total := Game.sell_all_stash()
+	if total > 0:
+		Audio.play("coin", -7.0)
+		feedback.text = "全部出手：+%d 金币" % total
+		_refresh()
 
 
 func _setup_row(id: String) -> void:

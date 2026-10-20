@@ -5,6 +5,7 @@ extends CharacterBody2D
 
 signal used_item(item_id: String)
 signal made_noise(position: Vector2, radius: float)
+signal inspect_requested(item_id: String)
 
 const WALK_SPEED := 58.0
 const SPRINT_SPEED := 88.0
@@ -89,7 +90,11 @@ func _update_visual(dir: Vector2, delta: float) -> void:
 
 func _try_interact() -> void:
 	var target := _closest_artifact()
-	if target != null:
+	if target == null:
+		return
+	if target.has_cinematic_closeup():
+		inspect_requested.emit(target.item_id)
+	else:
 		target.try_pickup()
 
 

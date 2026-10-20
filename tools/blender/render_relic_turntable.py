@@ -7,7 +7,7 @@ N 个角度逐帧渲染：透明背景、384×384、Cycles CPU。
     blender --background --factory-startup --python tools/blender/render_relic_turntable.py
     FRAMES=12 SAMPLES=24 OUTDIR=/tmp/opencode/relic_turntable blender ... （可选环境变量）
 
-输出：OUTDIR/f00.png .. f11.png 与 OUTDIR/hero.png（3/4 视角大图，用于图标与档案）
+输出：OUTDIR/f00.png .. f11.png、hero.png（图标/档案）、closeup.png（互动特写层）
 """
 import math
 import os
@@ -24,6 +24,7 @@ OUT = os.environ.get("OUTDIR", "/tmp/opencode/relic_turntable")
 FRAMES = int(os.environ.get("FRAMES", "12"))
 SAMPLES = int(os.environ.get("SAMPLES", "24"))
 RES = int(os.environ.get("RES", "384"))
+CLOSEUP_RES = int(os.environ.get("CLOSEUP_RES", "768"))
 
 
 def log(*a):
@@ -90,6 +91,22 @@ def main():
     sc.render.filepath = os.path.join(OUT, "hero.png")
     bpy.ops.render.render(write_still=True)
     log("rendered hero")
+
+    # 电影感特写（按 E 互动后的 2.5D 特写层用）：更近的机位、更长焦
+    sc.render.resolution_x = CLOSEUP_RES
+    sc.render.resolution_y = CLOSEUP_RES
+    pivot.rotation_euler = (0.0, 0.0, math.radians(24.0))
+    cam.location = Vector((0.70, -0.70, 0.50))
+    cam.data.lens = 64
+    look_at(cam, (0, 0, 0.22))
+    sc.render.filepath = os.path.join(OUT, "closeup.png")
+    bpy.ops.render.render(write_still=True)
+    log("rendered closeup")
+    sc.render.resolution_x = RES
+    sc.render.resolution_y = RES
+    cam.location = Vector((0.72, -0.72, 0.52))
+    cam.data.lens = 62
+    look_at(cam, (0, 0, 0.215))
 
     # 转台序列
     for i in range(FRAMES):

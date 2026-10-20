@@ -31,6 +31,7 @@ const BRIEFINGS := {
 @onready var phone: MissionPhone = $Phone
 @onready var dialogue_tree: DialogueTree = $DialogueTree
 @onready var statements: StatementsScreen = $Statements
+@onready var relic_closeup: RelicCloseup = $RelicCloseup
 
 var _busy := false
 var _museum: Museum = null
@@ -50,6 +51,8 @@ func _ready() -> void:
 	backpack.drop_requested.connect(_on_backpack_drop)
 	phone.closed.connect(_on_phone_closed)
 	phone.card_requested.connect(_on_card_requested)
+	relic_closeup.closed.connect(_on_relic_closeup_closed)
+	relic_closeup.pickup_requested.connect(_on_relic_pickup)
 	hud.phone_requested.connect(open_phone)
 	show_title()
 
@@ -59,7 +62,7 @@ func _process(delta: float) -> void:
 	_bag_cooldown = maxf(0.0, _bag_cooldown - delta)
 	if _museum == null or not is_instance_valid(_museum) or _busy:
 		return
-	if backpack.is_open() or dialogue.is_active() or phone.is_open():
+	if backpack.is_open() or dialogue.is_active() or phone.is_open() or relic_closeup.is_open():
 		return
 	if Input.is_action_just_pressed("bag") and toggle_allowed(_bag_cooldown):
 		open_backpack()
@@ -70,7 +73,7 @@ func _process(delta: float) -> void:
 func open_phone() -> void:
 	if _museum == null or not is_instance_valid(_museum) or _busy or phone.is_open():
 		return
-	if dialogue.is_active() or dialogue_tree.is_active():
+	if dialogue.is_active() or dialogue_tree.is_active() or relic_closeup.is_open():
 		return
 	phone.open()
 	hud.set_compact(true)
@@ -103,6 +106,26 @@ func _on_lore_finished(item_id: String) -> void:
 	hud.set_compact(false)
 
 
+## 互动特写层（2.5D）：靠近有特写图的文物按 E 打开。
+func open_relic_closeup(item_id: String) -> void:
+	if _museum == null or not is_instance_valid(_museum) or _busy or relic_closeup.is_open():
+		return
+	relic_closeup.open(item_id, true)
+	hud.set_compact(true)
+	get_tree().paused = true
+
+
+func _on_relic_closeup_closed() -> void:
+	get_tree().paused = false
+	hud.set_compact(false)
+
+
+func _on_relic_pickup(item_id: String) -> void:
+	if _museum != null and is_instance_valid(_museum):
+		_museum.pickup_artifact(item_id)
+	relic_closeup.close()
+
+
 ## 展签卡（史实）：手机档案页点击卡片时用对谈层展示；不改变暂停状态（手机仍开着）。
 ## escapable=true：按 P / ESC 先收掉卡片层，逐层返回到手机（见 tests/test_input_flow.gd）。
 func _on_card_requested(item_id: String, card_id: String) -> void:
@@ -110,7 +133,7 @@ func _on_card_requested(item_id: String, card_id: String) -> void:
 
 
 func open_backpack() -> void:
-	if dialogue.is_active() or dialogue_tree.is_active():
+	if dialogue.is_active() or dialogue_tree.is_active() or relic_closeup.is_open():
 		return
 	backpack.open()
 	hud.set_compact(true)
@@ -148,6 +171,8 @@ func show_title() -> void:
 		phone.close()
 	if statements.is_open():
 		statements.close()
+	if relic_closeup.is_open():
+		relic_closeup.close()
 	_museum = null
 	_clear_screen()
 	_clear_ui()
@@ -176,6 +201,8 @@ func show_menu() -> void:
 		phone.close()
 	if statements.is_open():
 		statements.close()
+	if relic_closeup.is_open():
+		relic_closeup.close()
 	_museum = null
 	_clear_screen()
 	_clear_ui()
@@ -205,6 +232,7 @@ func start_mission(level_id := "museum") -> void:
 	museum.alert_changed.connect(hud.set_alert)
 	museum.dialogue_requested.connect(_show_dialogue)
 	museum.lore_requested.connect(_on_lore_requested)
+	museum.closeup_requested.connect(open_relic_closeup)
 	screen.add_child(museum)
 	_museum = museum
 	hud.show_hud()

@@ -53,6 +53,11 @@ func display_name() -> String:
 	return Game.item_name(item_id)
 
 
+## 是否有高精度互动特写图（有则按 E 先进入 2.5D 特写层，而不是直接拾取）。
+func has_cinematic_closeup() -> bool:
+	return ResourceLoader.exists("res://assets/sprites/relic_%s_closeup.png" % item_id)
+
+
 func try_pickup() -> bool:
 	if not Game.try_pickup(item_id):
 		pickup_blocked.emit(item_id)

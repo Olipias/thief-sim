@@ -1,4 +1,4 @@
-[gd_scene load_steps=8 format=3]
+[gd_scene load_steps=9 format=3]
 
 [ext_resource type="Script" path="res://src/main.gd" id="1_script"]
 [ext_resource type="PackedScene" path="res://src/ui/hud.tscn" id="2_hud"]
@@ -7,6 +7,7 @@
 [ext_resource type="PackedScene" path="res://src/ui/mission_phone.tscn" id="5_phone"]
 [ext_resource type="PackedScene" path="res://src/ui/dialogue_tree.tscn" id="6_tree"]
 [ext_resource type="PackedScene" path="res://src/ui/statements_screen.tscn" id="7_statements"]
+[ext_resource type="PackedScene" path="res://src/ui/relic_closeup.tscn" id="8_closeup"]
 
 [node name="Main" type="Node"]
 script = ExtResource("1_script")
@@ -27,3 +28,5 @@ layer = 5
 [node name="DialogueTree" parent="." instance=ExtResource("6_tree")]
 
 [node name="Statements" parent="." instance=ExtResource("7_statements")]
+
+[node name="RelicCloseup" parent="." instance=ExtResource("8_closeup")]

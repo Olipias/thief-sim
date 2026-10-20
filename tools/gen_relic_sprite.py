@@ -30,6 +30,7 @@ PALETTE_COLORS = 14
 BOTTOM_MARGIN = 1
 ALPHA_CUTOFF = 128
 ICON_SIZE = 24  # 背包格子为 24px，1:1 显示最清晰
+CLOSEUP_SIZE = 360  # 互动特写层（2.5D）展示尺寸
 
 
 def load_frames():
@@ -138,6 +139,26 @@ def main():
     icon_path = os.path.join(OUT_DIR, "artifact_ram_zun.png")
     icon.save(icon_path)
     print("wrote", os.path.relpath(icon_path, ROOT), icon.size)
+
+    # 互动特写层（2.5D）：保留渲染的细腻明暗，不量化成像素
+    closeup_path = os.path.join(SRC, "closeup.png")
+    if os.path.exists(closeup_path):
+        closeup = Image.open(closeup_path).convert("RGBA")
+        box = closeup.getbbox()
+        if box is not None:
+            crop = closeup.crop(box)
+            scale = min(CLOSEUP_SIZE / crop.width, CLOSEUP_SIZE / crop.height)
+            size = (max(1, round(crop.width * scale)), max(1, round(crop.height * scale)))
+            art = crop.resize(size, Image.LANCZOS)
+            art = ImageEnhance.Color(art).enhance(1.12)
+            art = ImageEnhance.Contrast(art).enhance(1.06)
+            canvas = Image.new("RGBA", (CLOSEUP_SIZE, CLOSEUP_SIZE), (0, 0, 0, 0))
+            canvas.alpha_composite(art, ((CLOSEUP_SIZE - size[0]) // 2, (CLOSEUP_SIZE - size[1]) // 2))
+            out_path = os.path.join(OUT_DIR, "relic_ram_zun_closeup.png")
+            canvas.save(out_path)
+            print("wrote", os.path.relpath(out_path, ROOT), canvas.size)
+    else:
+        print("缺少 closeup.png，跳过特写图", file=sys.stderr)
 
 
 if __name__ == "__main__":

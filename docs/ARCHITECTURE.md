@@ -14,6 +14,7 @@ main.tscn (Main, src/main.gd) —— 唯一场景编排者
 ├── Backpack (CanvasLayer)   格子背包整理界面
 ├── Phone (CanvasLayer)      任务终端（手机）：任务发布 + 档案（端详）
 ├── Statements (CanvasLayer) 声明与说明（标题页入口；非游戏内覆盖层，不暂停）
+├── RelicCloseup (CanvasLayer) 互动特写层（2.5D，按 E 触碰重点文物；打开即暂停）
 └── Dialogue (CanvasLayer)   打字机对话框
 
 Autoload
@@ -31,7 +32,7 @@ Autoload
 | `src/main.gd` | 场景流程编排、暂停控制、任务简报 | 手机/背包开关带 0.2s 冷却（`toggle_allowed()`），防关闭后同帧被重开； 世界加到 `Screen`；HUD/对话/背包的信号在这里接线；`start_mission(level_id)` 设定关卡并显示对应简报 |
 | `src/actors/player.gd` | 玩家移动（走/跑）、拾取、道具、噪音、脚步 | 信号 `used_item` / `made_noise`；分组 `player`；`controls_enabled` 冻结操控；场景内 `Camera2D`（zoom 2×，即一屏 20×11 格）+ 玩家微光 `Aura` |
 | `src/actors/police.gd` | 警察 AI：巡逻 → 调查 → 追击 → 逮捕 | 状态机 `State{PATROL,INVESTIGATE,CHASE}`；`in_cone()` 纯函数（可单测）；视野射线仅被墙阻挡（mask=1）；**视物与逮捕要求与玩家同房间**（`can_see_player()` + `museum.room_index_at`，门洞可走但不隔房索敌）；`blind()` 烟雾致盲（同时熄灭手电）；`alert_level()` 0/1/2；`set_ai_enabled()` 供演出/截图暂停感知 |
-| `src/world/museum.gd` | 关卡构建与全部关卡规则 | `level_id` → 地图/目标/器灵台词按关卡解析（`target_item_id()`）；读 JSON 建碰撞/灯光/角色；房间相机；小地图数据；幽灵事件；烟雾弹；噪音与哀嚎按房间分流；出口锁；**大英博物馆六展厅主题**（`BM_THEMES` + `_room_of_tile` + `_draw_bm_tile()`）+ **纯视觉装饰层**（`BM_DECOR` + `_build_bm_decor()`，不新增碰撞）+ **装饰动效与 Room 3 光影**（`_animate_bm_decor()`、`BMDust`/`BMZunReflection`/`BMGlassGlint`） |
+| `src/world/museum.gd` | 关卡构建与全部关卡规则 | `level_id` → 地图/目标/器灵台词按关卡解析（`target_item_id()`）；读 JSON 建碰撞/灯光/角色；房间相机；小地图数据；幽灵事件；烟雾弹；噪音与哀嚎按房间分流；出口锁；**大英博物馆六展厅主题**（`BM_THEMES` + `_room_of_tile` + `_draw_bm_tile()`）+ **纯视觉装饰层**（`BM_DECOR` + `_build_bm_decor()`，不新增碰撞）+ **装饰动效与 Room 3 光影**（`_animate_bm_decor()`、`BMDust`/`BMZunReflection`/`BMGlassGlint`）；**视觉/碰撞一致性**（`is_cell_blocked()` + `BM_SOLID_DECOR`，T/a/p 展台与大件装饰有实体） |
 | `src/world/artifact.gd` | 场景中的可拾取文物 | 贴图约定 `artifact_<id>.png`（16×16 图标）；若存在 `relic_<id>_strip.png` 则显示 3D 渲染转台动画（12 帧 × 24×28，常量在脚本内）；拾取成功/失败信号 |
 | `src/world/ghost.gd` | 幽灵：尾随 + 周期哀嚎 + 寿命渐隐 | `wailed(position)` 由 museum 转给附近警察 |
 | `src/world/smoke_puff.gd` | 烟雾视觉（纯表现） | 不承载规则 |
@@ -50,8 +51,9 @@ Autoload
 | `src/data/statements.gd` | 正式声明数据（静态类 `Statements`） | 项目性质、史实/虚构分界、真实文物与来源、3D 模型说明、字体许可、立场与致谢；游戏内**不放**学术引用，全部集中于此 |
 | `src/ui/statements_screen.gd` | 声明与说明页（标题入口） | 纸卡 + 滚动列表；非游戏内覆盖层（不暂停），ESC / 按钮关闭 |
 | `src/ui/dialogue_tree.gd` | 器灵对谈（选项 + 展签卡） | 播放 `Lore.stages()`；结束时回调推进 `Game.lore_stage`；史实卡与台词视觉分离 |
+| `src/ui/relic_closeup.gd` | 互动特写层（2.5D） | 检测 `relic_<id>_closeup.png`；黑场淡入 + 暖光 + 呼吸推近；E 拾取 / Esc 离开；打开 ⇔ 暂停 |
 | `src/ui/inspect_page.gd` | 端详页（手机档案页内） | 特写 + 热点标记（发现状态存 `Game.lore_found`）+ 展签卡列表（按进度解锁，点击交给 main 用 DialogueTree 展示） |
-| `src/autoload/game_state.gd` | 全部可持久化状态与规则 | 内容表 `CATALOG/SHAPES/UPGRADES/BAG_SIZES` 目前在这里（技术债，见 §8）；**关卡注册表 `LEVELS`**（id/名称/地图/目标/报酬）+ `set_level()` + `mission_target_id`；**`ARCHIVE` 文物档案字段**（与 SOURCES.md 对齐） |
+| `src/autoload/game_state.gd` | 全部可持久化状态与规则 | 内容表 `CATALOG/SHAPES/UPGRADES/BAG_SIZES` 目前在这里（技术债，见 §8）；**关卡注册表 `LEVELS`**（id/名称/地图/目标/报酬）+ `set_level()` + `mission_target_id`；**`ARCHIVE` 文物档案字段**（与 SOURCES.md 对齐；游戏内显示 `source_label`，不显示文档路径） |
 | `src/autoload/audio.gd` | 音效播放 | `SFX` 键→路径；播放器池轮转；退出前 `shutdown()` |
 | `src/levels/*.json` | 关卡数据（**生成物**） | `museum_map.json`（城西博物馆）/ `british_museum.json`（大英博物馆·中国馆）；由 `tools/gen_museum_map.py` 生成；verify 校验同步 |
 | `tests/*` | 测试与截图 | 见 §7 |
@@ -67,7 +69,7 @@ Autoload
 ### 3.1 全局状态（`Game`）
 
 - 运行局内：`bag_items: Array[{id,x,y,rot}]`、`mission_complete`
-- 长期成长：`money`、`backpack_level`、`has_sneakers`、`smoke_count`
+- 长期成长：`money`、`backpack_level`、`has_sneakers`、`smoke_count`、`loot_stash`（据点仓库：待售战利品 id 列表）
 - 信号：`backpack_changed` / `money_changed` / `items_changed`（UI 只监听，不轮询）
 - Σ 存档：`user://save.json`（测试隔离到 `/tmp`）
 
@@ -123,6 +125,8 @@ Autoload
 
 - **拾取**：`Player` 按 E → `Artifact.try_pickup()` → `Game.try_pickup()`（自动找位）→ 成功 `picked` / 失败 `pickup_blocked` → `museum` 用 `toast` 反馈；`Game` 发 `backpack_changed` → HUD 刷新。
 - **任务目标**：拾取 → `mission_complete=true` 且触发幽灵事件；丢到场景 → 实时重算为 false → 出口拒绝开启（`_on_exit_body_entered` 检查 `Game.mission_complete`）。
+- **互动特写**：`Player.inspect_requested` → `Museum.closeup_requested` → `Main.open_relic_closeup()`（暂停）→ 拾取时 `Museum.pickup_artifact()`。
+- **战利品**：撤离结算 → 目标上交并发放组织报酬；其余文物进入 `Game.loot_stash`（不自动出售）→ 据点「销赃」页逐件/全部卖出（`sell_stash_item` / `sell_all_stash`）。
 - **警察感知**：听到噪音 → `INVESTIGATE`（走去看）→ 视野锥内持续 0.35s（无墙遮挡）→ `CHASE` → 接触 <11px 逮捕；`blind()` 清空状态回巡逻；警戒等级 0/1/2 逐级上报 → HUD。
 - **幽灵事件**：拾取目标后延迟 `ghost_delay` 生成 `Ghost`；幽灵周期 `wailed(pos)` → 同房间 96px 内警察 `investigate(pos)`；幽灵超时渐隐自毁。
 - **音频**：`Audio.play(name, dB, pitch)` 轮转 10 个播放器，避免互相切断；测试与退出前 `shutdown()`。
@@ -137,7 +141,7 @@ Autoload
 6. 测试存档隔离 `/tmp`；冒烟测试退出前 `Audio.shutdown()`。
 7. 存档只增字段且带默认值；UI 文案中文；640×360 布局假设。
 8. 背包放置判定单点实现（`Game.bag_can_place`）——UI 不得复制一套碰撞逻辑。
-9. **UI 覆盖层契约**（由 `tests/test_input_flow.tscn` 守卫）：有覆盖层打开 ⇔ `get_tree().paused`；B/P/ESC 关闭且**逐层返回**（卡片叠层先收卡片、再关手机）；覆盖层根节点必须 `process_mode=3`（ALWAYS，暂停中才能响应按键）；关闭后的短冷却（0.2s）防止同一按键"刚关又开"。新增/修改覆盖层必须在输入流自检补用例——**只调 `open()/close()` 的测试测不到按键路由 bug**。
+9. **UI 覆盖层契约**（由 `tests/test_input_flow.tscn` 守卫）：有覆盖层打开 ⇔ `get_tree().paused`；B/P/ESC 关闭且**逐层返回**（卡片叠层先收卡片、再关手机）；覆盖层根节点必须 `process_mode=3`（ALWAYS，暂停中才能响应按键）；关闭后的短冷却（0.2s）防止同一按键"刚关又开"。新增/修改覆盖层必须在输入流自检补用例——**只调 `open()/close()` 的测试测不到按键路由 bug**。互动特写层（`RelicCloseup`）同属覆盖层：E 拾取 / Esc 离开。
 
 ## 6. 改造配方（Recipes）
 

@@ -30,6 +30,7 @@ func _initialize() -> void:
 	_test_future_fields()
 	_test_dirty_bag_entries()
 	_test_dirty_lore_entries()
+	_test_dirty_stash()
 	_test_current_round_trip()
 
 	if _failures > 0:
@@ -58,6 +59,7 @@ func _defaults_ok(gs, where: String) -> void:
 	check(gs.bag_items.is_empty(), "%s：背包为空" % where)
 	check(not gs.mission_complete, "%s：任务未完成" % where)
 	check(gs.smoke_count >= 0 and gs.money >= 0, "%s：数值非负" % where)
+	check(gs.loot_stash.is_empty(), "%s：仓库为空" % where)
 
 
 func _test_missing_file() -> void:
@@ -174,6 +176,24 @@ func _test_dirty_lore_entries() -> void:
 	check(gs.hotspot_found("mask", 0) == false, "脏文物志：坏 lore_found 不崩且视为未发现")
 	_defaults_ok(gs, "脏文物志")
 	gs.free()
+
+
+## 仓库字段：老档缺失 → 空仓库；脏条目（非字符串 / 未知 id）→ 丢弃。
+func _test_dirty_stash() -> void:
+	var legacy := _write_save("legacy_no_stash.json", '{"money": 10}')
+	var gs = _new_game(legacy)
+	gs.load_game()
+	check(gs.loot_stash.is_empty(), "老档缺 loot_stash：默认空仓库")
+	check(gs.money == 10, "老档缺 loot_stash：其余字段正常")
+	gs.free()
+
+	var dirty := _write_save("dirty_stash.json", '{"money": 5, "loot_stash": ["vase", 123, "not_real", "gem"]}')
+	var gs2 = _new_game(dirty)
+	gs2.load_game()
+	check(gs2.loot_stash.size() == 2, "脏仓库：只保留合法条目")
+	check(gs2.loot_stash.has("vase") and gs2.loot_stash.has("gem"), "脏仓库：合法 id 保留")
+	check(gs2.stash_value() == 120 + 300, "脏仓库：估值按 CATALOG 计算")
+	gs2.free()
 
 
 func _test_current_round_trip() -> void:

@@ -10,6 +10,8 @@ signal alert_changed(level: int)
 signal dialogue_requested(lines: Array)
 ## 文物志对谈请求（item_id 与要播放的段序号；由 main 交给 DialogueTree）。
 signal lore_requested(item_id: String, stage: int)
+## 请求进入互动特写层（2.5D）
+signal closeup_requested(item_id: String)
 
 const TILE := 16
 const SMOKE_RADIUS := 72.0
@@ -158,6 +160,18 @@ const BM_DECOR := {
 	],
 }
 
+## 大英博物馆里“看起来是实体”的装饰，给它们补碰撞，避免玩家误判。
+const BM_SOLID_DECOR := {
+	"ticket_desk": Vector2(30, 18),
+	"bench": Vector2(20, 8),
+	"vase_case": Vector2(28, 28),
+	"jade_case": Vector2(28, 28),
+	"scroll_case": Vector2(28, 28),
+	"lacquer_cabinet": Vector2(28, 28),
+	"crate_stack": Vector2(28, 28),
+	"forklift": Vector2(44, 24),
+}
+
 const TEX_FLOOR_A := preload("res://assets/sprites/floor_a.png")
 const TEX_FLOOR_B := preload("res://assets/sprites/floor_b.png")
 const TEX_WALL := preload("res://assets/sprites/wall.png")
@@ -211,6 +225,7 @@ var _bm_cameras: Array[Node2D] = []
 var _bm_beacons: Array[Node2D] = []
 var _bm_skylights: Array[Node2D] = []
 var _bm_glints: Array[Node2D] = []
+var bm_solid_decor_count := 0
 
 
 func _ready() -> void:
@@ -322,6 +337,18 @@ func _add_light(pos: Vector2, color: Color, energy: float, scale: float) -> Poin
 	return light
 
 
+## 实际阻挡判定：地图非走格 + 大英博物馆的 T/a/p 展台。
+func is_cell_blocked(x: int, y: int) -> bool:
+	var ch := _tile_char(x, y)
+	if ch == " ":
+		return true
+	if not WALKABLE.contains(ch):
+		return true
+	if level_id == "british_museum" and "pTa".contains(ch):
+		return true
+	return false
+
+
 func _build_collision() -> void:
 	var body := StaticBody2D.new()
 	body.name = "Walls"
@@ -331,7 +358,7 @@ func _build_collision() -> void:
 	for y in tiles.size():
 		var row: String = tiles[y]
 		for x in row.length():
-			if WALKABLE.contains(row[x]):
+			if not is_cell_blocked(x, y):
 				continue
 			var shape := CollisionShape2D.new()
 			var rect := RectangleShape2D.new()
@@ -346,6 +373,7 @@ func _spawn_player(pos: Vector2) -> void:
 	player.position = pos
 	player.used_item.connect(_on_player_used_item)
 	player.made_noise.connect(_on_player_made_noise)
+	player.inspect_requested.connect(func(item_id: String) -> void: closeup_requested.emit(item_id))
 	add_child(player)
 
 
@@ -500,6 +528,14 @@ func end_game() -> void:
 	for cop in police:
 		cop.deactivate()
 	prompt_changed.emit("")
+
+
+## 供特写层“拾取”按钮调用：拾取指定文物（返回是否成功）。
+func pickup_artifact(item_id: String) -> bool:
+	for child in get_children():
+		if child is Artifact and child.item_id == item_id:
+			return child.try_pickup()
+	return false
 
 
 func _on_artifact_picked(item_id: String) -> void:
@@ -671,13 +707,12 @@ func _tile_char(x: int, y: int) -> String:
 
 
 func _is_walkable_at(x: int, y: int) -> bool:
-	var ch := _tile_char(x, y)
-	return ch != " " and WALKABLE.contains(ch)
+	return not is_cell_blocked(x, y)
 
 
 func _is_solid_at(x: int, y: int) -> bool:
 	var ch := _tile_char(x, y)
-	return ch == "#" or ch == "o" or ch == "d" or ch == "p"
+	return ch == "#" or ch == "o" or ch == "d" or ch == "p" or ch == "T" or ch == "a"
 
 
 func _is_carpet_at(x: int, y: int) -> bool:
@@ -809,6 +844,19 @@ func _build_bm_decor() -> void:
 			var cell: Vector2i = item["cell"]
 			spr.position = _cell_center(cell.x, cell.y) + (item["offset"] as Vector2)
 			add_child(spr)
+			if BM_SOLID_DECOR.has(key):
+				var body := StaticBody2D.new()
+				body.name = "BMDecorSolid_%d" % bm_solid_decor_count
+				body.collision_layer = 1
+				body.collision_mask = 0
+				var shape := CollisionShape2D.new()
+				var rect := RectangleShape2D.new()
+				rect.size = BM_SOLID_DECOR[key]
+				shape.shape = rect
+				body.position = spr.position
+				body.add_child(shape)
+				add_child(body)
+				bm_solid_decor_count += 1
 			match key:
 				"security_camera":
 					_bm_cameras.append(spr)
