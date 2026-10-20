@@ -16,7 +16,7 @@ const INVESTIGATE_SPEED := 46.0
 const CHASE_SPEED := 74.0
 const VISION_RANGE := 96.0
 const VISION_HALF_ANGLE := deg_to_rad(48.0)
-const SPOT_DELAY := 0.35
+const SPOT_DELAY := 0.5
 const INVESTIGATE_SPOT_MULTIPLIER := 1.5
 const LOSE_TIME := 2.2
 const CATCH_DISTANCE := 11.0
@@ -45,8 +45,13 @@ var _blind_timer := 0.0
 var spot_delay_scale := 1.0
 var _investigate_pos := Vector2.ZERO
 var _investigate_timer := 0.0
+var _investigate_stop := 6.0
 var _look_timer := 0.0
 var _alert_level := 0
+var _stuck_timer := 0.0
+var _detour_timer := 0.0
+var _detour_dir := Vector2.ZERO
+var _detour_side := 1.0
 
 
 static func in_cone(origin: Vector2, facing: Vector2, target: Vector2, range_px: float, half_angle: float) -> bool:
@@ -87,11 +92,12 @@ func _spot_delay() -> float:
 
 ## Noise response: walk over to the position and look around.
 ## Returns true when the noise was actually accepted.
-func investigate(pos: Vector2, seconds := INVESTIGATE_TIME) -> bool:
+func investigate(pos: Vector2, seconds := INVESTIGATE_TIME, stop_distance := 6.0) -> bool:
 	if not active or _blind_timer > 0.0 or state == State.CHASE:
 		return false
 	_investigate_pos = pos
 	_investigate_timer = seconds
+	_investigate_stop = maxf(4.0, stop_distance)
 	if pos.distance_to(global_position) > 4.0:
 		_facing = (pos - global_position).normalized()
 	state = State.INVESTIGATE
@@ -133,7 +139,20 @@ func _physics_process(delta: float) -> void:
 		State.CHASE:
 			_process_chase(delta)
 
+	if _detour_timer > 0.0:
+		_detour_timer -= delta
+		var speed := CHASE_SPEED if state == State.CHASE else PATROL_SPEED
+		velocity = _detour_dir * speed
+
+	var before := global_position
 	move_and_slide()
+	var moved := global_position.distance_to(before)
+	if velocity.length() > 1.0 and moved < 0.2:
+		_stuck_timer += delta
+	else:
+		_stuck_timer = maxf(0.0, _stuck_timer - delta * 2.0)
+	if _stuck_timer > 0.3:
+		_start_detour()
 	_update_visual(delta)
 	_sync_alert()
 	_try_catch()
@@ -180,7 +199,7 @@ func _process_investigate(delta: float) -> void:
 		return
 
 	var to_target := _investigate_pos - global_position
-	if to_target.length() > 6.0:
+	if to_target.length() > _investigate_stop:
 		velocity = to_target.normalized() * INVESTIGATE_SPEED
 		_facing = velocity.normalized()
 	else:
@@ -221,6 +240,7 @@ func _enter_patrol() -> void:
 	state = State.PATROL
 	_spot_timer = 0.0
 	_investigate_timer = 0.0
+	_investigate_stop = 6.0
 	_patrol_index = _nearest_waypoint()
 
 
@@ -284,6 +304,19 @@ func _sync_alert() -> void:
 		alert_changed.emit()
 
 
+## 被新加的展台/长椅/叉车挡住时：侧向脱困；巡逻状态同时跳过当前路点。
+func _start_detour() -> void:
+	_stuck_timer = 0.0
+	_detour_timer = 0.45
+	var side := _facing.rotated(PI * 0.5) * _detour_side
+	if side == Vector2.ZERO:
+		side = Vector2.RIGHT
+	_detour_dir = side.normalized()
+	_detour_side *= -1.0
+	if state == State.PATROL and not patrol_points.is_empty():
+		_patrol_index = (_patrol_index + 1) % patrol_points.size()
+
+
 func _update_visual(delta: float) -> void:
 	var moving := velocity != Vector2.ZERO
 	if moving:
@@ -312,9 +345,17 @@ func _draw() -> void:
 			var angle := _facing.angle() - VISION_HALF_ANGLE + 2.0 * VISION_HALF_ANGLE * i / steps
 			points.append(Vector2.RIGHT.rotated(angle) * VISION_RANGE)
 		draw_colored_polygon(points, color)
+		# 判定锥边线：手电的亮区可能比真实判定锥窄，这条线才是「会被看见」的边界
+		var outline := points.duplicate()
+		outline.append(Vector2.ZERO)
+		draw_polyline(outline, Color(1.0, 0.78, 0.32, 0.30), 1.0)
 
 		var font := ThemeDB.fallback_font
 		if state == State.CHASE:
 			draw_string(font, Vector2(-3, -14), "!", HORIZONTAL_ALIGNMENT_LEFT, -1, 14, Color(1.0, 0.3, 0.25))
 		elif _alert_level >= 1:
-			draw_string(font, Vector2(-4, -14), "?", HORIZONTAL_ALIGNMENT_LEFT, -1, 12, Color(1.0, 0.8, 0.3))
+			draw_string(font, Vector2(-4, -16), "?", HORIZONTAL_ALIGNMENT_LEFT, -1, 12, Color(1.0, 0.8, 0.3))
+			# 警觉进度条：把"正在被发现"的过程画出来，避免"站几秒突然被抓"的错觉
+			var ratio := clampf(_spot_timer / _spot_delay(), 0.0, 1.0)
+			draw_rect(Rect2(-9, -34, 18, 2), Color(0.0, 0.0, 0.0, 0.55))
+			draw_rect(Rect2(-9, -34, 18.0 * ratio, 2), Color(1.0, 0.82, 0.3, 0.95))

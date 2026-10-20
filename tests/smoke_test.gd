@@ -26,6 +26,7 @@ func _ready() -> void:
 	await _test_noise_alerts()
 	await _test_dialogue_box()
 	await _test_ghost()
+	await _test_ghost_calm()
 	await _test_haunting()
 	await _test_room_camera()
 	await _test_british_museum_level()
@@ -109,7 +110,7 @@ func _test_smoke_bomb() -> void:
 	museum.player.global_position = cop.global_position + Vector2(40, 0)
 	cop._facing = Vector2.RIGHT
 
-	for i in 25:
+	for i in 40:
 		await get_tree().physics_frame
 	check(cop.is_chasing(), "cop enters chase after spotting the player")
 
@@ -151,7 +152,7 @@ func _test_noise_alerts() -> void:
 	check(levels.has(1), "alert level 1 raised")
 	check(museum.police[0].state == Police.State.PATROL, "distant cop did not hear the noise")
 
-	for i in 20:
+	for i in 30:
 		await get_tree().physics_frame
 	check(cop.state == Police.State.CHASE, "investigating cop spots the player")
 	check(levels.has(2), "alert level 2 raised")
@@ -202,6 +203,25 @@ func _test_ghost() -> void:
 	await get_tree().process_frame
 
 
+func _test_ghost_calm() -> void:
+	var ghost := load("res://src/world/ghost.tscn").instantiate() as Ghost
+	ghost.wail_interval = 0.05
+	ghost.lifetime = 5.0
+	var wails := [0]
+	ghost.wailed.connect(func(_pos: Vector2) -> void: wails[0] += 1)
+	add_child(ghost)
+	await get_tree().create_timer(0.15).timeout
+	check(wails[0] >= 1, "ghost wails before being calmed")
+	ghost.calm(0.8)
+	var after_calm: int = wails[0]
+	await get_tree().create_timer(0.3).timeout
+	check(wails[0] == after_calm, "calmed ghost stays quiet")
+	await get_tree().create_timer(0.7).timeout
+	check(wails[0] > after_calm, "ghost wails again once the calm window ends")
+	ghost.queue_free()
+	await get_tree().process_frame
+
+
 func _test_haunting() -> void:
 	Game.reset_run()
 	var museum := await _make_museum()
@@ -224,11 +244,21 @@ func _test_haunting() -> void:
 		if child is Ghost:
 			ghost = child
 	check(ghost != null, "haunting spawns a ghost after the target is taken")
+	var toasts: Array[String] = []
+	museum.toast.connect(func(text: String, _duration: float) -> void: toasts.append(text))
 	if ghost != null:
 		check(cop.state != Police.State.CHASE, "cop is calm before the wail")
 		ghost.wailed.emit(ghost.global_position)
 		await get_tree().physics_frame
 		check(cop.state == Police.State.INVESTIGATE, "ghost wail lures a nearby cop")
+		check(cop._investigate_stop >= 30.0, "lured cop searches from a distance")
+		var warned := false
+		for text in toasts:
+			if "引来了警察" in text:
+				warned = true
+		check(warned, "wail that lures a cop warns the player")
+		museum._talk_to_ghost()
+		check(ghost.wail_cooldown() >= 7.5, "talking to the ghost calms it")
 
 	museum.end_game()
 	museum.queue_free()
@@ -381,6 +411,15 @@ func _test_british_museum_level() -> void:
 	museum.player.global_position = Vector2(392, 88)
 	cop0.investigate(museum.player.global_position)
 	check(not cop0.can_see_player(), "guard does not see the player across rooms")
+
+	# 卡住脱困：把守卫放在长椅左侧，路点在长椅右侧，1.5s 内必须离开原位。
+	var bench_start := Vector2(264, 328)
+	cop0.global_position = bench_start
+	cop0.patrol_points = [Vector2(296, 328), Vector2(264, 328)]
+	cop0.state = Police.State.PATROL
+	cop0.ai_enabled = true
+	await get_tree().create_timer(1.5).timeout
+	check(cop0.global_position.distance_to(bench_start) > 6.0, "guard unsticks from a solid decoration")
 
 	if zun != null:
 		museum.player.global_position = zun.global_position + Vector2(-24, 0)

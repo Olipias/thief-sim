@@ -31,10 +31,10 @@ Autoload
 | --- | --- | --- |
 | `src/main.gd` | 场景流程编排、暂停控制、任务简报 | 手机/背包开关带 0.2s 冷却（`toggle_allowed()`），防关闭后同帧被重开； 世界加到 `Screen`；HUD/对话/背包的信号在这里接线；`start_mission(level_id)` 设定关卡并显示对应简报 |
 | `src/actors/player.gd` | 玩家移动（走/跑）、拾取、道具、噪音、脚步 | 信号 `used_item` / `made_noise`；分组 `player`；`controls_enabled` 冻结操控；场景内 `Camera2D`（zoom 2×，即一屏 20×11 格）+ 玩家微光 `Aura` |
-| `src/actors/police.gd` | 警察 AI：巡逻 → 调查 → 追击 → 逮捕 | 状态机 `State{PATROL,INVESTIGATE,CHASE}`；`in_cone()` 纯函数（可单测）；视野射线仅被墙阻挡（mask=1）；**视物与逮捕要求与玩家同房间**（`can_see_player()` + `museum.room_index_at`，门洞可走但不隔房索敌）；`blind()` 烟雾致盲（同时熄灭手电）；`alert_level()` 0/1/2；`set_ai_enabled()` 供演出/截图暂停感知 |
+| `src/actors/police.gd` | 警察 AI：巡逻 → 调查 → 追击 → 逮捕 | 状态机 `State{PATROL,INVESTIGATE,CHASE}`；`in_cone()` 纯函数（可单测）；视野射线仅被墙阻挡（mask=1）；**视物与逮捕要求与玩家同房间**（`can_see_player()` + `museum.room_index_at`，门洞可走但不隔房索敌）；`blind()` 烟雾致盲（同时熄灭手电）；`alert_level()` 0/1/2；头顶警觉进度条（`_spot_timer / _spot_delay()`）；`investigate(pos, seconds, stop_distance)` 可让循声搜索停在远处；`set_ai_enabled()` 供演出/截图暂停感知 |
 | `src/world/museum.gd` | 关卡构建与全部关卡规则 | `level_id` → 地图/目标/器灵台词按关卡解析（`target_item_id()`）；读 JSON 建碰撞/灯光/角色；房间相机；小地图数据；幽灵事件；烟雾弹；噪音与哀嚎按房间分流；出口锁；**大英博物馆六展厅主题**（`BM_THEMES` + `_room_of_tile` + `_draw_bm_tile()`）+ **纯视觉装饰层**（`BM_DECOR` + `_build_bm_decor()`，不新增碰撞）+ **装饰动效与 Room 3 光影**（`_animate_bm_decor()`、`BMDust`/`BMZunReflection`/`BMGlassGlint`）；**视觉/碰撞一致性**（`is_cell_blocked()` + `BM_SOLID_DECOR`，T/a/p 展台与大件装饰有实体） |
 | `src/world/artifact.gd` | 场景中的可拾取文物 | 贴图约定 `artifact_<id>.png`（16×16 图标）；若存在 `relic_<id>_strip.png` 则显示 3D 渲染转台动画（12 帧 × 24×28，常量在脚本内）；拾取成功/失败信号 |
-| `src/world/ghost.gd` | 幽灵：尾随 + 周期哀嚎 + 寿命渐隐 | `wailed(position)` 由 museum 转给附近警察 |
+| `src/world/ghost.gd` | 幽灵：尾随 + 周期哀嚎 + 寿命渐隐 | `wailed(position)` 由 museum 转给附近警察；哀嚎扩散波纹；`calm(seconds)` 安抚（交谈后 8s 不哀嚎） |
 | `src/world/smoke_puff.gd` | 烟雾视觉（纯表现） | 不承载规则 |
 | `src/ui/hub.gd` | 据点：商店购买 + 开始任务 | `ROWS` 决定货架顺序，须与 `Game.UPGRADES` 一致（有测试） |
 | `src/ui/hud.gd` | HUD 全部显示 | 监听 `Game` 三信号；`bind_level()` 绑小地图；`toast()` 提示 |
@@ -53,7 +53,7 @@ Autoload
 | `src/ui/dialogue_tree.gd` | 器灵对谈（选项 + 展签卡） | 播放 `Lore.stages()`；结束时回调推进 `Game.lore_stage`；史实卡与台词视觉分离 |
 | `src/ui/relic_closeup.gd` | 互动特写层（2.5D） | 检测 `relic_<id>_closeup.png`；黑场淡入 + 暖光 + 呼吸推近；E 拾取 / Esc 离开；打开 ⇔ 暂停 |
 | `src/ui/inspect_page.gd` | 端详页（手机档案页内） | 特写 + 热点标记（发现状态存 `Game.lore_found`）+ 展签卡列表（按进度解锁，点击交给 main 用 DialogueTree 展示） |
-| `src/autoload/game_state.gd` | 全部可持久化状态与规则 | 内容表 `CATALOG/SHAPES/UPGRADES/BAG_SIZES` 目前在这里（技术债，见 §8）；**关卡注册表 `LEVELS`**（id/名称/地图/目标/报酬）+ `set_level()` + `mission_target_id`；**`ARCHIVE` 文物档案字段**（与 SOURCES.md 对齐；游戏内显示 `source_label`，不显示文档路径） |
+| `src/autoload/game_state.gd` | 全部可持久化状态与规则 | 内容表 `CATALOG/SHAPES/UPGRADES/BAG_SIZES` 目前在这里（技术债，见 §8）；**关卡注册表 `LEVELS`**（id/名称/地图/目标/报酬）+ `set_level()` + `mission_target_id`；**`ARCHIVE` 文物档案字段**（与 SOURCES.md 对齐；游戏内只显示年代/原在地/现藏/流转/备注，来源与演绎说明集中在标题页） |
 | `src/autoload/audio.gd` | 音效播放 | `SFX` 键→路径；播放器池轮转；退出前 `shutdown()` |
 | `src/levels/*.json` | 关卡数据（**生成物**） | `museum_map.json`（城西博物馆）/ `british_museum.json`（大英博物馆·中国馆）；由 `tools/gen_museum_map.py` 生成；verify 校验同步 |
 | `tests/*` | 测试与截图 | 见 §7 |
@@ -127,8 +127,8 @@ Autoload
 - **任务目标**：拾取 → `mission_complete=true` 且触发幽灵事件；丢到场景 → 实时重算为 false → 出口拒绝开启（`_on_exit_body_entered` 检查 `Game.mission_complete`）。
 - **互动特写**：`Player.inspect_requested` → `Museum.closeup_requested` → `Main.open_relic_closeup()`（暂停）→ 拾取时 `Museum.pickup_artifact()`。
 - **战利品**：撤离结算 → 目标上交并发放组织报酬；其余文物进入 `Game.loot_stash`（不自动出售）→ 据点「销赃」页逐件/全部卖出（`sell_stash_item` / `sell_all_stash`）。
-- **警察感知**：听到噪音 → `INVESTIGATE`（走去看）→ 视野锥内持续 0.35s（无墙遮挡）→ `CHASE` → 接触 <11px 逮捕；`blind()` 清空状态回巡逻；警戒等级 0/1/2 逐级上报 → HUD。
-- **幽灵事件**：拾取目标后延迟 `ghost_delay` 生成 `Ghost`；幽灵周期 `wailed(pos)` → 同房间 96px 内警察 `investigate(pos)`；幽灵超时渐隐自毁。
+- **警察感知**：听到噪音 → `INVESTIGATE`（走去看）→ 视野锥内持续 0.5s（无墙遮挡；初始调查 ×1.5 加速）→ `CHASE` → 接触 <11px 逮捕；发现过程在头顶画黄色进度条；`blind()` 清空状态回巡逻；警戒等级 0/1/2 逐级上报 → HUD。
+- **幽灵事件**：拾取目标后延迟 `ghost_delay` 生成 `Ghost`；幽灵周期 `wailed(pos)` → 同房间 96px 内警察 `investigate(pos, …, 40px)`（停在远处搜索）；首次引警时 toast 说明「离开原地 / 按 E 安抚」；交谈后 `calm(8s)` 停止哀嚎；幽灵超时渐隐自毁。
 - **音频**：`Audio.play(name, dB, pitch)` 轮转 10 个播放器，避免互相切断；测试与退出前 `shutdown()`。
 
 ## 5. 不变量（改代码前必读）

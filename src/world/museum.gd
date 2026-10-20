@@ -127,12 +127,11 @@ const BM_DECOR := {
 		{"tex": "lacquer_cabinet", "cell": Vector2i(25, 22), "offset": Vector2(0, -8)},
 		{"tex": "lacquer_cabinet", "cell": Vector2i(38, 17), "offset": Vector2(0, -8)},
 		{"tex": "mural_panel", "cell": Vector2i(27, 14), "offset": Vector2(8, -4)},
-		{"tex": "scroll_case", "cell": Vector2i(30, 23), "offset": Vector2(0, -4)},
 		{"tex": "security_camera", "cell": Vector2i(36, 14), "offset": Vector2(0, 4)},
 	],
 	3: [
-		{"tex": "bench", "cell": Vector2i(3, 20), "offset": Vector2(0, -4)},
-		{"tex": "bench", "cell": Vector2i(16, 20), "offset": Vector2(0, -4)},
+		{"tex": "bench", "cell": Vector2i(2, 20), "offset": Vector2(0, -4)},
+		{"tex": "bench", "cell": Vector2i(17, 20), "offset": Vector2(0, -4)},
 		{"tex": "museum_map", "cell": Vector2i(10, 14), "offset": Vector2(0, 4)},
 		{"tex": "security_camera", "cell": Vector2i(2, 14), "offset": Vector2(0, 4)},
 		{"tex": "alarm_beacon", "cell": Vector2i(17, 14), "offset": Vector2(0, 4)},
@@ -164,11 +163,6 @@ const BM_DECOR := {
 const BM_SOLID_DECOR := {
 	"ticket_desk": Vector2(30, 18),
 	"bench": Vector2(20, 8),
-	"vase_case": Vector2(28, 28),
-	"jade_case": Vector2(28, 28),
-	"scroll_case": Vector2(28, 28),
-	"lacquer_cabinet": Vector2(28, 28),
-	"crate_stack": Vector2(28, 28),
 	"forklift": Vector2(44, 24),
 }
 
@@ -210,6 +204,7 @@ var level_id := "museum"
 var _ended := false
 var _last_prompt := ""
 var _noise_warned := false
+var _wail_warned := false
 var _patrol_hint_shown := false
 var _ghost_spawned := false
 var ghost: Ghost = null
@@ -598,7 +593,8 @@ func _spawn_ghost() -> void:
 	ghost.wailed.connect(_on_ghost_wailed)
 	add_child(ghost)
 	Audio.play("ghost", -7.0)
-	toast.emit("一股寒意贴上你的后背……靠近它可以按 E 交谈（它也会引来警察）。", 5.0)
+	# 不在器灵出现时弹提示：此时通常正开着对谈/台词，提示会压住选项；
+	# "它会引来警察 + 按 E 可以安抚"在哀嚎真正引警时用 toast 说明。
 
 
 ## 与器灵交谈：播放下一段文物志（讲完则提示）。
@@ -607,10 +603,17 @@ func _talk_to_ghost() -> void:
 		return
 	var target := target_item_id()
 	var stage := Game.lore_stage_of(target)
+	var spoke := false
 	if Lore.has_lore(target) and stage < Lore.stage_count(target):
 		lore_requested.emit(target, stage)
-	else:
-		toast.emit("器灵已经讲完了——它只是静静地看着你。")
+		spoke = true
+	if ghost != null and is_instance_valid(ghost):
+		# 交谈的机械回报：器灵被安抚，短时间内不再哀嚎（也就不会引来警察）。
+		ghost.calm(8.0)
+		if spoke:
+			toast.emit("器灵安静了下来——短时间内不会再哀嚎。", 3.0)
+		else:
+			toast.emit("器灵沉默着，但安静了下来——短时间内不会再哀嚎。", 3.5)
 
 
 func _on_ghost_wailed(pos: Vector2) -> void:
@@ -618,11 +621,17 @@ func _on_ghost_wailed(pos: Vector2) -> void:
 		return
 	Audio.play("ghost", -13.0, randf_range(0.92, 1.06))
 	var src_room := room_index_at(pos)
+	var lured := 0
 	for cop in police:
 		if room_index_at(cop.global_position) != src_room:
 			continue
 		if cop.global_position.distance_to(pos) <= 96.0:
-			cop.investigate(pos)
+			# 循声搜索：停在两格半外张望，而不是直接踩到玩家身上
+			if cop.investigate(pos, Police.INVESTIGATE_TIME, 40.0):
+				lured += 1
+	if lured > 0 and not _wail_warned:
+		_wail_warned = true
+		toast.emit("器灵的哀嚎引来了警察！\n快离开原地，或按 E 让器灵安静下来。", 4.5)
 
 
 func _on_pickup_blocked(item_id: String) -> void:
