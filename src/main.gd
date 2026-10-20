@@ -30,6 +30,7 @@ const BRIEFINGS := {
 @onready var backpack: BackpackScreen = $Backpack
 @onready var phone: MissionPhone = $Phone
 @onready var dialogue_tree: DialogueTree = $DialogueTree
+@onready var statements: StatementsScreen = $Statements
 
 var _busy := false
 var _museum: Museum = null
@@ -145,6 +146,8 @@ func show_title() -> void:
 		backpack.close()
 	if phone.is_open():
 		phone.close()
+	if statements.is_open():
+		statements.close()
 	_museum = null
 	_clear_screen()
 	_clear_ui()
@@ -152,6 +155,7 @@ func show_title() -> void:
 	hud.unbind_level()
 	hud.hide_hud()
 	var title := TITLE_SCREEN.instantiate() as TitleScreen
+	title.statements_requested.connect(statements.open)
 	title.continue_requested.connect(show_menu)
 	title.new_game_requested.connect(_on_new_game)
 	title.quit_requested.connect(func() -> void: get_tree().quit())
@@ -170,6 +174,8 @@ func show_menu() -> void:
 		backpack.close()
 	if phone.is_open():
 		phone.close()
+	if statements.is_open():
+		statements.close()
 	_museum = null
 	_clear_screen()
 	_clear_ui()

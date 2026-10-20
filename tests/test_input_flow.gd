@@ -251,6 +251,27 @@ func _test_hud_button_while_bag() -> void:
 	_check_pause_contract("HUD 用例清理后")
 
 
+func _test_statements_from_title() -> void:
+	# 回到标题，真实鼠标点击「声明与说明」，ESC 关闭
+	main.show_title()
+	await _frames(4)
+	var title: TitleScreen = null
+	for child in main.get_node("UILayer").get_children():
+		if child is TitleScreen:
+			title = child
+	check(title != null, "标题界面已打开")
+	if title == null:
+		return
+	var button: Button = title.get_node_or_null("StatementsButton")
+	check(button != null, "标题界面有「声明与说明」按钮")
+	if button == null:
+		return
+	await _click(button.get_global_rect().get_center())
+	check(main.statements.is_open(), "点击按钮打开声明页")
+	await _tap(KEY_ESCAPE)
+	check(not main.statements.is_open(), "ESC 关闭声明页")
+
+
 func _test_leave_scene_clean() -> void:
 	# 收尾：不应残留任何界面或暂停状态
 	check(not _any_overlay_open(), "结束时没有残留覆盖层")
@@ -287,6 +308,7 @@ func _ready() -> void:
 	await _test_lore_over_museum()
 	await _test_hud_button_while_bag()
 	await _test_leave_scene_clean()
+	await _test_statements_from_title()
 
 	if _failures > 0:
 		print("FAILED %d / %d checks" % [_failures, _checks])

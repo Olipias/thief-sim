@@ -15,6 +15,18 @@ func _ready() -> void:
 	await _wait(0.8)
 	await _shot("/tmp/shot_title.png")
 
+	# 声明与说明
+	var title: TitleScreen = null
+	for child in main.get_node("UILayer").get_children():
+		if child is TitleScreen:
+			title = child
+	if title != null:
+		title.statements_button.pressed.emit()
+		await _wait(0.4)
+		await _shot("/tmp/shot_statements.png")
+		main.statements.close()
+		await _wait(0.2)
+
 	main.show_menu()
 	await _wait(0.6)
 	await _shot("/tmp/shot_hub.png")

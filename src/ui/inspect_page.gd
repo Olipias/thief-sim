@@ -76,7 +76,7 @@ func _select_hotspot(index: int) -> void:
 		return
 	var hotspot: Dictionary = _hotspots[index]
 	Game.mark_hotspot(_item_id, index)
-	fact_label.text = "【史实】%s" % String(hotspot.get("fact", ""))
+	fact_label.text = "【档案】%s" % String(hotspot.get("fact", ""))
 	ghost_label.text = "【器灵】%s" % String(hotspot.get("ghost", ""))
 	_refresh_markers()
 	# 更新进度（发现数可能刚刚 +1）

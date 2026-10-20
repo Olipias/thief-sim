@@ -12,7 +12,8 @@ main.tscn (Main, src/main.gd) —— 唯一场景编排者
 ├── UILayer (CanvasLayer)    全屏界面：标题 TitleScreen、据点 Hub、结算 ResultScreen
 ├── HUD (CanvasLayer)        任务/金币/背包/提示/警戒/小地图 + 右下角任务终端按钮
 ├── Backpack (CanvasLayer)   格子背包整理界面
-├── Phone (CanvasLayer)      任务终端（手机）：任务发布 app（含 3D 目标文物转台）
+├── Phone (CanvasLayer)      任务终端（手机）：任务发布 + 档案（端详）
+├── Statements (CanvasLayer) 声明与说明（标题页入口；非游戏内覆盖层，不暂停）
 └── Dialogue (CanvasLayer)   打字机对话框
 
 Autoload
@@ -45,7 +46,9 @@ Autoload
 | `src/ui/hub.gd` | 据点：关卡选择 + 商店 | 任务页由 `Game.LEVELS` 动态生成卡片（`RelicView` 展示目标文物）；商店页保留货架；`ROWS` 须与 `UPGRADES` 一致（有测试） |
 | `src/ui/mission_phone.gd` | 任务终端（手机） | 右下角按钮或 P 打开；「任务」页读 `Game.level_info()/mission_target_id` + `Game.ARCHIVE` 文物档案卡；「档案」页端详随身文物（热点 + 展签卡）；打开时由 main 暂停 |
 | `src/ui/relic_view.gd` | 文物展示控件 | 优先 `relic_<id>_ui_strip.png`（12 帧 × 48×56，常量在此），否则静态图标放大；手机/关卡卡片共用 |
-| `src/data/lore.gd` | 文物志数据（静态类 `Lore`） | 剧本（speech/card/choices/label/goto）、展签卡（史实，含 SOURCES 来源）、端详热点（归一化坐标）；文本与代码分离，新增文物志只改这里 + `docs/SOURCES.md` |
+| `src/data/lore.gd` | 文物志数据（静态类 `Lore`） | 剧本（speech/card/choices/label/goto）、展签卡（世界观口吻的史实）、端详热点（归一化坐标）；文本与代码分离，新增文物志只改这里 + `docs/SOURCES.md` |
+| `src/data/statements.gd` | 正式声明数据（静态类 `Statements`） | 项目性质、史实/虚构分界、真实文物与来源、3D 模型说明、字体许可、立场与致谢；游戏内**不放**学术引用，全部集中于此 |
+| `src/ui/statements_screen.gd` | 声明与说明页（标题入口） | 纸卡 + 滚动列表；非游戏内覆盖层（不暂停），ESC / 按钮关闭 |
 | `src/ui/dialogue_tree.gd` | 器灵对谈（选项 + 展签卡） | 播放 `Lore.stages()`；结束时回调推进 `Game.lore_stage`；史实卡与台词视觉分离 |
 | `src/ui/inspect_page.gd` | 端详页（手机档案页内） | 特写 + 热点标记（发现状态存 `Game.lore_found`）+ 展签卡列表（按进度解锁，点击交给 main 用 DialogueTree 展示） |
 | `src/autoload/game_state.gd` | 全部可持久化状态与规则 | 内容表 `CATALOG/SHAPES/UPGRADES/BAG_SIZES` 目前在这里（技术债，见 §8）；**关卡注册表 `LEVELS`**（id/名称/地图/目标/报酬）+ `set_level()` + `mission_target_id`；**`ARCHIVE` 文物档案字段**（与 SOURCES.md 对齐） |

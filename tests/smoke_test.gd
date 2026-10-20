@@ -564,7 +564,7 @@ func _test_inspect_page() -> void:
 	var before := page.fact_label.text
 	page._select_hotspot(0)
 	check(page.fact_label.text != before, "selecting a hotspot shows its fact")
-	check(page.fact_label.text.contains("史实"), "fact is labelled as history")
+	check(page.fact_label.text.contains("档案"), "fact is labelled as an archive entry")
 	check(page.ghost_label.text.contains("器灵"), "ghost line is labelled as fiction")
 	check(Game.hotspot_found("mask", 0), "hotspot discovery is recorded")
 	check(page.cards_box.get_child_count() == Lore.cards("mask").size(), "cards are listed")

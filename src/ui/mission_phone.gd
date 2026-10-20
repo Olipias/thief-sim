@@ -76,14 +76,12 @@ func _fill_task() -> void:
 	var archive: Dictionary = Game.ARCHIVE.get(target_id, {})
 	archive_card.visible = not archive.is_empty()
 	if not archive.is_empty():
-		archive_label.text = "文物档案 · %s · %s\n现藏：%s\n流转：%s\n备注：%s\n来源：%s · 演绎：%s" % [
+		archive_label.text = "文物档案 · %s · %s\n现藏：%s\n流转：%s\n备注：%s" % [
 			String(archive.get("era", "")),
 			String(archive.get("origin", "")),
 			String(archive.get("collection", "")),
 			String(archive.get("provenance", "")),
 			String(archive.get("legend", "")),
-			String(archive.get("source", "")),
-			String(archive.get("fiction", "")),
 		]
 	notes_label.text = "· 拿到目标后，出口才会开启\n· 被警察抓到 = 本次行动结束\n· 目标可丢下（B 整理背包），出口会重新上锁"
 	relic.zoom = 1.5

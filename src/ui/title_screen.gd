@@ -8,6 +8,7 @@ extends Control
 signal continue_requested
 signal new_game_requested
 signal quit_requested
+signal statements_requested
 
 const ART_CANDIDATES := [
 	"res://assets/art/title_key_art.png",
@@ -24,6 +25,7 @@ const ART_CANDIDATES := [
 @onready var continue_button: Button = $ContinueButton
 @onready var new_game_button: Button = $NewGameButton
 @onready var quit_button: Button = $QuitButton
+@onready var statements_button: Button = $StatementsButton
 
 var _confirm_new_game := false
 var _using_placeholder := false
@@ -37,6 +39,7 @@ func _ready() -> void:
 	continue_button.pressed.connect(_on_continue)
 	new_game_button.pressed.connect(_on_new_game)
 	quit_button.pressed.connect(func() -> void: quit_requested.emit())
+	statements_button.pressed.connect(func() -> void: statements_requested.emit())
 	continue_button.disabled = not Game.has_save()
 	if Game.has_save():
 		save_label.text = "存档：金币 %d · 背包 %d×%d · 烟雾弹 x%d%s" % [

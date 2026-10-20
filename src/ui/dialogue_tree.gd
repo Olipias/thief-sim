@@ -98,7 +98,8 @@ func _show_card(card_id: String) -> void:
 	var card: Dictionary = _cards.get(card_id, {})
 	card_title.text = String(card.get("title", card_id))
 	card_body.text = String(card.get("body", ""))
-	card_source.text = String(card.get("source", ""))
+	card_source.text = ""
+	card_source.visible = false
 	card_panel.visible = true
 
 

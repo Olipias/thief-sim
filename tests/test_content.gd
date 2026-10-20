@@ -27,6 +27,7 @@ func _ready() -> void:
 	_test_audio_files()
 	_test_level_data()
 	_test_lore()
+	_test_statements()
 	if _failures > 0:
 		print("FAILED %d / %d checks" % [_failures, _checks])
 		get_tree().quit(1)
@@ -206,10 +207,12 @@ func _test_bm_assets() -> void:
 func _test_archive() -> void:
 	var archive: Dictionary = Game.ARCHIVE
 	check(archive.has("ram_zun"), "ARCHIVE 含双羊尊条目")
-	var entry: Dictionary = archive.get("ram_zun", {})
-	for key in ["era", "origin", "collection", "provenance", "source", "fiction"]:
-		check(entry.has(key) and String(entry.get(key, "")) != "", "ARCHIVE[ram_zun] 含字段 %s" % key)
-	check("SOURCES" in String(entry.get("source", "")), "ARCHIVE 来源指向 docs/SOURCES.md")
+	check(archive.has("mask"), "ARCHIVE 含青铜人面具条目")
+	for id in archive:
+		var entry: Dictionary = archive[id]
+		for key in ["era", "origin", "collection", "provenance", "legend"]:
+			check(entry.has(key) and String(entry.get(key, "")) != "", "ARCHIVE[%s] 含字段 %s" % [id, key])
+		check(not entry.has("source") and not entry.has("fiction"), "ARCHIVE[%s] 不在档案卡里放来源/演绎声明" % id)
 
 
 func _test_upgrades() -> void:
@@ -311,7 +314,7 @@ func _test_lore() -> void:
 			var card: Dictionary = cards[card_id]
 			check(String(card.get("title", "")) != "", "卡片 %s 有标题" % card_id)
 			check(String(card.get("body", "")).length() >= 30, "卡片 %s 正文有实质内容" % card_id)
-			check(String(card.get("source", "")).contains("SOURCES"), "卡片 %s 标注来源（SOURCES）" % card_id)
+			check(not String(card.get("source", "")).contains("SOURCES"), "卡片 %s 不显示来源引用" % card_id)
 
 		var hotspots: Array = entry.get("hotspots", [])
 		check(hotspots.size() >= 2, "文物志[%s] 至少有 2 个端详热点" % item_id)
@@ -343,3 +346,16 @@ func _test_lore() -> void:
 				for choice in entry_item.get("choices", []):
 					check(String(choice.get("text", "")) != "", "选项有文本")
 					check(labels.has(String(choice.get("goto", ""))), "选项跳转目标存在（%s）" % choice.get("goto", ""))
+
+
+## 声明页：所有正式声明集中在 src/data/statements.gd，必须覆盖真实文物与虚构说明。
+func _test_statements() -> void:
+	var sections: Array = _consts("res://src/data/statements.gd").get("SECTIONS", [])
+	check(not sections.is_empty(), "声明页至少有一条")
+	var all_text := ""
+	for section in sections:
+		check(String(section.get("title", "")) != "", "声明条目有标题")
+		check(String(section.get("body", "")).length() >= 20, "声明条目 %s 有实质内容" % section.get("title", ""))
+		all_text += String(section.get("title", "")) + String(section.get("body", ""))
+	for keyword in ["双羊尊", "青铜人面饰", "虚构", "docs/SOURCES.md", "Fusion Pixel", "3D"]:
+		check(all_text.contains(keyword), "声明页提到「%s」" % keyword)
