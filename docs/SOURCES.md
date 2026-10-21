@@ -46,7 +46,7 @@
   - Wang Q. & Priewe S., 2013, *A Technical Study of the Double-ram Zun Ancient Chinese Bronze Vessel in the British Museum*, in K. Chen (ed.), *Radiance between Bronze and Jade*
   - 根津美术馆藏品页（另一件）：https://www.nezu-muse.or.jp/en/collection/detail.php?id=90074
 - 演绎部分（虚构）：游戏内「器灵/幽灵」设定、幽灵台词「另一只羊隔着海」「带我们回家」等拟人化叙事；任务地点、时间、安保配置均为虚构。圆明园传说在游戏内只能以"传闻/无法考证"的口径出现。
-  另：游戏内使用的 3D 图像优先由项目作者提供的双羊尊**扫描件**（`assets/models/e6b392….glb`，50 万面 + 4K PBR；本地资产，不入库）离线渲染成转台与 2.5D 特写；扫描件的**来源与许可证待作者补充**。程序化模型保留为回退。二者都是**展示性再现，不构成考古复原**，细密纹饰的呈现以扫描件为准。
+  另：游戏内使用的 3D 图像由项目作者使用**腾讯混元（Hunyuan3D）**生成的 3D 资产（`assets/models/e6b392….glb`，50 万面 + 4K PBR；本地资产，不入库）离线渲染成转台、档案页特写与 2.5D 特写；生成内容的再分发/商用请遵循腾讯混元相关条款。程序化模型保留为回退。二者都是**展示性再现，不构成考古复原**，细密纹饰的呈现以混元资产为准。
 
 #### 2026-10-19 补充核查（D 画面校准）
 

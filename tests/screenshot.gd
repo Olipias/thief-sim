@@ -201,6 +201,14 @@ func _ready() -> void:
 			await _shot("/tmp/shot_bm_backpack.png")
 			main.backpack.close()
 			await _wait(0.2)
+			# 档案页：双羊尊的端详图（混元 3D 渲染的特写，而非 24×24 图标放大）
+			main.open_phone()
+			await _wait(0.4)
+			main.phone._show_tab("archive")
+			await _wait(0.3)
+			await _shot("/tmp/shot_bm_archive.png")
+			main.phone.close()
+			await _wait(0.2)
 	# 据点：销赃页
 	var stash: Array[String] = ["vase", "gem", "jade"]
 	Game.loot_stash = stash

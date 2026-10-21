@@ -17,10 +17,18 @@
 | `BM_room3_ingame.jpg` | Room 3 实机接入截图 | 主题瓦片 + 玻璃展柜 + 双羊尊目标厅 |
 | `BM_rooms_contact.jpg` | 六展厅主题巡检 | Room 0–5 实机截图；冷/暖分区与灯光气质 |
 | `BM_archive_ui.jpg` | 文物档案 UI | 任务终端档案卡（可考/不可考/演绎）+ 背包双羊尊图标 |
+| `A2_room3_upgrade.jpg` | A v2 目标厅概念稿 | 主文物光池 + 24×32 角色 + 博物馆标签 UI；用于方向讨论，非最终资产 |
+| `A2_comparison_board.jpg` | A v2 现状 vs 目标 | 左：v0.16.3 实机；右：A v2 概念；下方角色/展柜/UI 三项 callout |
 | `title_key_art_clean.jpg` | 开始界面立绘（C 方向：微缩夜馆） | 1280×720 无字背景；博物馆 + 小偷；标题/菜单由 Godot 绘制 |
 | `title_key_art_title_screen.jpg` | 标题界面安全区版 | 与 clean 同源；左侧由 UI 面板压暗 |
 | `title_key_art_logo.jpg` | 开始界面立绘（左侧 UI 示意） | 检查标题/菜单安全区与可读性 |
 | `title_screen_ingame.jpg` | 标题界面实机截图 | 左侧 UI 栏 + C 方向立绘的组合效果 |
+
+## A v2 提案（2026-10-21）
+
+- 新增 `A2_room3_upgrade.jpg` 与 `A2_comparison_board.jpg`：把当前 Room 3 实机与「A v2」目标稿并置，重点不是换风格，而是角色 24×32、主文物光池/展柜玻璃退后、UI 博物馆标签化。
+- 文字方案见 `docs/A_V2_ART_SYSTEM.md`；执行顺序 P0 角色 → P1 主文物/光 → P2 UI → P3 B/D 叙事层 → P4 后期。
+- 概念稿中的双羊尊为 48×56 重绘示意，不是最终资产；正式玩法图仍需手工控制轮廓/明度，特写层继续用 3D 资产（腾讯混元生成）。
 
 ## 本次修订（2026-10-19）
 

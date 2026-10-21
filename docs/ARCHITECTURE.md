@@ -61,7 +61,7 @@ Autoload
 | `tools/gen_bm_art.py` | 大英博物馆资产包生成器 | 生成 `assets/sprites/bm/`（六展厅瓦片/道具/UI/双羊尊 32×32/玻璃展柜）与 `assets/sprites/bm/decor/`（13 类纯视觉装饰）；改样式改脚本后重跑 |
 | `tools/blender/*.py` | Blender 建模与渲染脚本 | headless 可重跑（`~/bin/blender`）；产出 `assets/models/*`（`.gdignore`，运行时不加载）与转台渲染图 |
 | `tools/verify.sh` | 一键验证 | 收尾必跑 |
-| `tools/blender/build_ram_zun.py` | 双羊尊 3D 模型生成脚本（程序化建模，回退用） | 生成物在 `assets/models/`（带 `.gdignore`，不参与 Godot 导入）；渲染默认用作者提供的扫描件（本地、不入库） |
+| `tools/blender/build_ram_zun.py` | 双羊尊 3D 模型生成脚本（程序化建模，回退用） | 生成物在 `assets/models/`（带 `.gdignore`，不参与 Godot 导入）；渲染默认用腾讯混元（Hunyuan3D）生成的 3D 资产（本地、不入库） |
 | `tools/check_level.py` / `check_docs.py` | 生成物同步/文档自检 | 由 verify 调用 |
 
 ## 3. 关键数据
@@ -190,7 +190,7 @@ Autoload
 
 ### 6.7 3D 素材 → 游戏精灵（v0.10.0 起的管线）
 
-已有 3D 模型时，用离线渲染把它变成 2D 贴图（双羊尊默认用作者提供的扫描件，`MODEL=procedural` 回退程序化模型）：
+已有 3D 模型时，用离线渲染把它变成 2D 贴图（双羊尊默认用腾讯混元生成的 3D 资产，`MODEL=procedural` 回退程序化模型）：
 
 1. 写/改渲染脚本（参考 `tools/blender/render_relic_turntable.py`）：打开 blend、透明背景、固定机位、绕 Z 逐帧渲染到 `/tmp/opencode/<name>/`。
    ```bash

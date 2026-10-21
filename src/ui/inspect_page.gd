@@ -16,6 +16,7 @@ const IMAGE_SIZE := 144.0  # 48×48 特写按 3× 展示
 @onready var fact_label: Label = $Info/Fact
 @onready var ghost_label: Label = $Info/Ghost
 @onready var cards_box: VBoxContainer = $Info/Cards
+@onready var cards_label: Label = $Info/CardsLabel
 
 var _item_id := ""
 var _hotspots: Array = []
@@ -70,6 +71,11 @@ func _select_hotspot(index: int) -> void:
 		if Game.hotspot_found(_item_id, i):
 			found += 1
 	progress_label.text = "已发现 %d / %d" % [found, total]
+	if total == 0:
+		progress_label.text = "暂无细节标记"
+		fact_label.text = "这件文物还没有可勘查的细节标记。"
+		ghost_label.text = ""
+		return
 	if index < 0 or index >= total:
 		fact_label.text = "点击「?」标记，端详文物的细节。"
 		ghost_label.text = ""
@@ -92,6 +98,7 @@ func _build_cards() -> void:
 	for child in cards_box.get_children():
 		child.queue_free()
 	var cards := Lore.cards(_item_id)
+	cards_label.visible = not cards.is_empty()
 	var unlocked := Game.lore_stage_of(_item_id)
 	var index := 0
 	for card_id in cards:

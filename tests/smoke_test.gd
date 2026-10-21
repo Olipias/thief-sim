@@ -611,6 +611,14 @@ func _test_inspect_page() -> void:
 	check(page.ghost_label.text.contains("器灵"), "ghost line is labelled as fiction")
 	check(Game.hotspot_found("mask", 0), "hotspot discovery is recorded")
 	check(page.cards_box.get_child_count() == Lore.cards("mask").size(), "cards are listed")
+
+	# 双羊尊没有剧本，但档案/端详页也要用混元 3D 渲染的特写（而不是 24×24 图标放大）
+	page.set_item("ram_zun")
+	check(page.image.texture != null, "zun inspect page loads a closeup")
+	check(page.image.texture.resource_path.contains("relic_ram_zun_closeup"), "zun inspect uses the 2.5D 3D-render closeup")
+	check(page._marker_buttons.is_empty(), "zun has no hotspots yet")
+	check(not page.cards_label.visible, "empty card section is hidden for the zun")
+	check(not page.progress_label.text.contains("0 / 0"), "no misleading 0/0 hotspot counter")
 	page.queue_free()
 	await get_tree().process_frame
 

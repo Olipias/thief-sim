@@ -5,16 +5,33 @@
 
 ---
 
+## [v0.17.2] - 2026-10-21
+
+### 修改（档案页 / 来源标注）
+- **档案页（端详页）**：双羊尊现在直接显示混元 3D 资产渲染的 144×144 特写（此前回退到 24×24 图标放大，模糊）；没有热点/展签卡时显示「暂无细节标记」并隐藏空标题，不再出现误导性的「已发现 0 / 0」和「点击 ?」提示。
+- **来源更正**：3D 资产由**腾讯混元（Hunyuan3D）**生成（非摄影扫描）；原始 GLB 本地保留、不入库，仓库只包含离线渲染产物；再分发/商用请遵循腾讯混元相关条款。
+
+### 测试
+- 内容 414 项（新增 `Lore.CLOSEUPS` 路径校验）；冒烟 146 项（端详页双羊尊特写、空状态、无 0/0 计数）；视觉基线新增 `shot_bm_archive.png`（共 29 张）。
+
+## [v0.17.1] - 2026-10-21
+
+### 新增（A v2 美术方向提案）
+- 新增 `docs/A_V2_ART_SYSTEM.md`：在保留「A/B/C/D 风格矩阵」的前提下，把常态玩法升级为 **A v2「冷宫暖器 2.0」**——角色 24×32、主文物光池/展柜玻璃退后、UI 博物馆标签化、B/D 只在特写/闪回出现；含材质表、六厅色脚本、P0–P4 执行顺序与验收清单。
+- 新增对比板 `docs/art_direction/A2_comparison_board.jpg`（现状 vs 目标 + 角色/展柜/UI 三项 callout）与 Room 3 概念稿 `docs/art_direction/A2_room3_upgrade.jpg`。
+- 更新 `docs/ART_DIRECTION.md` §11、`docs/ROADMAP.md` 候选池、`docs/art_direction/README.md`、`README.md`。
+- 本次只改文档/概念图，未改运行时代码与测试。
+
 ## [v0.17.0] - 2026-10-21
 
 ### 新增 / 修改（美术资产）
-- **双羊尊 3D 呈现改用作者提供的扫描件**（`assets/models/e6b392….glb`，50 万面 + 4K PBR 贴图；本地资产、`.gitignore` 不入库）：离线重渲染 12 帧转台、hero 大图与 2.5D 特写。渲染脚本把扫描件归一化到程序化模型的尺寸（高 0.443 m、底部 Z=0）后复用同一影棚；`MODEL=procedural` 或扫描件缺失时自动回退，仓库仍可独立跑通。
-- **材质/调色**：渲染时压低扫描件的镜面高光（Specular IOR Level 0.25）；小尺寸精灵（24×28 关卡转台、48×56 手机展示、24×24 图标）做青铜绿色调分级（R×0.82 / G×0.93 / B×0.78 + 饱和/对比），2.5D 特写保留扫描件的原始纹理质感。
+- **双羊尊 3D 呈现改用腾讯混元（Hunyuan3D）生成的 3D 资产**（`assets/models/e6b392….glb`，50 万面 + 4K PBR 贴图；本地资产、`.gitignore` 不入库）：离线重渲染 12 帧转台、hero 大图与 2.5D 特写。渲染脚本把该资产归一化到程序化模型的尺寸（高 0.443 m、底部 Z=0）后复用同一影棚；`MODEL=procedural` 或资产缺失时自动回退，仓库仍可独立跑通。
+- **材质/调色**：渲染时压低该资产的镜面高光（Specular IOR Level 0.25）；小尺寸精灵（24×28 关卡转台、48×56 手机展示、24×24 图标）做青铜绿色调分级（R×0.82 / G×0.93 / B×0.78 + 饱和/对比），2.5D 特写保留 4K 贴图的原始纹理质感。
 - **截图确定性**：截图脚本先清进度、固定金币/背包/烟雾弹并写档；指针移到角落，避免按钮 hover 样式导致基线漂移。
-- 文档：`assets/models/README.md`（扫描件说明/渲染命令/许可待补）、`docs/SOURCES.md`（3D 呈现口径）、`docs/DECISIONS.md` D-020、`docs/ARCHITECTURE.md`、`docs/MANUAL_QA.md`。
+- 文档：`assets/models/README.md`（混元 3D 资产说明/渲染命令）、`docs/SOURCES.md`（3D 呈现口径）、`docs/DECISIONS.md` D-020、`docs/ARCHITECTURE.md`、`docs/MANUAL_QA.md`。
 
 ### 测试
-- `tools/verify.sh --visual` **13 项全绿**；视觉基线更新（人眼确认）：`shot_bm_closeup`（特写换扫描件）、`shot_bm_room3` / `shot_bm_zun`（展柜内转台）、`shot_bm_phone` / `shot_hub`（手机与据点转台）。
+- `tools/verify.sh --visual` **13 项全绿**；视觉基线更新（人眼确认）：`shot_bm_closeup`（特写换混元资产）、`shot_bm_room3` / `shot_bm_zun`（展柜内转台）、`shot_bm_phone` / `shot_hub`（手机与据点转台）。
 
 ## [v0.16.3] - 2026-10-21
 

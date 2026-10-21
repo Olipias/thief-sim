@@ -348,6 +348,11 @@ func _test_lore() -> void:
 					check(labels.has(String(choice.get("goto", ""))), "选项跳转目标存在（%s）" % choice.get("goto", ""))
 
 
+	# 独立特写表（没有文物志剧本的文物也能在档案页看到细节图）
+	for item_id in Lore.CLOSEUPS:
+		var path := String(Lore.CLOSEUPS[item_id])
+		check(FileAccess.file_exists(path), "文物特写图存在：%s（%s）" % [item_id, path])
+
 ## 声明页：所有正式声明集中在 src/data/statements.gd，必须覆盖真实文物与虚构说明。
 func _test_statements() -> void:
 	var sections: Array = _consts("res://src/data/statements.gd").get("SECTIONS", [])

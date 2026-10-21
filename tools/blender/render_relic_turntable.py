@@ -3,7 +3,7 @@
 打开 assets/models/ram_zun.blend（含影棚灯光与相机），把器物绕 Z 轴旋转
 N 个角度逐帧渲染：透明背景、384×384、Cycles CPU。
 
-默认使用项目提供的**扫描件** `assets/models/e6b392eeb4fe60c7dd831782abaec83f.glb`
+默认使用项目提供的**混元 3D 资产** `assets/models/e6b392eeb4fe60c7dd831782abaec83f.glb`
 （50 万面 + 4K PBR），归一化到程序化模型的尺寸（高 0.443 m、底部 Z=0）后复用同一影棚；
 `MODEL=procedural` 可退回程序化模型 `ram_zun.blend` 里的器身。
 
@@ -26,7 +26,7 @@ T0 = time.time()
 PROJ = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 BLEND = os.path.join(PROJ, "assets", "models", "ram_zun.blend")
 SCAN_GLB = os.path.join(PROJ, "assets", "models", "e6b392eeb4fe60c7dd831782abaec83f.glb")
-MODEL = os.environ.get("MODEL", "scan")  # scan（默认，扫描件）| procedural（程序化）
+MODEL = os.environ.get("MODEL", "scan")  # scan（默认，混元 3D 资产）| procedural（程序化）
 TARGET_HEIGHT = 0.443  # 与程序化模型一致（馆藏高 45.1 cm 的演绎尺寸）
 OUT = os.environ.get("OUTDIR", "/tmp/opencode/relic_turntable")
 FRAMES = int(os.environ.get("FRAMES", "12"))
@@ -56,14 +56,14 @@ def world_bounds(meshes):
 
 
 def import_scan_of_zun():
-    """导入扫描件，缩放/居中到影棚里的标准尺寸与原点（底部 Z=0）。"""
+    """导入混元 3D 资产，缩放/居中到影棚里的标准尺寸与原点（底部 Z=0）。"""
     old = bpy.data.objects.get("ram_zun")
     if old is not None:
         bpy.data.objects.remove(old, do_unlink=True)
     bpy.ops.import_scene.gltf(filepath=SCAN_GLB)
     meshes = [o for o in bpy.data.objects if o.type == "MESH" and o.name != "ground"]
     if not meshes:
-        print("扫描件导入后没有网格", file=sys.stderr)
+        print("混元 3D 资产导入后没有网格", file=sys.stderr)
         sys.exit(1)
     mins, maxs = world_bounds(meshes)
     scale = TARGET_HEIGHT / max(1e-6, (maxs - mins).z)
@@ -75,7 +75,7 @@ def import_scan_of_zun():
     shift = Vector((-(mins.x + maxs.x) * 0.5, -(mins.y + maxs.y) * 0.5, -mins.z))
     for ob in meshes:
         ob.location += shift
-    # 扫描件的 PBR 镜面偏强：渲染时压低高光，保留 4K 基础色的纹理细节
+    # 混元 3D 资产的 PBR 镜面偏强：渲染时压低高光，保留 4K 基础色的纹理细节
     for ob in meshes:
         for mat in ob.data.materials:
             if mat is None or not mat.use_nodes:
@@ -115,7 +115,7 @@ def main():
     if ground is not None:
         ground.hide_render = True
 
-    # 器身来源：默认用扫描件；缺失或 MODEL=procedural 时用 blend 里的程序化模型
+    # 器身来源：默认用混元 3D 资产；缺失或 MODEL=procedural 时用 blend 里的程序化模型
     if MODEL != "procedural" and os.path.exists(SCAN_GLB):
         import_scan_of_zun()
     else:

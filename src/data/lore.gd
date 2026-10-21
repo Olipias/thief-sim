@@ -12,6 +12,8 @@ extends RefCounted
 
 const CLOSEUPS := {
 	"mask": "res://assets/sprites/mask_closeup.png",
+	# 双羊尊没有文物志剧本，但档案/端详页可以直接用 2.5D 特写大图（由混元 3D 渲染）
+	"ram_zun": "res://assets/sprites/relic_ram_zun_closeup.png",
 }
 
 const ENTRIES := {
@@ -132,5 +134,7 @@ static func hotspots(item_id: String) -> Array:
 
 
 static func closeup_path(item_id: String) -> String:
+	if CLOSEUPS.has(item_id):
+		return String(CLOSEUPS[item_id])
 	var entry: Dictionary = ENTRIES.get(item_id, {})
 	return String(entry.get("closeup", ""))

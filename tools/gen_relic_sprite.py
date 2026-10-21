@@ -87,7 +87,7 @@ def build_shared_palette(frames, colors):
 
 
 def grade_bronze(im):
-    """扫描件的基础色偏浅薄荷绿；小尺寸精灵压向青铜绿的色调，保证在米色卡片/夜色里可读。"""
+    """混元 3D 资产的基础色偏浅薄荷绿；小尺寸精灵压向青铜绿的色调，保证在米色卡片/夜色里可读。"""
     r, g, b, a = im.split()
     r = r.point(lambda v: int(v * 0.82))
     g = g.point(lambda v: int(v * 0.93))
