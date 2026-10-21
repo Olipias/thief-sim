@@ -474,6 +474,14 @@ func _test_title_screen() -> void:
 	title.quit_requested.connect(func() -> void: quit_requested["value"] = true)
 	title.quit_button.pressed.emit()
 	check(quit_requested["value"], "quit emits its signal")
+	check(title.shop_button != null, "title screen has a scene-placed shop button")
+	var shopped := {"value": false}
+	title.shop_requested.connect(func() -> void: shopped["value"] = true)
+	title.shop_button.pressed.emit()
+	check(shopped["value"], "shop button emits shop_requested")
+	var primary: Button = title.continue_button if title.continue_button.visible else title.new_game_button
+	check(primary.position.y >= 250.0, "primary action is placed in the scene (rooftop ledge)")
+	check(title.primary_hint.text != "", "primary action has a scene hint")
 	title.queue_free()
 	await get_tree().process_frame
 

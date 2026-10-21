@@ -183,6 +183,7 @@ func show_title() -> void:
 	title.statements_requested.connect(statements.open)
 	title.continue_requested.connect(show_menu)
 	title.new_game_requested.connect(_on_new_game)
+	title.shop_requested.connect(_on_title_shop)
 	title.quit_requested.connect(func() -> void: get_tree().quit())
 	ui_layer.add_child(title)
 
@@ -190,6 +191,15 @@ func show_title() -> void:
 func _on_new_game() -> void:
 	Game.start_new_game()
 	show_menu()
+
+
+## 标题页的「商店」：直接进据点并切到商店页（画面里的博物馆入口）。
+func _on_title_shop() -> void:
+	show_menu()
+	for child in ui_layer.get_children():
+		if child is Hub:
+			child.open_shop()
+			return
 
 
 func show_menu() -> void:

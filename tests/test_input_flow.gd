@@ -294,6 +294,34 @@ func _test_statements_from_title() -> void:
 	check(not main.statements.is_open(), "ESC 关闭声明页")
 
 
+func _test_title_shop() -> void:
+	# 标题页的「商店」：真实点击画面里博物馆入口处的按钮 → 据点商店页
+	main.show_title()
+	await _frames(4)
+	await _wait(0.6)
+	var title: TitleScreen = null
+	for child in main.get_node("UILayer").get_children():
+		if child is TitleScreen:
+			title = child
+	check(title != null, "标题界面已打开（商店测试）")
+	if title == null:
+		return
+	var button: Button = title.get_node_or_null("ShopButton")
+	check(button != null, "标题界面有场景化的「商店」按钮")
+	if button == null:
+		return
+	await _click(button.get_global_rect().get_center())
+	await _frames(4)
+	var hub: Hub = null
+	for child in main.get_node("UILayer").get_children():
+		if child is Hub:
+			hub = child
+	check(hub != null, "点击「商店」进入据点")
+	if hub != null:
+		check(hub.shop_box.visible, "点击「商店」直接显示商店页")
+		check(hub.tab_shop.button_pressed, "商店标签处于高亮")
+
+
 func _test_sell_tab() -> void:
 	# 据点「销赃」页：真实点击标签 → 逐件卖出 → 全部出手
 	Game.loot_stash = [] as Array[String]
@@ -366,6 +394,7 @@ func _ready() -> void:
 	await _test_leave_scene_clean()
 	await _test_relic_closeup()
 	await _test_statements_from_title()
+	await _test_title_shop()
 	await _test_sell_tab()
 
 	# 停止音频并给音频服务端一点真实时间释放播放引用（否则退出时报假泄漏）

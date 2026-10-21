@@ -39,6 +39,11 @@ func _row(id: String) -> PanelContainer:
 	return get_node("Shop/Row" + id.capitalize())
 
 
+## 外部入口：直接打开商店页（标题页的「商店」用）。
+func open_shop() -> void:
+	_show_tab("shop")
+
+
 func _show_tab(tab: String) -> void:
 	levels_box.visible = tab == "levels"
 	shop_box.visible = tab == "shop"

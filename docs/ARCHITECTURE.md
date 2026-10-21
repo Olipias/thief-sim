@@ -43,7 +43,7 @@ Autoload
 | `src/ui/bag_grid.gd` | 背包格子绘制 | 只负责画，不存数据；`ram_zun` 使用 `bm_zun_32.png` 图标 |
 | `src/ui/dialogue_box.gd` | 打字机对话 | `advance()`；暂停由调用方控制 |
 | `src/ui/result_screen.gd` | 结算界面 | 展示 `Game.finish_run()` 返回的 summary |
-| `src/ui/title_screen.gd` | 标题界面（立绘 + UI） | 立绘优先 `assets/art/title_key_art.jpg` / `.png`（作者图），缺省 `title_key_art_placeholder.png`；渐隐遮罩 `shade_*.png`；继续/新游戏（二次确认）/退出 |
+| `src/ui/title_screen.gd` | 标题界面（立绘 + UI） | 立绘优先 `assets/art/title_key_art.jpg` / `.png`（作者图），缺省 `title_key_art_placeholder.png`；渐隐遮罩 `shade_*.png`；继续/新游戏（二次确认）/退出 |；场景化菜单：开始/继续在立绘手边、商店在博物馆入口（`shop_requested` → `Hub.open_shop()`）
 | `src/ui/hub.gd` | 据点：关卡选择 + 商店 | 任务页由 `Game.LEVELS` 动态生成卡片（`RelicView` 展示目标文物）；商店页保留货架；`ROWS` 须与 `UPGRADES` 一致（有测试） |
 | `src/ui/mission_phone.gd` | 任务终端（手机） | 右下角按钮或 P 打开；「任务」页读 `Game.level_info()/mission_target_id` + `Game.ARCHIVE` 文物档案卡；「档案」页端详随身文物（热点 + 展签卡）；打开时由 main 暂停 |
 | `src/ui/relic_view.gd` | 文物展示控件 | 优先 `relic_<id>_ui_strip.png`（12 帧 × 48×56，常量在此），否则静态图标放大；手机/关卡卡片共用 |
