@@ -43,7 +43,7 @@ Autoload
 | `src/ui/bag_grid.gd` | 背包格子绘制 | 只负责画，不存数据；`ram_zun` 使用 `bm_zun_32.png` 图标 |
 | `src/ui/dialogue_box.gd` | 打字机对话 | `advance()`；暂停由调用方控制 |
 | `src/ui/result_screen.gd` | 结算界面 | 展示 `Game.finish_run()` 返回的 summary |
-| `src/ui/title_screen.gd` | 标题界面（立绘 + UI） | 立绘优先 `assets/art/title_key_art.jpg` / `.png`（作者图），缺省 `title_key_art_placeholder.png`；渐隐遮罩 `shade_*.png`；继续/新游戏（二次确认）/退出 |；场景化菜单：开始/继续在立绘手边、商店在博物馆入口（`shop_requested` → `Hub.open_shop()`）
+| `src/ui/title_screen.gd` | 标题界面（立绘 + UI） | 立绘优先 `assets/art/title_key_art.jpg` / `.png`（作者图），缺省 `title_key_art_placeholder.png`；渐隐遮罩 `shade_*.png`；继续/新游戏（二次确认）/退出 |；场景化菜单：开始/继续在立绘手边、文物档案收集册在博物馆入口（`collection_requested` → `CollectionScreen.open()`）
 | `src/ui/hub.gd` | 据点：关卡选择 + 商店 | 任务页由 `Game.LEVELS` 动态生成卡片（`RelicView` 展示目标文物）；商店页保留货架；`ROWS` 须与 `UPGRADES` 一致（有测试） |
 | `src/ui/mission_phone.gd` | 任务终端（手机） | 右下角按钮或 P 打开；「任务」页读 `Game.level_info()/mission_target_id` + `Game.ARCHIVE` 文物档案卡；「档案」页端详随身文物（热点 + 展签卡）；打开时由 main 暂停 |
 | `src/ui/relic_view.gd` | 文物展示控件 | 优先 `relic_<id>_ui_strip.png`（12 帧 × 48×56，常量在此），否则静态图标放大；手机/关卡卡片共用 |
@@ -51,6 +51,8 @@ Autoload
 | `src/data/statements.gd` | 正式声明数据（静态类 `Statements`） | 项目性质、史实/虚构分界、真实文物与来源、3D 模型说明、字体许可、立场与致谢；游戏内**不放**学术引用，全部集中于此 |
 | `src/ui/statements_screen.gd` | 声明与说明页（标题入口） | 纸卡 + 滚动列表；非游戏内覆盖层（不暂停），ESC / 按钮关闭 |
 | `src/ui/dialogue_tree.gd` | 器灵对谈（选项 + 展签卡） | 播放 `Lore.stages()`；结束时回调推进 `Game.lore_stage`；史实卡与台词视觉分离 |
+| `src/ui/collection_screen.gd` | 文物档案收集册（标题页） | 列出真实文物；已归档显示特写/档案/器灵进度，未归档「？？？」+获取提示；ESC 关闭；不暂停 |
+| `src/data/collection.gd` | 收集册条目数据 | 复用 `Game.ARCHIVE` + `Lore.closeup_path`；锁定提示与字段名 |
 | `src/ui/relic_closeup.gd` | 互动特写层（2.5D） | 检测 `relic_<id>_closeup.png`；黑场淡入 + 暖光 + 呼吸推近；E 拾取 / Esc 离开；打开 ⇔ 暂停 |
 | `src/ui/inspect_page.gd` | 端详页（手机档案页内） | 特写 + 热点标记（发现状态存 `Game.lore_found`）+ 展签卡列表（按进度解锁，点击交给 main 用 DialogueTree 展示） |
 | `src/autoload/game_state.gd` | 全部可持久化状态与规则 | 内容表 `CATALOG/SHAPES/UPGRADES/BAG_SIZES` 目前在这里（技术债，见 §8）；**关卡注册表 `LEVELS`**（id/名称/地图/目标/报酬）+ `set_level()` + `mission_target_id`；**`ARCHIVE` 文物档案字段**（与 SOURCES.md 对齐；游戏内只显示年代/原在地/现藏/流转/备注，来源与演绎说明集中在标题页） |
@@ -69,7 +71,7 @@ Autoload
 ### 3.1 全局状态（`Game`）
 
 - 运行局内：`bag_items: Array[{id,x,y,rot}]`、`mission_complete`
-- 长期成长：`money`、`backpack_level`、`has_sneakers`、`smoke_count`、`loot_stash`（据点仓库：待售战利品 id 列表）
+- 长期成长：`money`、`backpack_level`、`has_sneakers`、`smoke_count`、`loot_stash`（据点仓库：待售战利品 id 列表）、`archive_seen`（文物档案收集：接触过的文物 id）
 - 信号：`backpack_changed` / `money_changed` / `items_changed`（UI 只监听，不轮询）
 - Σ 存档：`user://save.json`（测试隔离到 `/tmp`）
 

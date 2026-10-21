@@ -27,6 +27,7 @@ func _ready() -> void:
 	_test_audio_files()
 	_test_level_data()
 	_test_lore()
+	_test_collection()
 	_test_statements()
 	if _failures > 0:
 		print("FAILED %d / %d checks" % [_failures, _checks])
@@ -352,6 +353,19 @@ func _test_lore() -> void:
 	for item_id in Lore.CLOSEUPS:
 		var path := String(Lore.CLOSEUPS[item_id])
 		check(FileAccess.file_exists(path), "文物特写图存在：%s（%s）" % [item_id, path])
+
+## 收集册：只收真实文物；每条都能找到 CATALOG / ARCHIVE / 特写图 / 获取提示。
+func _test_collection() -> void:
+	check(not Collection.IDS.is_empty(), "收集册至少有一条")
+	for item_id in Collection.IDS:
+		check(Game.CATALOG.has(item_id), "收集册条目 %s 存在于 CATALOG" % item_id)
+		check(Game.ARCHIVE.has(item_id), "收集册条目 %s 有档案字段" % item_id)
+		var path := Lore.closeup_path(item_id)
+		check(path != "" and FileAccess.file_exists(path), "收集册[%s] 特写图存在（%s）" % [item_id, path])
+		check(String(Collection.LOCKED_HINTS.get(item_id, "")) != "", "收集册[%s] 有未归档提示" % item_id)
+		for key in ["era", "origin", "collection", "provenance", "legend"]:
+			check(String(Game.ARCHIVE[item_id].get(key, "")) != "", "收集册[%s] 档案字段 %s 非空" % [item_id, key])
+
 
 ## 声明页：所有正式声明集中在 src/data/statements.gd，必须覆盖真实文物与虚构说明。
 func _test_statements() -> void:

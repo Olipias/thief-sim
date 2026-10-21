@@ -147,6 +147,10 @@ func _check_invariants(step: int) -> void:
 		if not Game.CATALOG.has(id) or Game.item_value(id) < 0:
 			_fail(step, "仓库出现非法条目：%s" % id)
 			return
+	for id in Game.archive_seen:
+		if not Game.CATALOG.has(id):
+			_fail(step, "收集册出现非法条目：%s" % id)
+			return
 	if Game.stash_value() < 0:
 		_fail(step, "仓库估值出现负值")
 		return

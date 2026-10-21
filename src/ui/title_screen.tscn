@@ -263,7 +263,7 @@ offset_bottom = 329.0
 mouse_filter = 2
 theme_override_styles/panel = SubResource("SB_glow")
 
-[node name="ShopMarker" type="Panel" parent="."]
+[node name="CollectionMarker" type="Panel" parent="."]
 offset_left = 453.0
 offset_top = 255.0
 offset_right = 467.0
@@ -301,7 +301,7 @@ theme_override_styles/pressed = SubResource("SB_pressed")
 theme_override_styles/focus = SubResource("SB_focus")
 text = "新游戏"
 
-[node name="ShopButton" type="Button" parent="."]
+[node name="CollectionButton" type="Button" parent="."]
 offset_left = 398.0
 offset_top = 224.0
 offset_right = 522.0
@@ -314,9 +314,9 @@ theme_override_styles/normal = SubResource("SB_normal")
 theme_override_styles/hover = SubResource("SB_hover")
 theme_override_styles/pressed = SubResource("SB_pressed")
 theme_override_styles/focus = SubResource("SB_focus")
-text = "商店"
+text = "文物档案"
 
-[node name="ShopHint" type="Label" parent="."]
+[node name="CollectionHint" type="Label" parent="."]
 offset_left = 398.0
 offset_top = 204.0
 offset_right = 522.0
@@ -325,7 +325,7 @@ theme_override_colors/font_color = Color(0.95, 0.78, 0.38, 0.95)
 theme_override_colors/font_outline_color = Color(0.05, 0.04, 0.02, 1)
 theme_override_constants/outline_size = 4
 theme_override_font_sizes/font_size = 9
-text = "补给 · 销赃"
+text = "收集册 · 0 / 2"
 horizontal_alignment = 1
 
 [node name="StatementsButton" type="Button" parent="."]

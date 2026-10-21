@@ -145,6 +145,9 @@ var lore_found: Dictionary = {}
 ## 据点仓库：成功带出但尚未出售的战利品（item_id 列表，玩家在「销赃」页自行决定是否出手）
 var loot_stash: Array[String] = []
 
+## 文物档案收集：玩家在行动中接触过的文物 id（标题页「文物档案」收集册的解锁依据）
+var archive_seen: Dictionary = {}
+
 ## Items currently carried: {id: String, x: int, y: int, rot: int}
 var bag_items: Array[Dictionary] = []
 var mission_complete := false
@@ -365,6 +368,10 @@ func try_pickup(item_id: String) -> bool:
 		return false
 	if not place_item({"id": item_id}, int(fit["x"]), int(fit["y"]), int(fit["rot"])):
 		return false
+	# 第一次接触 = 归档（即便之后被抓/丢掉，档案页也保留这一页）
+	if not archive_seen.has(item_id):
+		archive_seen[item_id] = true
+		save_game()
 	return true
 
 
@@ -413,6 +420,22 @@ func finish_run(success: bool) -> Dictionary:
 	backpack_changed.emit()
 	save_game()
 	return summary
+
+
+## --- 文物档案收集 ------------------------------------------------------------
+
+## 已归档：接触过，或（老档兼容）器灵对谈已推进过。
+func is_archived(item_id: String) -> bool:
+	return archive_seen.has(item_id) or lore_stage_of(item_id) > 0
+
+
+## 已归档的“真实文物”数量（ARCHIVE 里的条目；不含普通赃物）。
+func archived_count() -> int:
+	var total := 0
+	for item_id in ARCHIVE:
+		if is_archived(String(item_id)):
+			total += 1
+	return total
 
 
 ## --- loot stash ------------------------------------------------------------
@@ -531,6 +554,7 @@ func save_game() -> void:
 		"lore_stage": lore_stage,
 		"lore_found": lore_found,
 		"loot_stash": loot_stash,
+		"archive_seen": archive_seen,
 	}))
 
 
@@ -577,6 +601,7 @@ func load_game() -> void:
 	_restore_bag(data.get("bag_items", []))
 	_restore_lore(data.get("lore_stage", {}), data.get("lore_found", {}))
 	_restore_stash(data.get("loot_stash", []))
+	_restore_archive(data.get("archive_seen", {}))
 	money_changed.emit()
 	items_changed.emit()
 	backpack_changed.emit()
@@ -611,6 +636,17 @@ func _restore_stash(saved: Variant) -> void:
 		var id: String = value
 		if CATALOG.has(id):
 			loot_stash.append(id)
+
+
+## 收集册恢复：只保留 CATALOG 里存在的 id（脏档里的数组/数字忽略）。
+func _restore_archive(saved: Variant) -> void:
+	archive_seen.clear()
+	if typeof(saved) != TYPE_DICTIONARY:
+		return
+	for key in saved:
+		var id := str(key)
+		if CATALOG.has(id) and _as_bool(saved[key], false):
+			archive_seen[id] = true
 
 
 ## --- 文物志（器灵对谈 / 端详）---------------------------------------------
@@ -672,4 +708,5 @@ func reset_progress() -> void:
 	lore_stage.clear()
 	lore_found.clear()
 	loot_stash.clear()
+	archive_seen.clear()
 	reset_run()

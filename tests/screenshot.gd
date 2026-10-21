@@ -11,6 +11,7 @@ func _ready() -> void:
 	Game.money = 650
 	Game.backpack_level = 1
 	Game.smoke_count = 2
+	Game.archive_seen = {"mask": true, "ram_zun": true}
 	Game.save_game()
 	# 鼠标悬停会给按钮加 hover 样式；把指针移到角落，保证 UI 截图可复现
 	Input.warp_mouse(Vector2(2, 2))
@@ -30,6 +31,13 @@ func _ready() -> void:
 		await _shot("/tmp/shot_statements.png")
 		main.statements.close()
 		await _wait(0.2)
+
+	# 文物档案收集册（标题页入口）
+	main.collection.open()
+	await _wait(0.4)
+	await _shot("/tmp/shot_collection.png")
+	main.collection.close()
+	await _wait(0.2)
 
 	main.show_menu()
 	await _wait(0.6)

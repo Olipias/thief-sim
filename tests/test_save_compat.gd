@@ -31,6 +31,7 @@ func _initialize() -> void:
 	_test_dirty_bag_entries()
 	_test_dirty_lore_entries()
 	_test_dirty_stash()
+	_test_dirty_archive()
 	_test_current_round_trip()
 
 	if _failures > 0:
@@ -60,6 +61,7 @@ func _defaults_ok(gs, where: String) -> void:
 	check(not gs.mission_complete, "%s：任务未完成" % where)
 	check(gs.smoke_count >= 0 and gs.money >= 0, "%s：数值非负" % where)
 	check(gs.loot_stash.is_empty(), "%s：仓库为空" % where)
+	check(gs.archive_seen.is_empty(), "%s：收集册为空" % where)
 
 
 func _test_missing_file() -> void:
@@ -196,6 +198,30 @@ func _test_dirty_stash() -> void:
 	gs2.free()
 
 
+## 收集册字段：老档缺失 → 空；老档有器灵进度 → 兼容解锁；脏条目过滤。
+func _test_dirty_archive() -> void:
+	var legacy := _write_save("legacy_no_archive.json", '{"money": 10}')
+	var gs = _new_game(legacy)
+	gs.load_game()
+	check(gs.archive_seen.is_empty(), "老档缺 archive_seen：默认空收集册")
+	check(not gs.is_archived("mask"), "老档缺 archive_seen：未归档")
+	gs.free()
+
+	var lore_only := _write_save("lore_only_archive.json", '{"lore_stage": {"mask": 1}}')
+	var gs2 = _new_game(lore_only)
+	gs2.load_game()
+	check(gs2.is_archived("mask"), "老档的器灵进度可兼容解锁档案")
+	gs2.free()
+
+	var dirty := _write_save("dirty_archive.json", '{"archive_seen": {"mask": true, "nope": true, "vase": false, "gem": "yes", "5": true}}')
+	var gs3 = _new_game(dirty)
+	gs3.load_game()
+	check(gs3.archive_seen.size() == 1, "脏收集册：只保留合法且为 true 的条目")
+	check(gs3.is_archived("mask") and not gs3.is_archived("vase"), "脏收集册：true 保留、false/未知丢弃")
+	check(gs3.archived_count() == 1, "脏收集册：真实文物计数正确")
+	gs3.free()
+
+
 func _test_current_round_trip() -> void:
 	# 当前完整档：写完再读，全部字段一致（新增字段时别忘了同步本用例的断言）
 	var path := DIR + "/current.json"
@@ -214,6 +240,7 @@ func _test_current_round_trip() -> void:
 	writer.bag_items = saved_items
 	writer.lore_stage = {"mask": 2}
 	writer.lore_found = {"mask": [0, 2]}
+	writer.archive_seen = {"mask": true, "ram_zun": true}
 	writer.save_game()
 	writer.free()
 
@@ -227,5 +254,6 @@ func _test_current_round_trip() -> void:
 	check(reader.mission_complete, "完整档：mission_complete 推导正确")
 	check(reader.lore_stage_of("mask") == 2, "完整档：lore_stage")
 	check(reader.hotspot_found("mask", 2), "完整档：lore_found")
+	check(reader.archive_seen.size() == 2 and reader.is_archived("ram_zun"), "完整档：archive_seen")
 	reader.free()
 	DirAccess.remove_absolute(path)

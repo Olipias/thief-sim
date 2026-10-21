@@ -32,6 +32,7 @@ func _ready() -> void:
 	await _test_british_museum_level()
 	await _test_bag_screen()
 	await _test_title_screen()
+	await _test_collection_screen()
 	await _test_hub_levels()
 	await _test_mission_phone()
 	await _test_tutorial_balance()
@@ -474,15 +475,42 @@ func _test_title_screen() -> void:
 	title.quit_requested.connect(func() -> void: quit_requested["value"] = true)
 	title.quit_button.pressed.emit()
 	check(quit_requested["value"], "quit emits its signal")
-	check(title.shop_button != null, "title screen has a scene-placed shop button")
-	var shopped := {"value": false}
-	title.shop_requested.connect(func() -> void: shopped["value"] = true)
-	title.shop_button.pressed.emit()
-	check(shopped["value"], "shop button emits shop_requested")
+	check(title.collection_button != null, "title screen has a scene-placed collection button")
+	var collected := {"value": false}
+	title.collection_requested.connect(func() -> void: collected["value"] = true)
+	title.collection_button.pressed.emit()
+	check(collected["value"], "collection button emits collection_requested")
 	var primary: Button = title.continue_button if title.continue_button.visible else title.new_game_button
 	check(primary.position.y >= 250.0, "primary action is placed in the scene (rooftop ledge)")
 	check(title.primary_hint.text != "", "primary action has a scene hint")
 	title.queue_free()
+	await get_tree().process_frame
+
+
+func _test_collection_screen() -> void:
+	Game.reset_progress()
+	Game.archive_seen["mask"] = true
+	var screen := load("res://src/ui/collection_screen.tscn").instantiate() as CollectionScreen
+	add_child(screen)
+	await get_tree().process_frame
+	screen.open()
+	await get_tree().process_frame
+	check(screen.is_open(), "collection screen opens")
+	check(screen.list_box.get_child_count() == Collection.IDS.size(), "one list row per archive entry")
+	check(screen.progress_label.text.contains("1 / 2"), "collection progress counts archived items")
+	screen._select("mask")
+	check(screen.name_label.text == Game.item_name("mask"), "archived entry shows its name")
+	check(not screen.locked_label.visible, "archived entry hides the locked hint")
+	check(screen.fields_box.get_child_count() >= 5, "archived entry shows archive fields")
+	check(screen.image.texture != null, "archived entry shows the closeup image")
+	screen._select("ram_zun")
+	check(screen.name_label.text.contains("？"), "locked entry hides its name")
+	check(screen.locked_label.visible, "locked entry shows how to unlock it")
+	check(screen.lock_icon.visible, "locked entry shows the placeholder icon")
+	screen.close()
+	check(not screen.is_open(), "collection screen closes")
+	screen.queue_free()
+	Game.archive_seen.clear()
 	await get_tree().process_frame
 
 

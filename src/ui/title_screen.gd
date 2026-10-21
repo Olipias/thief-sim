@@ -11,7 +11,7 @@ signal continue_requested
 signal new_game_requested
 signal quit_requested
 signal statements_requested
-signal shop_requested
+signal collection_requested
 
 const ART_CANDIDATES := [
 	"res://assets/art/title_key_art.png",
@@ -34,12 +34,12 @@ const GLOW_RECT := Rect2(185, 293, 130, 36)
 @onready var title_rule: ColorRect = $TitleRule
 @onready var seal: PanelContainer = $Seal
 @onready var primary_hint: Label = $PrimaryHint
-@onready var shop_hint: Label = $ShopHint
+@onready var collection_hint: Label = $CollectionHint
 @onready var primary_glow: Panel = $PrimaryGlow
-@onready var shop_marker: Panel = $ShopMarker
+@onready var collection_marker: Panel = $CollectionMarker
 @onready var continue_button: Button = $ContinueButton
 @onready var new_game_button: Button = $NewGameButton
-@onready var shop_button: Button = $ShopButton
+@onready var collection_button: Button = $CollectionButton
 @onready var statements_button: Button = $StatementsButton
 @onready var quit_button: Button = $QuitButton
 @onready var fade: ColorRect = $Fade
@@ -57,7 +57,7 @@ func _ready() -> void:
 	hint_label.text = "立绘占位图 · 将作者立绘放到 assets/art/title_key_art.png 即可自动替换" if _using_placeholder else ""
 	continue_button.pressed.connect(_on_continue)
 	new_game_button.pressed.connect(_on_new_game)
-	shop_button.pressed.connect(func() -> void: shop_requested.emit())
+	collection_button.pressed.connect(func() -> void: collection_requested.emit())
 	statements_button.pressed.connect(func() -> void: statements_requested.emit())
 	quit_button.pressed.connect(func() -> void: quit_requested.emit())
 	_layout_buttons()
@@ -98,6 +98,7 @@ func _layout_buttons() -> void:
 	primary_glow.position = GLOW_RECT.position
 	primary_glow.size = GLOW_RECT.size
 	primary_hint.text = "从这儿开始 ▼"
+	collection_hint.text = "收集册 · %d / %d" % [Game.archived_count(), Collection.IDS.size()]
 	if Game.has_save():
 		save_label.text = "金币 %d · 背包 %d×%d · 烟雾弹 x%d%s" % [
 			Game.money,
@@ -123,14 +124,14 @@ func _setup_animations() -> void:
 		button.mouse_exited.connect(func() -> void: _hover(button, 1.0, false))
 		button.focus_entered.connect(func() -> void: _hover(button, 1.04, false))
 		button.focus_exited.connect(func() -> void: _hover(button, 1.0, false))
-	shop_marker.pivot_offset = shop_marker.size * 0.5
+	collection_marker.pivot_offset = collection_marker.size * 0.5
 	seal.pivot_offset = seal.size * 0.5
 	art.pivot_offset = size * 0.5
 	resized.connect(func() -> void: art.pivot_offset = size * 0.5)
 
 
 func _buttons() -> Array[Button]:
-	return [continue_button, new_game_button, shop_button, statements_button, quit_button]
+	return [continue_button, new_game_button, collection_button, statements_button, quit_button]
 
 
 func _hover(button: Button, target: float, with_sound: bool) -> void:
@@ -156,7 +157,7 @@ func _play_intro() -> void:
 	title_tween.tween_property(title_label, "modulate:a", 1.0, 0.4)
 	title_tween.tween_property(title_label, "position", title_home, 0.5).set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_OUT)
 
-	for label in [subtitle, title_rule, save_label, primary_hint, shop_hint]:
+	for label in [subtitle, title_rule, save_label, primary_hint, collection_hint]:
 		label.modulate.a = 0.0
 		var label_tween := create_tween()
 		label_tween.tween_property(label, "modulate:a", 1.0, 0.3).set_delay(0.12)
@@ -188,8 +189,8 @@ func _process(delta: float) -> void:
 	primary_glow.modulate.a = 0.45 + 0.25 * sin(_t * 2.2)
 	# 场景标记的呼吸
 	var pulse := 0.5 + 0.5 * sin(_t * 2.6)
-	shop_marker.modulate.a = 0.45 + 0.45 * pulse
-	shop_marker.scale = Vector2.ONE * (0.85 + 0.25 * pulse)
+	collection_marker.modulate.a = 0.45 + 0.45 * pulse
+	collection_marker.scale = Vector2.ONE * (0.85 + 0.25 * pulse)
 	# 立绘极慢的推近，让静态图“活着”
 	art.scale = Vector2.ONE * (1.0 + 0.006 * sin(_t * 0.25))
 
