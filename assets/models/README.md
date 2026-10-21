@@ -9,9 +9,27 @@
 
 | 文件 | 说明 |
 | --- | --- |
-| `ram_zun.blend` | Blender 源文件（含影棚灯光/相机，可直接出图） |
-| `ram_zun.glb` | glTF 二进制导出（仅器身选中导出；Y-up；含顶点色铜绿） |
-| `ram_zun_preview.png` | 3/4 视角预览图 |
+| `e6b392eeb4fe60c7dd831782abaec83f.glb` | **双羊尊扫描件**（50 万面、4K PBR 贴图；项目作者提供）。渲染默认使用它；**本地资产，`.gitignore` 不入库** |
+| `ram_zun.blend` | 程序化模型的 Blender 源文件（含影棚灯光/相机），扫描件缺失时的回退 |
+| `ram_zun.glb` | 程序化模型的 glTF 导出（仅器身；Y-up；含顶点色铜绿） |
+| `ram_zun_preview.png` | 程序化模型的 3/4 视角预览图 |
+
+> 扫描件的来源与许可证待作者补充。由于文件不入库，仓库只包含离线渲染产物（`assets/sprites/relic_ram_zun_*` 等）；
+> 拿到仓库但没有扫描件时，`tools/blender/render_relic_turntable.py` 会自动退回程序化模型。
+
+## 渲染（转台 / 图标 / 2.5D 特写）
+
+```bash
+# 默认：扫描件 → /tmp/opencode/relic_turntable（f00..f11 + hero + closeup）
+blender --background --factory-startup --python tools/blender/render_relic_turntable.py
+# 回退：程序化模型
+MODEL=procedural blender --background --factory-startup --python tools/blender/render_relic_turntable.py
+# 渲染结果 → 游戏精灵
+python3 tools/gen_relic_sprite.py
+```
+
+渲染脚本会把扫描件等比缩放到与程序化模型相同的尺寸（高 0.443 m、底部 Z=0），复用同一影棚；
+小尺寸精灵在 `gen_relic_sprite.py` 里做青铜绿的色调分级，特写层保留扫描件的原始质感。
 
 ## 生成方式（程序化建模，勿手改生成物）
 

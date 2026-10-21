@@ -4,7 +4,7 @@
 输入：tools/blender/render_relic_turntable.py 的渲染结果（默认 /tmp/opencode/relic_turntable）
 输出：
   assets/sprites/relic_ram_zun_strip.png   转台动画条（12 帧 × 24×28，关卡内的目标文物）
-  assets/sprites/artifact_ram_zun.png      16×16 背包/图鉴图标（由 hero 大图降采样）
+  assets/sprites/artifact_ram_zun.png      24×24 背包/图鉴图标（由 hero 大图降采样）
 
 流程：统一取所有帧的公共内容框（避免旋转抖动）→ 缩放到帧尺寸（底边对齐）→
 共享调色板量化（约 14 色，取自渲染本身）→ 拼条。可重复执行（覆盖输出）。
@@ -86,12 +86,23 @@ def build_shared_palette(frames, colors):
     return sample.quantize(colors=colors, method=Image.MEDIANCUT)
 
 
+def grade_bronze(im):
+    """扫描件的基础色偏浅薄荷绿；小尺寸精灵压向青铜绿的色调，保证在米色卡片/夜色里可读。"""
+    r, g, b, a = im.split()
+    r = r.point(lambda v: int(v * 0.82))
+    g = g.point(lambda v: int(v * 0.93))
+    b = b.point(lambda v: int(v * 0.78))
+    return Image.merge("RGBA", (r, g, b, a))
+
+
 def build_sized_frames(frames, box, frame_w, frame_h, colors):
     """统一增强 → 缩放排布 → 共享调色板量化。返回（帧列表, 调色板）。"""
     tuned = []
     for im in frames:
-        im = ImageEnhance.Color(im).enhance(1.25)
-        im = ImageEnhance.Contrast(im).enhance(1.10)
+        im = grade_bronze(im)
+        im = ImageEnhance.Color(im).enhance(1.35)
+        im = ImageEnhance.Contrast(im).enhance(1.15)
+        im = ImageEnhance.Brightness(im).enhance(0.95)
         tuned.append(im)
     sized = [fit_into_frame(im, box, frame_w, frame_h, BOTTOM_MARGIN) for im in tuned]
     palette = build_shared_palette(sized, colors)
@@ -132,7 +143,8 @@ def main():
 
     # 背包/图鉴图标：取侧影最宽的帧（侧视轮廓最易读）→ 24×24
     widest = max(frames, key=lambda im: im.getbbox()[2] - im.getbbox()[0])
-    icon_src = ImageEnhance.Color(widest).enhance(1.35)
+    icon_src = grade_bronze(widest)
+    icon_src = ImageEnhance.Color(icon_src).enhance(1.35)
     icon_src = ImageEnhance.Contrast(icon_src).enhance(1.18)
     icon = fit_into_frame(icon_src, box, ICON_SIZE, ICON_SIZE, 0)
     icon = apply_palette(icon, small_palette)

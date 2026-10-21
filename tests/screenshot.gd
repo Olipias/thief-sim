@@ -6,10 +6,14 @@ extends Node
 func _ready() -> void:
 	# 截图流程隔离存档，避免覆盖玩家真实进度（也让截图更可复现）
 	Game.save_path = "/tmp/thief_sim_screenshot_save.json"
+	# 截图要确定性：先清进度，再写入固定状态（避免继承上一次运行/玩家存档）
+	Game.reset_progress()
 	Game.money = 650
+	Game.backpack_level = 1
 	Game.smoke_count = 2
-	Game.lore_stage.clear()  # 截图流程要确定性：文物志从头开始
-	Game.lore_found.clear()
+	Game.save_game()
+	# 鼠标悬停会给按钮加 hover 样式；把指针移到角落，保证 UI 截图可复现
+	Input.warp_mouse(Vector2(2, 2))
 	var main := load("res://src/main.tscn").instantiate() as Main
 	add_child(main)
 	await _wait(0.8)
