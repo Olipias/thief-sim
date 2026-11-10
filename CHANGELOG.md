@@ -5,6 +5,16 @@
 
 ---
 
+## [v0.18.2] - 2026-11-11
+
+### 新增（发布 / 部署）
+- **导出与打包**：新增 `export_presets.cfg`（Web / Windows / Linux）；Windows 单文件 exe（内嵌 pck）+ `assets/art/icon.ico`；新增 `tools/export.sh`，一键导入、导出并压缩到 `build/`（已在 `.gitignore` 中排除）。
+- **Web 版**：关闭线程（`variant/thread_support=false`），不依赖 SharedArrayBuffer / COOP / COEP，可直接部署到 itch.io、GitHub Pages、Netlify Drop；Web 包约 16 MB。
+- **文档**：新增 `docs/DEPLOY.md`（itch.io 上传、Windows zip、GitHub Release/Netlify 备选、音频/存档/许可注意事项）。
+
+### 测试
+- 导出冒烟：Linux 包 `--headless` 启动/退出正常（exit 0）；Web 包 `index.html/index.js/index.wasm/index.pck` 齐全、threadless；`tools/verify.sh` 全绿（逻辑 2509 / 内容 433 / 输入流 82 / 存档 69 / 场景 58 / monkey 600 / 冒烟 161）。
+
 ## [v0.18.1] - 2026-10-21
 
 ### 修改（标题页 / 收集册）
