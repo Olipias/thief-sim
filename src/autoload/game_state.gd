@@ -310,9 +310,10 @@ func set_level(level_id: String) -> void:
 	_recompute_mission()
 
 
-## 是否存在存档（标题界面据此决定「继续游戏」是否可用）。
+## 是否存在**有效**存档（标题界面据此决定「继续游戏」是否可用）。
+## 损坏/半写档不算——宁可让玩家走"新游戏"，也不能让「继续」读到空进度。
 func has_save() -> bool:
-	return FileAccess.file_exists(save_path)
+	return typeof(_read_save_dict()) == TYPE_DICTIONARY
 
 
 ## 新游戏：清空进度并覆盖存档文件。
@@ -392,7 +393,16 @@ func finish_run(success: bool) -> Dictionary:
 		"target_name": "",
 		"money_total": money,
 	}
-	if not success or not mission_complete:
+	if not success:
+		# 被逮捕：本次携带的赃物全部没收，且立刻落盘——
+		# 否则上次拾取时的自动存档会让赃物在"退出重开"后复活。
+		bag_items.clear()
+		mission_complete = false
+		backpack_changed.emit()
+		save_game()
+		return summary
+	if not mission_complete:
+		# 守卫：调用方若在未带出目标时上报成功，不做任何结算（正常流程不会到这）
 		return summary
 
 	var taken: Array[Dictionary] = []
@@ -539,13 +549,23 @@ func use_smoke() -> bool:
 
 ## --- persistence ------------------------------------------------------------
 
+## 读取并校验存档（损坏/半写档返回 null）。has_save / load_game 共用。
+func _read_save_dict() -> Variant:
+	if not FileAccess.file_exists(save_path):
+		return null
+	var file := FileAccess.open(save_path, FileAccess.READ)
+	if file == null:
+		return null
+	var data: Variant = JSON.parse_string(file.get_as_text())
+	if typeof(data) != TYPE_DICTIONARY:
+		return null
+	return data
+
+
 func save_game() -> void:
 	if not _persistent:
 		return
-	var file := FileAccess.open(save_path, FileAccess.WRITE)
-	if file == null:
-		return
-	file.store_string(JSON.stringify({
+	var text := JSON.stringify({
 		"money": money,
 		"backpack_level": backpack_level,
 		"has_sneakers": has_sneakers,
@@ -555,7 +575,27 @@ func save_game() -> void:
 		"lore_found": lore_found,
 		"loot_stash": loot_stash,
 		"archive_seen": archive_seen,
-	}))
+	})
+	# 原子写：先写 .tmp 再改名覆盖。写到一半崩溃时主档保持上一次的完整状态，
+	# 不会出现"半截 JSON → 读档失败 → 玩家进度归零"。
+	var tmp_path := save_path + ".tmp"
+	var file := FileAccess.open(tmp_path, FileAccess.WRITE)
+	if file == null:
+		return
+	file.store_string(text)
+	file.close()
+	var err := DirAccess.rename_absolute(
+		ProjectSettings.globalize_path(tmp_path),
+		ProjectSettings.globalize_path(save_path)
+	)
+	if err != OK:
+		# 极少数平台不允许覆盖式改名：退回直接写主档（至少保证存得上）
+		var direct := FileAccess.open(save_path, FileAccess.WRITE)
+		if direct != null:
+			direct.store_string(text)
+			direct.close()
+		if FileAccess.file_exists(tmp_path):
+			DirAccess.remove_absolute(ProjectSettings.globalize_path(tmp_path))
 
 
 ## 从 JSON/Variant 安全取 int：脏数据类型不匹配时返回默认值，绝不抛错。
@@ -585,12 +625,7 @@ func _as_bool(value: Variant, default := false) -> bool:
 
 
 func load_game() -> void:
-	if not FileAccess.file_exists(save_path):
-		return
-	var file := FileAccess.open(save_path, FileAccess.READ)
-	if file == null:
-		return
-	var data: Variant = JSON.parse_string(file.get_as_text())
+	var data: Variant = _read_save_dict()
 	if typeof(data) != TYPE_DICTIONARY:
 		return
 	# 防御性加载：脏档/手改档不得把负数或越界值带进运行状态（有存档兼容测试守卫）

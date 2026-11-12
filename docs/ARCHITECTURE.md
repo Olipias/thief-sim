@@ -73,7 +73,7 @@ Autoload
 - 运行局内：`bag_items: Array[{id,x,y,rot}]`、`mission_complete`
 - 长期成长：`money`、`backpack_level`、`has_sneakers`、`smoke_count`、`loot_stash`（据点仓库：待售战利品 id 列表）、`archive_seen`（文物档案收集：接触过的文物 id）
 - 信号：`backpack_changed` / `money_changed` / `items_changed`（UI 只监听，不轮询）
-- Σ 存档：`user://save.json`（测试隔离到 `/tmp`）
+- Σ 存档：`user://save.json`（测试隔离到 `/tmp`）。**原子写**：先写 `.tmp` 再改名覆盖；`has_save()` 会校验 JSON——损坏/半写档不会被当成"可继续"，读档失败安全回退默认值。**被逮捕/未带出目标时立刻清空赃物并落盘**（没收必须生效，不能靠退出重开"复活"）。
 
 ```json
 { "money": 0, "backpack_level": 0, "has_sneakers": false,
@@ -224,6 +224,7 @@ Autoload
 | 冒烟测试 | `tests/smoke_test.gd` | 场景行为：拾取/被捕/撤离/警报/幽灵/相机/背包界面 |
 | 输入流自检 | `tests/test_input_flow.tscn` | **UI/输入改动必加**：真实按键/鼠标事件驱动，覆盖层开关、互斥、逐层返回、暂停契约 |
 | 存档兼容 | `tests/test_save_compat.gd` | 新增存档字段/改加载逻辑时补老档与脏档用例 |
+| 进度自检 | `tests/test_progression.gd` | 结算/仓库/收集册/存档健壮性：没收落盘、防重复领奖、卖店边界、损坏档、新游戏清档 |
 | 场景实例化 | `tests/test_scenes.tscn` | 自动覆盖 `src/` 全部场景（新增场景无需改） |
 | 随机操作 | `tests/test_monkey.tscn` | 新增"任何时刻成立"的规则时加不变量；`MONKEY_STEPS` / `MONKEY_SEED` 可加深 |
 | 视觉回归 | `tests/visual_baseline/` + `tools/check_visual.py` | 画面改动后 `verify.sh --visual`；预期改动 `--update` 基线 |

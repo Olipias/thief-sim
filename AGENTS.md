@@ -38,6 +38,7 @@ tools/verify.sh --visual                # 全量 + 截图视觉回归（画面�
 ~/.local/bin/godot --headless res://tests/test_scripts.tscn      # 全部 GDScript 可编译性
 ~/.local/bin/godot --headless res://tests/test_input_flow.tscn   # 输入流自检（真实按键驱动 UI 覆盖层）
 ~/.local/bin/godot --headless --script tests/test_save_compat.gd # 存档兼容（老档/脏档/未来档）
+~/.local/bin/godot --headless --script tests/test_progression.gd  # 玩家进度（结算/仓库/收集册/存档健壮性）
 ~/.local/bin/godot --headless res://tests/test_scenes.tscn       # 场景实例化（src/*.tscn）
 ~/.local/bin/godot --headless res://tests/test_monkey.tscn       # 随机操作不变量（MONKEY_STEPS / MONKEY_SEED 可调）
 ~/.local/bin/godot --headless res://tests/smoke_test.tscn        # 场景集成冒烟测试
