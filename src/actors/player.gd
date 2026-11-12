@@ -6,6 +6,8 @@ extends CharacterBody2D
 signal used_item(item_id: String)
 signal made_noise(position: Vector2, radius: float)
 signal inspect_requested(item_id: String)
+## 剧情交互触发器（BM Room 3 馆方标签 / 观众留言等），优先于文物拾取。
+signal story_trigger_requested(group: String)
 
 const WALK_SPEED := 58.0
 const SPRINT_SPEED := 88.0
@@ -89,6 +91,10 @@ func _update_visual(dir: Vector2, delta: float) -> void:
 
 
 func _try_interact() -> void:
+	var story_group := _nearest_story_trigger_group()
+	if story_group != "":
+		story_trigger_requested.emit(story_group)
+		return
 	var target := _closest_artifact()
 	if target == null:
 		return
@@ -96,6 +102,26 @@ func _try_interact() -> void:
 		inspect_requested.emit(target.item_id)
 	else:
 		target.try_pickup()
+
+
+## 优先检测剧情触发器（group 为 "story_label" / "story_note" 等）。
+func _nearest_story_trigger_group() -> String:
+	var best: Area2D = null
+	var best_dist := INF
+	for area in interact_area.get_overlapping_areas():
+		if not (area.is_in_group("story_label") or area.is_in_group("story_note")):
+			continue
+		var dist := global_position.distance_squared_to(area.global_position)
+		if dist < best_dist:
+			best_dist = dist
+			best = area
+	if best == null:
+		return ""
+	if best.is_in_group("story_label"):
+		return "story_label"
+	if best.is_in_group("story_note"):
+		return "story_note"
+	return ""
 
 
 func _closest_artifact() -> Artifact:

@@ -101,8 +101,29 @@ func _on_lore_requested(item_id: String, stage: int) -> void:
 	get_tree().paused = true
 
 
+## 剧情单卡/短句：用 DialogueTree 占位，escapable=true 允许 P/ESC 直接关闭。
+func _on_story_requested(lines: Array, cards: Dictionary, on_finished: Callable) -> void:
+	var wrapped := func() -> void:
+		if on_finished.is_valid():
+			on_finished.call()
+	dialogue_tree.play(lines, cards, wrapped, true)
+	# 延迟一帧连接 finished：若本对谈的 on_finished 里又开了新故事，新故事的 _on_story_requested
+	# 会立即连接它自己的 finished；延迟能保证当前 dt_fin 不会被同一帧内更早的 finished 信号触发。
+	var _on_dt_finished := func() -> void:
+		if not dialogue_tree.is_active():
+			get_tree().paused = false
+			hud.set_compact(false)
+	await get_tree().process_frame
+	if not dialogue_tree.finished.is_connected(_on_dt_finished):
+		dialogue_tree.finished.connect(_on_dt_finished, CONNECT_ONE_SHOT)
+	hud.set_compact(true)
+	get_tree().paused = true
+
+
 func _on_lore_finished(item_id: String) -> void:
 	Game.advance_lore_stage(item_id)
+	if _museum != null and is_instance_valid(_museum):
+		_museum.on_lore_finished(item_id)
 	get_tree().paused = false
 	hud.set_compact(false)
 
@@ -239,6 +260,7 @@ func start_mission(level_id := "museum") -> void:
 	museum.alert_changed.connect(hud.set_alert)
 	museum.dialogue_requested.connect(_show_dialogue)
 	museum.lore_requested.connect(_on_lore_requested)
+	museum.story_requested.connect(_on_story_requested)
 	museum.closeup_requested.connect(open_relic_closeup)
 	screen.add_child(museum)
 	_museum = museum

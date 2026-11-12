@@ -171,11 +171,11 @@ func _unhandled_input(event: InputEvent) -> void:
 			_choice_buttons[_choice_index].grab_focus()
 			get_viewport().set_input_as_handled()
 			return
-		if event.is_action_pressed("interact"):
+		if Input.is_action_just_pressed("interact"):
 			if not _choice_buttons.is_empty():
 				_choice_buttons[_choice_index].pressed.emit()
 			get_viewport().set_input_as_handled()
 		return
-	if event.is_action_pressed("interact") or event.is_action_pressed("ui_accept"):
+	if Input.is_action_just_pressed("interact") or Input.is_action_just_pressed("ui_accept"):
 		advance()
 		get_viewport().set_input_as_handled()

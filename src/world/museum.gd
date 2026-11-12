@@ -12,6 +12,8 @@ signal dialogue_requested(lines: Array)
 signal lore_requested(item_id: String, stage: int)
 ## 请求进入互动特写层（2.5D）
 signal closeup_requested(item_id: String)
+## 剧情单卡/短句请求（BM Room 3 标签、留言等；由 main 用 DialogueTree 播放）。
+signal story_requested(lines: Array, cards: Dictionary, on_finished: Callable)
 
 const TILE := 16
 const SMOKE_RADIUS := 72.0
@@ -24,6 +26,22 @@ const ARTIFACT_POOL: Array[String] = ["vase", "gem", "scroll", "ingot", "jade"]
 const GHOST_LINES := {
 	"mask": "把……面具……放……回去……",
 	"ram_zun": "千年了……我听见另一只羊，隔着海……带我们……回家……",
+}
+
+## BM Room 3 剧情触发器：馆方标签与观众留言。
+const BM_LABEL_POS := Vector2(168, 312)
+const BM_NOTE_POS := Vector2(120, 312)
+const BM_LABEL_CARDS := {
+	"zun_label": {
+		"title": "馆方说明 · 商代双羊尊",
+		"body": "商代晚期，约公元前 1200—1050 年\n青铜\n传出自湖南\n1936 年购自乔治·尤摩弗帕勒斯旧藏\n馆藏编号 1936,1118.1",
+	}
+}
+const BM_NOTE_CARDS := {
+	"zun_note": {
+		"title": "观众留言，非馆方说明",
+		"body": "1860，圆明园。别忘了。",
+	}
 }
 const SOLID_CHARS := {
 	"#": "wall",
@@ -222,6 +240,16 @@ var _bm_skylights: Array[Node2D] = []
 var _bm_glints: Array[Node2D] = []
 var bm_solid_decor_count := 0
 
+## BM Room 3 的剧情触发器（馆方标签 / 观众留言）。
+var _story_triggers: Array[Area2D] = []
+## 本局已读过的剧情触发器：group -> true。
+var _story_trigger_read: Dictionary = {}
+## 上一次响应的剧情触发器；离开其范围后才允许再次按 E 重读（防止 _finish_story_tree 反复打开）。
+var _last_story_trigger: Area2D = null
+## 大英博物馆：出口前自动播放双羊 stage 3 的状态。
+var _pending_zun_stage := -1
+var _zun_stage3_triggered := false
+
 
 func _ready() -> void:
 	y_sort_enabled = true
@@ -274,6 +302,7 @@ func target_item_id() -> String:
 func _build_level() -> void:
 	_build_collision()
 	_add_night_tint()
+	_spawn_story_triggers()
 	var artifact_index := 0
 	for y in tiles.size():
 		var row: String = tiles[y]
@@ -369,6 +398,7 @@ func _spawn_player(pos: Vector2) -> void:
 	player.used_item.connect(_on_player_used_item)
 	player.made_noise.connect(_on_player_made_noise)
 	player.inspect_requested.connect(func(item_id: String) -> void: closeup_requested.emit(item_id))
+	player.story_trigger_requested.connect(_on_story_trigger_requested)
 	add_child(player)
 
 
@@ -400,6 +430,106 @@ func _add_bm_display_case(pos: Vector2) -> void:
 	display_case.position = pos + Vector2(0, -10)
 	add_child(display_case)
 	_add_light(pos + Vector2(0, -6), Color(1.0, 0.72, 0.42), 0.45, 0.45)
+
+
+## 大英博物馆 Room 3 的可交互剧情物：馆方标签 + 观众留言。
+func _spawn_story_triggers() -> void:
+	if level_id != "british_museum":
+		return
+	_story_triggers.clear()
+	_story_trigger_read.clear()
+	_last_story_trigger = null
+	_add_story_trigger("story_label", BM_LABEL_POS, "馆方标签", BM_LABEL_CARDS, _label_lines(), _on_label_read)
+	_add_story_trigger("story_note", BM_NOTE_POS, "观众留言", BM_NOTE_CARDS, _note_lines(), _on_note_read)
+
+
+func _add_story_trigger(group: String, pos: Vector2, prompt: String, cards: Dictionary, lines: Array, on_finished: Callable) -> void:
+	var area := Area2D.new()
+	area.name = "StoryTrigger_" + group
+	area.collision_layer = 8
+	area.collision_mask = 2
+	area.position = pos
+	area.add_to_group(group)
+	var shape := CollisionShape2D.new()
+	var circle := CircleShape2D.new()
+	circle.radius = 26.0
+	shape.shape = circle
+	area.add_child(shape)
+	area.body_exited.connect(_on_story_trigger_exited.bind(area))
+	area.set_meta("story_data", {"prompt": prompt, "lines": lines, "cards": cards, "on_finished": on_finished})
+	add_child(area)
+	_story_triggers.append(area)
+
+
+func _label_lines() -> Array:
+	return [
+		{"card": "zun_label"},
+		{"speaker": "右羊", "text": "买。他记得买的那一天。"},
+		{"speaker": "左羊", "text": "他不记得做我的那一天。"},
+		{"speaker": "", "text": "标签上的字很小。你凑近时，玻璃里映出两张脸。一张是你的，一张不是。"},
+	]
+
+
+func _note_lines() -> Array:
+	return [
+		{"card": "zun_note"},
+		{"speaker": "右羊", "text": "火。他们总说火。"},
+		{"speaker": "左羊", "text": "我不记得火。我记得范土是湿的。"},
+		{"speaker": "右羊", "text": "你记得的太早了。早得没人信。"},
+		{"speaker": "", "text": "留言的墨水是新的。"},
+	]
+
+
+func _both_read_lines() -> Array:
+	return [
+		{"speaker": "左羊", "text": "两件事。一件有编号。一件有火。"},
+		{"speaker": "右羊", "text": "你信哪个？"},
+		{
+			"choices": [
+				{"text": "编号。它有日期。", "goto": "num"},
+				{"text": "火。它有恨。", "goto": "fire"},
+				{"text": "都不够。", "goto": "none"},
+				{"text": "都信。也都不全信。", "goto": "both"},
+			]
+		},
+		{"label": "num"},
+		{"speaker": "左羊", "text": "那你信的是买它的人。"},
+		{"speaker": "右羊", "text": "至少他没说谎。"},
+		{"goto": "end"},
+		{"label": "fire"},
+		{"speaker": "右羊", "text": "恨不用证据。"},
+		{"speaker": "左羊", "text": "可它也不是记忆。"},
+		{"goto": "end"},
+		{"label": "none"},
+		{"speaker": "左羊", "text": "对。都不够。"},
+		{"speaker": "右羊", "text": "那你为什么还站着？"},
+		{"goto": "end"},
+		{"label": "both"},
+		{"speaker": "左羊", "text": "这是读书人的说法。"},
+		{"speaker": "右羊", "text": "这是活人的说法。"},
+		{"goto": "end"},
+		{"label": "end"},
+		{"speaker": "左羊", "text": "走吧。灯要灭了。"},
+	]
+
+
+func _on_label_read() -> void:
+	Game.set_story_flag("read_label")
+	_story_trigger_read["story_label"] = true
+	if Game.story_flag("read_note") and not _story_trigger_read.get("both_read", false):
+		_trigger_both_read()
+
+
+func _on_note_read() -> void:
+	Game.set_story_flag("read_note")
+	_story_trigger_read["story_note"] = true
+	if Game.story_flag("read_label") and not _story_trigger_read.get("both_read", false):
+		_trigger_both_read()
+
+
+func _trigger_both_read() -> void:
+	_story_trigger_read["both_read"] = true
+	story_requested.emit(_both_read_lines(), {}, Callable())
 
 
 func _spawn_police(id: String, pos: Vector2) -> void:
@@ -488,8 +618,12 @@ func _process(delta: float) -> void:
 			_patrol_hint_shown = true
 			toast.emit("前面有守卫在巡逻——先看清手电光锥的方向，再贴着边走。")
 	var prompt := ""
+	var nearest_trigger := _nearest_story_trigger()
 	if _ghost_near():
 		prompt = "按 E 与器灵交谈"
+	elif nearest_trigger != null:
+		var data: Dictionary = nearest_trigger.get_meta("story_data", {})
+		prompt = "按 E 阅读：%s" % data.get("prompt", "")
 	else:
 		var target_name: String = player.interactable_name()
 		prompt = "按 E 拾取：%s" % target_name if target_name != "" else ""
@@ -505,6 +639,45 @@ func _room_has_police(idx: int) -> bool:
 		if is_instance_valid(cop) and room_index_at(cop.global_position) == idx:
 			return true
 	return false
+
+
+func _nearest_story_trigger() -> Area2D:
+	if player == null:
+		return null
+	var best: Area2D = null
+	var best_dist := INF
+	for area in player.interact_area.get_overlapping_areas():
+		if not (area.is_in_group("story_label") or area.is_in_group("story_note")):
+			continue
+		var dist := player.global_position.distance_squared_to(area.global_position)
+		if dist < best_dist:
+			best_dist = dist
+			best = area
+	return best
+
+
+func _on_story_trigger_requested(group: String) -> void:
+	if _ended:
+		return
+	for trigger in _story_triggers:
+		if not trigger.is_in_group(group):
+			continue
+		# 离开触发器范围前禁止重复按 E 重开；离开后回来可重读。
+		if trigger == _last_story_trigger:
+			return
+		_last_story_trigger = trigger
+		var data: Dictionary = trigger.get_meta("story_data", {})
+		var on_finished: Callable = data.get("on_finished", Callable())
+		story_requested.emit(data.get("lines", []), data.get("cards", {}), on_finished)
+		return
+
+
+## 玩家离开剧情触发器范围后，才允许再次按 E 重读同一张。
+func _on_story_trigger_exited(body: Node2D, trigger: Area2D) -> void:
+	if body != player:
+		return
+	if _last_story_trigger == trigger:
+		_last_story_trigger = null
 
 
 func _ghost_near() -> bool:
@@ -593,6 +766,9 @@ func _spawn_ghost() -> void:
 	ghost.wailed.connect(_on_ghost_wailed)
 	add_child(ghost)
 	Audio.play("ghost", -7.0)
+	# 若双羊已信任玩家，本局不再哀嚎（面具逻辑不受影响）。
+	if level_id == "british_museum" and Game.story_flag("zun_trusted"):
+		ghost.calm(999999.0)
 	# 不在器灵出现时弹提示：此时通常正开着对谈/台词，提示会压住选项；
 	# "它会引来警察 + 按 E 可以安抚"在哀嚎真正引警时用 toast 说明。
 
@@ -618,6 +794,9 @@ func _talk_to_ghost() -> void:
 
 func _on_ghost_wailed(pos: Vector2) -> void:
 	if _ended:
+		return
+	# 双羊信任玩家后，右羊不再哀嚎引警（面具逻辑不受影响）。
+	if level_id == "british_museum" and Game.story_flag("zun_trusted"):
 		return
 	Audio.play("ghost", -13.0, randf_range(0.92, 1.06))
 	var src_room := room_index_at(pos)
@@ -679,13 +858,54 @@ func _on_player_made_noise(pos: Vector2, radius: float) -> void:
 func _on_exit_body_entered(body: Node2D) -> void:
 	if _ended or body != player:
 		return
-	if Game.mission_complete:
-		_ended = true
-		Audio.play("escape", -5.0)
-		escaped.emit()
-	else:
+	if not Game.mission_complete:
 		Audio.play("denied", -8.0)
 		toast.emit("出口还锁着：必须带上任务目标才能撤离。")
+		return
+	# 大英博物馆：撤离前自动播双羊最后一段（若还没播完），播完才撤离。
+	if level_id == "british_museum" and _should_trigger_zun_stage3():
+		_trigger_zun_stage3()
+		return
+	_end_escape()
+
+
+func _end_escape() -> void:
+	_ended = true
+	Audio.play("escape", -5.0)
+	escaped.emit()
+
+
+## 是否需要在出口前自动补播双羊文物志。
+func _should_trigger_zun_stage3() -> bool:
+	if _zun_stage3_triggered:
+		return false
+	if not Lore.has_lore("ram_zun"):
+		return false
+	var stage := Game.lore_stage_of("ram_zun")
+	return stage < Lore.stage_count("ram_zun")
+
+
+func _trigger_zun_stage3() -> void:
+	_zun_stage3_triggered = true
+	var stage := Game.lore_stage_of("ram_zun")
+	_pending_zun_stage = stage
+	lore_requested.emit("ram_zun", stage)
+
+
+## 文物志对谈结束后的回调（main.gd 在 advance_lore_stage 后调用）。
+func on_lore_finished(item_id: String) -> void:
+	if item_id != "ram_zun":
+		return
+	# 双羊最后一段播完后，标记信任并停止本局哀嚎。
+	if Game.lore_stage_of("ram_zun") >= Lore.stage_count("ram_zun"):
+		Game.set_story_flag("zun_trusted")
+		if ghost != null and is_instance_valid(ghost):
+			ghost.calm(999999.0)
+	# 若这是出口前的兜底触发，播完继续撤离流程。
+	if _pending_zun_stage >= 0:
+		_pending_zun_stage = -1
+		if not _ended and Game.mission_complete:
+			_end_escape()
 
 
 func _on_police_caught() -> void:

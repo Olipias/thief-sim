@@ -142,6 +142,11 @@ var smoke_count := 0
 var lore_stage: Dictionary = {}
 var lore_found: Dictionary = {}
 
+## 剧情旗标：一次性剧情节点（读标签/留言、面具诚实、双羊信任、结局路由）的持久化。
+## 键名约定：read_label / read_note / honest_to_mask / zun_trusted / ending_id（字符串）。
+## 只增字段进存档：老档缺该键默认为空（读写见 _restore_story_flags）。
+var story_flags: Dictionary = {}
+
 ## 据点仓库：成功带出但尚未出售的战利品（item_id 列表，玩家在「销赃」页自行决定是否出手）
 var loot_stash: Array[String] = []
 
@@ -573,6 +578,7 @@ func save_game() -> void:
 		"bag_items": bag_items,
 		"lore_stage": lore_stage,
 		"lore_found": lore_found,
+		"story_flags": story_flags,
 		"loot_stash": loot_stash,
 		"archive_seen": archive_seen,
 	})
@@ -635,6 +641,7 @@ func load_game() -> void:
 	smoke_count = maxi(0, int(data.get("smoke_count", 0)))
 	_restore_bag(data.get("bag_items", []))
 	_restore_lore(data.get("lore_stage", {}), data.get("lore_found", {}))
+	_restore_story_flags(data.get("story_flags", {}))
 	_restore_stash(data.get("loot_stash", []))
 	_restore_archive(data.get("archive_seen", {}))
 	money_changed.emit()
@@ -658,6 +665,18 @@ func _restore_lore(saved_stage: Variant, saved_found: Variant) -> void:
 				for value in values:
 					arr.append(_as_int(value))
 			lore_found[str(key)] = arr
+
+
+## 剧情旗标恢复：老档缺字段 → 空；整段类型脏（字符串/数字等）→ 重置为空；
+## 键值只保留 bool（旗标）与 String（ending_id），其余丢弃，绝不在加载时抛错。
+func _restore_story_flags(saved: Variant) -> void:
+	story_flags.clear()
+	if typeof(saved) != TYPE_DICTIONARY:
+		return
+	for key in saved:
+		var value: Variant = saved[key]
+		if typeof(value) == TYPE_BOOL or typeof(value) == TYPE_STRING:
+			story_flags[str(key)] = value
 
 
 ## 仓库恢复：只保留 CATALOG 里存在的 id。
@@ -709,6 +728,30 @@ func mark_hotspot(item_id: String, index: int) -> void:
 	save_game()
 
 
+## --- 剧情旗标 ---------------------------------------------------------------
+
+## 剧情旗标读取：未设置/未知键一律 false；值恒为 bool。
+## ending_id 是字符串（如 "sell"/"return"/"third"），用 story_flags.get("ending_id", "") 直读。
+func story_flag(key: String) -> bool:
+	var value: Variant = story_flags.get(key, false)
+	return typeof(value) == TYPE_BOOL and bool(value)
+
+
+## 剧情旗标写入：默认 true；与文物志进度一样立即落盘。
+func set_story_flag(key: String, value: bool = true) -> void:
+	story_flags[key] = value
+	save_game()
+
+
+## 隐藏结局 E-03「第三只羊」解锁条件：
+## 读过馆方标签、读过观众留言、双羊尊三段对谈全部完成、面具对谈中选择诚实。
+func hidden_ending_unlocked() -> bool:
+	var zun_complete := story_flag("zun_trusted") \
+		or lore_stage_of("ram_zun") >= Lore.stage_count("ram_zun")
+	return story_flag("read_label") and story_flag("read_note") \
+		and zun_complete and story_flag("honest_to_mask")
+
+
 ## Re-places saved items, dropping/fixing any that no longer fit.
 func _restore_bag(saved: Variant) -> void:
 	bag_items.clear()
@@ -744,4 +787,5 @@ func reset_progress() -> void:
 	lore_found.clear()
 	loot_stash.clear()
 	archive_seen.clear()
+	story_flags.clear()
 	reset_run()

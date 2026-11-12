@@ -5,6 +5,46 @@
 
 ---
 
+## [v0.19.0] - 2026-11-13
+
+### 新增（剧情地基）
+- **剧情旗标进存档（S-01）**：`Game.story_flags`（`src/autoload/game_state.gd`）——一次性剧情节点的持久化，约定键名 `read_label` / `read_note` / `honest_to_mask` / `zun_trusted`（布尔）与 `ending_id`（字符串，如 "sell"/"return"/"third"，供岔路结局路由）。配套访问器 `story_flag()`（未设置/未知键一律 false，值恒为 bool）与 `set_story_flag()`（默认 true，立即落盘）。存档只增字段：老档缺字段默认空、整段类型脏（字符串/数字）重置为空、非法键值过滤，与 `lore_stage`/`lore_found` 同一套防御式容错；新游戏重置一并清空旗标。
+
+### 修改（剧情内容落地）
+- **双羊尊文物志进游戏（S-02）**：`src/data/lore.gd` 按 STORY.md §5.1 落地 `ram_zun` 条目——3 段器灵对谈（左羊 = 铸匠记忆 / 右羊 = 流转记忆，双声道）、3 张展签卡（形制与年代 / 湖南推定 / 1936 转手）、4 个端详热点（羊角 / 背脊接缝 / 垫片痕 / 锈色）。大英博物馆的器灵哀嚎现在会进入完整对谈（此前退回单句台词）；对谈推进与展签卡解锁沿用现有文物志系统。
+- **smoke_test 两条「双羊没有剧本」断言改正**：改为正面断言——热点按钮数 == `Lore.hotspots("ram_zun").size()`；卡片区可见且数量 == `Lore.cards("ram_zun").size()`；热点进度计数改数据驱动（"0 / %d" % 热点数，不再写死）。
+
+### 新增（剧情交互 / 节奏 / 隐藏结局条件）
+- **BM Room 3 标签/留言交互（S-03）**：`src/world/museum.gd` 在双羊尊展柜旁生成两个 `Area2D` 触发器（group `story_label` / `story_note`），`src/actors/player.gd` 按 E 优先响应剧情触发器（再拾取文物）。馆方标签与观众留言用现有 `DialogueTree` 占位播放：标签展签卡 + 左右羊低语 + 旁白；留言皱纸卡 + 低语 + 旁白；两张都读后追加「你信哪个？」四选项对谈。读完后 `Game.set_story_flag("read_label"/"read_note")` 落盘。
+- **双羊尊演出节奏与右羊安抚（S-04）**：保留「靠近器灵按 E」播 stage 1；出口前兜底：进入大英博物馆出口触发区时，若双羊文物志还没播完，自动播放下一段（`lore_requested`）。stage 3 播完后 `Game.set_story_flag("zun_trusted")` 并调用 `ghost.calm(999999.0)`，本局右羊不再哀嚎引警；面具关卡与通用 `ghost.gd` 行为不受影响。`src/main.gd` 在 `_on_lore_finished` 中回调 `museum.on_lore_finished(item_id)` 完成后续路由。
+- **隐藏结局条件（S-08）**：`Game.hidden_ending_unlocked() -> bool` = `read_label && read_note && (zun_trusted 或双羊对谈已满) && honest_to_mask`；结局 id 约定 `"sell"` / `"return"` / `"third"`。
+
+### 修改
+- `src/main.gd`：新增 `story_requested` 信号连接，用 `DialogueTree` 播放剧情单卡/短句（`escapable=true`，允许 P/ESC 直接关闭）；在 `on_finished` 里接续新故事时，延迟一帧连接 `dialogue_tree.finished` 解暂停，避免同一帧内被旧故事的 `finished` 信号误触发。
+- `src/ui/dialogue_tree.gd`：`interact` / `ui_accept` 推进与选项选择改用 `Input.is_action_just_pressed`，防止长按 E 一帧多进；保证选项出现后可被单次按键稳定选择。
+- `src/world/museum.gd`：剧情触发器冷却改为 `body_exited` 信号驱动（离开范围后才允许再次按 E 重读），并放大触发半径至 26、调整 collision_mask 使触发/离开事件可靠送达。
+
+### 测试
+- 新增 `tests/test_story.gd` 剧情自检（61 项）并接入 `tools/verify.sh`：story_flag 默认/写入/未知键/重置、存档往返（含 ending_id）、老档缺字段与整段/键值脏档、双羊尊文物志结构自洽（恰 3 段 / 3 卡 zun_1..3 / 4 热点、坐标 0..1、每段 goto 与选项可达、特写图存在）。
+- `tests/test_save_compat.gd` 补 story_flags 用例（88 项）：缺字段老档、整段字符串/数字脏档、键值脏档过滤、完整档往返断言；`_defaults_ok` 增加「剧情旗标为空」检查。
+- `tests/smoke_test.gd` 双羊尊端详页断言同步（162 项）；切换条目后补一帧等待让旧卡片按钮出队。
+- `tests/test_story_flow.gd`（test 负责，code 确认接口）63 项：story_flags 默认/往返/旧档不误判/脏类型、隐藏结局四组合、双羊 3 段实际播放与 goto 可达；已全绿。
+
+### 文档
+- README「开发进度」、ROADMAP M5 P0、STORY_PLAN 任务表（S-01/S-02/S-03/S-04/S-07/S-08 → 👀 待验收）同步。
+
+## [v0.18.4] - 2026-11-13
+
+### 新增（剧情文本）
+- **剧情圣经 `docs/STORY.md`（v1.1）**：确定第一卷《两只羊》的一句话、主题与逐场剧本——序章入行、城西博物馆（面具）、据点「标签课」与「两个地址」、大英博物馆·中国馆（双羊尊）、雨夜岔路、出售 / 归还 / 隐藏「第三只羊」三结局。含每个场景的触发、画面、声音、选项、后果与实现映射；§10 为开局动画《雨里的门》6 镜头 / 40–44 秒分镜（字幕、跳过、素材清单、代码落点）。
+- **双羊尊文物志全文**：3 段器灵对谈（左羊 = 铸匠记忆、右羊 = 流转记忆）、3 张展签卡（形制 / 湖南推定 / 1936 转手）、4 个端详热点；可直接落 `src/data/lore.gd`，已通过 GDScript 语法解析。
+- **学术边界**：把「可考 / 不可考 / 民间传说」写成剧情结构而非免责声明——1860 圆明园说只作为观众留言与沈先生口中的「网上抄的」出现；双羊尊 1936 年购自 Eumorfopoulos 旧藏为可考事实。三结局各配固定史实声明。
+- **给 art / code / test 的落地清单**：数据落点、最小新增能力（`story_flags`、标签交互、右羊永久安抚、隐藏结局条件）、必须同步修改的测试断言（含现有 `smoke_test` 的「双羊尊没有剧本」两条）。
+
+### 文档
+- 新增 `docs/STORY_PLAN.md`（剧情内容冲刺计划）：S-01..S-15 任务、owner（code / art / test / plan）、三批次、文件边界、验收标准与风险对策；已按该计划向三方发出任务邮件。
+- README「开发进度」、ROADMAP M5 P0 同步剧情文本与冲刺状态；本次仅新增文本/计划，不改代码。
+
 ## [v0.18.3] - 2026-11-13
 
 ### 修复（独立验收发现）
