@@ -23,11 +23,22 @@
 | `A00_safehouse_ui.png` | A-00 安全屋 UI 目标稿 | 安全屋背景 + 任务卡/标签/按钮/手机图标 |
 | `A00_phone_ui.png` | A-00 电话 UI 目标稿 | 黄铜手机、米纸档案卡、朱印、任务/档案 tabs |
 | `A00_concept_board.png` | A-00 SiliconFlow 概念板 | 玩家/警察/安全屋/电话材质四张概念 + 使用边界 |
+| `A00_noir_ingame.png` | handoff noir 实机 | 当前 24×32 主角在关卡里的效果 |
+| `a00_src/thief_noir_generated.png` | handoff noir 源图 | 96×96 帧表源图（AI 生成，透明） |
+| `a00_src/thief_noir_preview.png` | handoff noir 预览 | 8× 最近邻预览 |
 | `A00_ingame_scale.png` | 旧游戏尺度对比（历史） | 16×24 vs 24×32；当前主角/警察均 24×32 |
 | `title_key_art_clean.jpg` | 开始界面立绘（C 方向：微缩夜馆） | 1280×720 无字背景；博物馆 + 小偷；标题/菜单由 Godot 绘制 |
 | `title_key_art_title_screen.jpg` | 标题界面安全区版 | 与 clean 同源；左侧由 UI 面板压暗 |
 | `title_key_art_logo.jpg` | 开始界面立绘（左侧 UI 示意） | 检查标题/菜单安全区与可读性 |
 | `title_screen_ingame.jpg` | 标题界面实机截图 | 左侧 UI 栏 + C 方向立绘的组合效果 |
+
+## Complete noir art pack（2026-11-13）
+
+- 源包：`handoff_thief_art_complete_2026-11-13/`；接入参考：`noir_pack/接入参考.patch`。
+- 角色：`assets/sprites/chars/player_noir.png` / `police_noir.png`（96×96，24×32 × 4×3）。
+- 场景：`assets/art/safehouse_noir.png`、`assets/art/phone_noir_9p.png`、`assets/sprites/bm/bm_tiles_noir.png`、`bm_case_noir.png`、`decor_noir/`。
+- 预览：`noir_pack/preview/`（六展厅/据点/手机/角色）。
+- 代码接入由 @code 按 patch 手动合并；测试基线由 @test 更新。
 
 ## 剧情美术文本规范（2026-11-13）
 

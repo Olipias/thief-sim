@@ -1,0 +1,231 @@
+diff --git a/src/actors/player.tscn b/src/actors/player.tscn
+index a16d35e..ed567d7 100644
+--- a/src/actors/player.tscn
++++ b/src/actors/player.tscn
+@@ -1,7 +1,7 @@
+ [gd_scene load_steps=6 format=3]
+ 
+ [ext_resource type="Script" path="res://src/actors/player.gd" id="1_script"]
+-[ext_resource type="Texture2D" path="res://assets/sprites/chars/player_sheet_v2.png" id="2_sheet"]
++[ext_resource type="Texture2D" path="res://assets/sprites/chars/player_noir.png" id="2_sheet"]
+ [ext_resource type="Texture2D" path="res://assets/sprites/light_soft.png" id="3_light"]
+ 
+ [sub_resource type="RectangleShape2D" id="RectangleShape2D_body"]
+diff --git a/src/actors/police.tscn b/src/actors/police.tscn
+index 6fe361e..cbc02a4 100644
+--- a/src/actors/police.tscn
++++ b/src/actors/police.tscn
+@@ -1,7 +1,7 @@
+ [gd_scene load_steps=5 format=3]
+ 
+ [ext_resource type="Script" path="res://src/actors/police.gd" id="1_script"]
+-[ext_resource type="Texture2D" path="res://assets/sprites/chars/police_sheet_v2.png" id="2_sheet"]
++[ext_resource type="Texture2D" path="res://assets/sprites/chars/police_noir.png" id="2_sheet"]
+ [ext_resource type="Texture2D" path="res://assets/sprites/light_cone.png" id="3_cone"]
+ 
+ [sub_resource type="RectangleShape2D" id="RectangleShape2D_body"]
+diff --git a/src/ui/hub.tscn b/src/ui/hub.tscn
+index 7a3374f..5093352 100644
+--- a/src/ui/hub.tscn
++++ b/src/ui/hub.tscn
+@@ -1,7 +1,7 @@
+ [gd_scene load_steps=3 format=3]
+ 
+ [ext_resource type="Script" path="res://src/ui/hub.gd" id="1_script"]
+-[ext_resource type="Texture2D" path="res://assets/art/safehouse_bg.png" id="2_bg"]
++[ext_resource type="Texture2D" path="res://assets/art/safehouse_noir.png" id="2_bg"]
+ 
+ [node name="Hub" type="Control"]
+ anchors_preset = 15
+diff --git a/src/ui/mission_phone.tscn b/src/ui/mission_phone.tscn
+index 3e57903..b480b04 100644
+--- a/src/ui/mission_phone.tscn
++++ b/src/ui/mission_phone.tscn
+@@ -1,9 +1,9 @@
+-[gd_scene load_steps=7 format=3]
++[gd_scene load_steps=10 format=3]
+ 
+ [ext_resource type="Script" path="res://src/ui/mission_phone.gd" id="1_script"]
+ [ext_resource type="Script" path="res://src/ui/relic_view.gd" id="2_relic"]
+ [ext_resource type="PackedScene" path="res://src/ui/inspect_page.tscn" id="3_inspect"]
+-[ext_resource type="Texture2D" path="res://assets/art/phone_frame_9p.png" id="4_frame"]
++[ext_resource type="Texture2D" path="res://assets/art/phone_noir_9p.png" id="4_frame"]
+ 
+ [sub_resource type="StyleBoxTexture" id="StyleBoxTexture_phone"]
+ texture = ExtResource("4_frame")
+@@ -48,6 +48,42 @@ corner_radius_top_right = 3
+ corner_radius_bottom_right = 3
+ corner_radius_bottom_left = 3
+ 
++[sub_resource type="StyleBoxFlat" id="PhoneTabNormal"]
++content_margin_left = 10.0
++content_margin_top = 4.0
++content_margin_right = 10.0
++content_margin_bottom = 4.0
++bg_color = Color(0.035, 0.09, 0.095, 1)
++border_width_left = 1
++border_width_top = 1
++border_width_right = 1
++border_width_bottom = 1
++border_color = Color(0.39, 0.31, 0.18, 1)
++
++[sub_resource type="StyleBoxFlat" id="PhoneTabActive"]
++content_margin_left = 10.0
++content_margin_top = 4.0
++content_margin_right = 10.0
++content_margin_bottom = 4.0
++bg_color = Color(0.75, 0.55, 0.25, 1)
++border_width_left = 1
++border_width_top = 1
++border_width_right = 1
++border_width_bottom = 1
++border_color = Color(0.95, 0.78, 0.45, 1)
++
++[sub_resource type="StyleBoxFlat" id="PhoneTabHover"]
++content_margin_left = 10.0
++content_margin_top = 4.0
++content_margin_right = 10.0
++content_margin_bottom = 4.0
++bg_color = Color(0.12, 0.2, 0.2, 1)
++border_width_left = 1
++border_width_top = 1
++border_width_right = 1
++border_width_bottom = 1
++border_color = Color(0.8, 0.62, 0.32, 1)
++
+ [node name="MissionPhone" type="CanvasLayer"]
+ process_mode = 3
+ layer = 12
+@@ -94,12 +130,20 @@ theme_override_font_sizes/font_size = 14
+ text = "神偷组织 · 任务终端"
+ 
+ [node name="TabTask" type="Button" parent="Root/Panel/Margin/VBox/Header"]
++theme_override_styles/normal = SubResource("PhoneTabNormal")
++theme_override_styles/hover = SubResource("PhoneTabHover")
++theme_override_styles/pressed = SubResource("PhoneTabActive")
++theme_override_colors/font_pressed_color = Color(0.1, 0.08, 0.05, 1)
+ theme_override_font_sizes/font_size = 10
+ toggle_mode = true
+ button_pressed = true
+ text = "任务"
+ 
+ [node name="TabArchive" type="Button" parent="Root/Panel/Margin/VBox/Header"]
++theme_override_styles/normal = SubResource("PhoneTabNormal")
++theme_override_styles/hover = SubResource("PhoneTabHover")
++theme_override_styles/pressed = SubResource("PhoneTabActive")
++theme_override_colors/font_pressed_color = Color(0.1, 0.08, 0.05, 1)
+ theme_override_font_sizes/font_size = 10
+ toggle_mode = true
+ text = "档案"
+diff --git a/src/world/museum.gd b/src/world/museum.gd
+index 5557e71..dca14fe 100644
+--- a/src/world/museum.gd
++++ b/src/world/museum.gd
+@@ -111,22 +111,22 @@ const BM_THEMES := {
+ 
+ ## 装饰层：纯视觉 Sprite，不新增碰撞；key → 贴图。
+ const BM_DECOR_TEX := {
+-	"security_gate": preload("res://assets/sprites/bm/decor/security_gate.png"),
+-	"ticket_desk": preload("res://assets/sprites/bm/decor/ticket_desk.png"),
+-	"museum_map": preload("res://assets/sprites/bm/decor/museum_map.png"),
+-	"vase_case": preload("res://assets/sprites/bm/decor/vase_case.png"),
+-	"jade_case": preload("res://assets/sprites/bm/decor/jade_case.png"),
+-	"scroll_case": preload("res://assets/sprites/bm/decor/scroll_case.png"),
+-	"lacquer_cabinet": preload("res://assets/sprites/bm/decor/lacquer_cabinet.png"),
+-	"mural_panel": preload("res://assets/sprites/bm/decor/mural_panel.png"),
+-	"crate_stack": preload("res://assets/sprites/bm/decor/crate_stack.png"),
+-	"pallet": preload("res://assets/sprites/bm/decor/pallet.png"),
+-	"forklift": preload("res://assets/sprites/bm/decor/forklift.png"),
+-	"pipe_panel": preload("res://assets/sprites/bm/decor/pipe_panel.png"),
+-	"bench": preload("res://assets/sprites/bm/decor/bench.png"),
+-	"security_camera": preload("res://assets/sprites/bm/decor/security_camera.png"),
+-	"alarm_beacon": preload("res://assets/sprites/bm/decor/alarm_beacon.png"),
+-	"skylight_panel": preload("res://assets/sprites/bm/decor/skylight_panel.png"),
++	"security_gate": preload("res://assets/sprites/bm/decor_noir/security_gate.png"),
++	"ticket_desk": preload("res://assets/sprites/bm/decor_noir/ticket_desk.png"),
++	"museum_map": preload("res://assets/sprites/bm/decor_noir/museum_map.png"),
++	"vase_case": preload("res://assets/sprites/bm/decor_noir/vase_case.png"),
++	"jade_case": preload("res://assets/sprites/bm/decor_noir/jade_case.png"),
++	"scroll_case": preload("res://assets/sprites/bm/decor_noir/scroll_case.png"),
++	"lacquer_cabinet": preload("res://assets/sprites/bm/decor_noir/lacquer_cabinet.png"),
++	"mural_panel": preload("res://assets/sprites/bm/decor_noir/mural_panel.png"),
++	"crate_stack": preload("res://assets/sprites/bm/decor_noir/crate_stack.png"),
++	"pallet": preload("res://assets/sprites/bm/decor_noir/pallet.png"),
++	"forklift": preload("res://assets/sprites/bm/decor_noir/forklift.png"),
++	"pipe_panel": preload("res://assets/sprites/bm/decor_noir/pipe_panel.png"),
++	"bench": preload("res://assets/sprites/bm/decor_noir/bench.png"),
++	"security_camera": preload("res://assets/sprites/bm/decor_noir/security_camera.png"),
++	"alarm_beacon": preload("res://assets/sprites/bm/decor_noir/alarm_beacon.png"),
++	"skylight_panel": preload("res://assets/sprites/bm/decor_noir/skylight_panel.png"),
+ }
+ 
+ ## 房间索引 → 装饰（cell + offset）。offset 用于让贴图跨格或贴墙。
+@@ -204,9 +204,9 @@ const TEX_PLANT := preload("res://assets/sprites/plant.png")
+ const TEX_EXIT := preload("res://assets/sprites/exit_door.png")
+ const TEX_LIGHT_SOFT := preload("res://assets/sprites/light_soft.png")
+ # Room 3（大英博物馆·青铜礼器厅）主题资产；由 tools/gen_bm_art.py 生成。
+-const BM_TILES := preload("res://assets/sprites/bm/bm_tiles.png")
++const BM_TILES := preload("res://assets/sprites/bm/bm_tiles_noir.png")
+ const BM_PROPS := preload("res://assets/sprites/bm/bm_props.png")
+-const BM_CASE := preload("res://assets/sprites/bm/bm_case.png")
++const BM_CASE := preload("res://assets/sprites/bm/bm_case_noir.png")
+ const BM_ZUN_ICON := preload("res://assets/sprites/bm/bm_zun_32.png")
+ const PLAYER_SCENE := preload("res://src/actors/player.tscn")
+ const POLICE_SCENE := preload("res://src/actors/police.tscn")
+diff --git a/tests/test_scenes.gd b/tests/test_scenes.gd
+index 9debe9e..90cf3dd 100644
+--- a/tests/test_scenes.gd
++++ b/tests/test_scenes.gd
+@@ -26,6 +26,7 @@ func _ready() -> void:
+ 	Game.reset_progress()
+ 
+ 	_test_a00_actor_assets()
++	_test_noir_art_assets()
+ 
+ 	var paths := _collect("res://src")
+ 	check(paths.size() >= 8, "src 下可实例化的场景数量合理（%d 个）" % paths.size())
+@@ -43,8 +44,8 @@ func _ready() -> void:
+ ## A-00 角色资产规格（Rev.4：主角/警察同为 24×32 / 96×96；锚点与碰撞固定）。
+ func _test_a00_actor_assets() -> void:
+ 	var specs := {
+-		"player": {"sheet": Vector2i(96, 96), "anchor": -10.0},
+-		"police": {"sheet": Vector2i(96, 96), "anchor": -10.0},
++		"player": {"sheet": Vector2i(96, 96), "anchor": -10.0, "texture": "res://assets/sprites/chars/player_noir.png"},
++		"police": {"sheet": Vector2i(96, 96), "anchor": -10.0, "texture": "res://assets/sprites/chars/police_noir.png"},
+ 	}
+ 	for actor in specs:
+ 		var spec: Dictionary = specs[actor]
+@@ -63,7 +64,7 @@ func _test_a00_actor_assets() -> void:
+ 					sprite.texture.get_width() == size.x and sprite.texture.get_height() == size.y,
+ 					"A-00：%s sheet 为 %d×%d" % [actor, size.x, size.y]
+ 				)
+-				check(sprite.texture.resource_path.contains("_v2"), "A-00：%s 使用 v2 sheet" % actor)
++				check(sprite.texture.resource_path == spec["texture"], "A-00：%s 使用指定帧表" % actor)
+ 			check(sprite.hframes == 4 and sprite.vframes == 3, "A-00：%s 为 4 列 × 3 行" % actor)
+ 			check(is_equal_approx(sprite.position.y, float(spec["anchor"])), "A-00：%s 锚点 y=%s" % [actor, spec["anchor"]])
+ 		var shape_node: CollisionShape2D = inst.get_node_or_null("CollisionShape2D")
+@@ -73,6 +74,24 @@ func _test_a00_actor_assets() -> void:
+ 		inst.free()
+ 
+ 
++## 新装饰沿用既有绘制尺寸与碰撞占位，防止帧图遗漏或尺寸漂移。
++func _test_noir_art_assets() -> void:
++	var names := ["security_gate", "ticket_desk", "museum_map", "vase_case", "jade_case", "scroll_case", "lacquer_cabinet", "mural_panel", "crate_stack", "pallet", "forklift", "pipe_panel", "bench", "security_camera", "alarm_beacon", "skylight_panel"]
++	for item in names:
++		var original := load("res://assets/sprites/bm/decor/%s.png" % item) as Texture2D
++		var replacement := load("res://assets/sprites/bm/decor_noir/%s.png" % item) as Texture2D
++		check(original != null and replacement != null, "装饰可加载：%s" % item)
++		if original != null and replacement != null:
++			check(original.get_size() == replacement.get_size(), "装饰尺寸不变：%s" % item)
++	var phone := load("res://src/ui/mission_phone.tscn") as PackedScene
++	check(phone != null, "手机场景可加载")
++	if phone != null:
++		var instance := phone.instantiate()
++		var tab: Button = instance.get_node("Root/Panel/Margin/VBox/Header/TabTask")
++		check(tab.get_theme_stylebox("pressed") != tab.get_theme_stylebox("normal"), "手机选中标签有独立样式")
++		instance.free()
++
++
+ func _collect(dir_path: String) -> Array[String]:
+ 	var out: Array[String] = []
+ 	var dir := DirAccess.open(dir_path)

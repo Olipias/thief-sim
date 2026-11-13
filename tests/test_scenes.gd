@@ -26,6 +26,7 @@ func _ready() -> void:
 	Game.reset_progress()
 
 	_test_a00_actor_assets()
+	_test_noir_art_assets()
 
 	var paths := _collect("res://src")
 	check(paths.size() >= 8, "src 下可实例化的场景数量合理（%d 个）" % paths.size())
@@ -40,11 +41,11 @@ func _ready() -> void:
 		get_tree().quit(0)
 
 
-## A-00 角色资产规格（Rev.4：主角/警察同为 24×32 / 96×96；锚点与碰撞固定）。
+## A-00 角色资产规格（Rev.5：主角 noir / 警察同为 24×32 / 96×96；锚点与碰撞固定）。
 func _test_a00_actor_assets() -> void:
 	var specs := {
-		"player": {"sheet": Vector2i(96, 96), "anchor": -10.0},
-		"police": {"sheet": Vector2i(96, 96), "anchor": -10.0},
+		"player": {"sheet": Vector2i(96, 96), "anchor": -10.0, "texture": "res://assets/sprites/chars/player_noir.png"},
+		"police": {"sheet": Vector2i(96, 96), "anchor": -10.0, "texture": "res://assets/sprites/chars/police_noir.png"},
 	}
 	for actor in specs:
 		var spec: Dictionary = specs[actor]
@@ -63,14 +64,97 @@ func _test_a00_actor_assets() -> void:
 					sprite.texture.get_width() == size.x and sprite.texture.get_height() == size.y,
 					"A-00：%s sheet 为 %d×%d" % [actor, size.x, size.y]
 				)
-				check(sprite.texture.resource_path.contains("_v2"), "A-00：%s 使用 v2 sheet" % actor)
+				var expected := String(spec["texture"])
+				check(sprite.texture.resource_path == expected, "A-00：%s 使用 %s" % [actor, expected])
 			check(sprite.hframes == 4 and sprite.vframes == 3, "A-00：%s 为 4 列 × 3 行" % actor)
 			check(is_equal_approx(sprite.position.y, float(spec["anchor"])), "A-00：%s 锚点 y=%s" % [actor, spec["anchor"]])
+			# 三个方向（下/上/侧）都必须有可读的待机与行走差异；
+			# 高清图直接降采样到 24×32 时，上/侧两行常被压成完全相同的帧。
+			for row in 3:
+				var idle_diff := _frame_difference(sprite.texture, row, 0, 1)
+				var walk_diff := _frame_difference(sprite.texture, row, 2, 3)
+				check(idle_diff >= 4, "A-00：%s 第 %d 行待机帧有变化（差异 %d px）" % [actor, row, idle_diff])
+				check(walk_diff >= 4, "A-00：%s 第 %d 行行走帧有变化（差异 %d px）" % [actor, row, walk_diff])
 		var shape_node: CollisionShape2D = inst.get_node_or_null("CollisionShape2D")
 		check(shape_node != null and shape_node.shape is RectangleShape2D, "A-00：%s 有矩形碰撞" % actor)
 		if shape_node != null and shape_node.shape is RectangleShape2D:
 			check((shape_node.shape as RectangleShape2D).size == Vector2(8, 8), "A-00：%s 碰撞 8×8 未变" % actor)
 		inst.free()
+
+
+## 比较同一行两帧的像素差异数量（用于确认行走/待机动画真的会动）。
+func _frame_difference(tex: Texture2D, row: int, col_a: int, col_b: int) -> int:
+	if tex == null:
+		return -1
+	var img := tex.get_image()
+	if img == null:
+		return -1
+	if img.is_compressed():
+		img.decompress()
+	var fw := img.get_width() / 4
+	var fh := img.get_height() / 3
+	var diff := 0
+	for y in fh:
+		for x in fw:
+			if img.get_pixel(col_a * fw + x, row * fh + y) != img.get_pixel(col_b * fw + x, row * fh + y):
+				diff += 1
+	return diff
+
+
+## noir 美术包：装饰尺寸与旧版一致，场景/脚本引用已切到 noir 资产，手机 Tab 有独立样式。
+func _test_noir_art_assets() -> void:
+	var decor_names := [
+		"security_gate", "ticket_desk", "museum_map", "vase_case", "jade_case", "scroll_case",
+		"lacquer_cabinet", "mural_panel", "crate_stack", "pallet", "forklift", "pipe_panel",
+		"bench", "security_camera", "alarm_beacon", "skylight_panel",
+	]
+	for item in decor_names:
+		var original := load("res://assets/sprites/bm/decor/%s.png" % item) as Texture2D
+		var replacement := load("res://assets/sprites/bm/decor_noir/%s.png" % item) as Texture2D
+		check(original != null and replacement != null, "noir 装饰可加载：%s" % item)
+		if original != null and replacement != null:
+			check(original.get_size() == replacement.get_size(), "noir 装饰尺寸不变：%s" % item)
+
+	var hub_scene := load("res://src/ui/hub.tscn") as PackedScene
+	check(hub_scene != null, "noir：据点场景可加载")
+	if hub_scene != null:
+		var hub := hub_scene.instantiate()
+		var bg: TextureRect = hub.get_node_or_null("SafehouseBg")
+		check(bg != null and bg.texture != null, "noir：据点有背景")
+		if bg != null and bg.texture != null:
+			check(bg.texture.resource_path == "res://assets/art/safehouse_noir.png", "noir：据点使用 safehouse_noir")
+		hub.free()
+
+	var phone_scene := load("res://src/ui/mission_phone.tscn") as PackedScene
+	check(phone_scene != null, "noir：手机场景可加载")
+	if phone_scene != null:
+		var phone := phone_scene.instantiate()
+		var panel: PanelContainer = phone.get_node_or_null("Root/Panel")
+		check(panel != null, "noir：手机面板存在")
+		if panel != null:
+			var style := panel.get_theme_stylebox("panel") as StyleBoxTexture
+			check(style != null and style.texture != null, "noir：手机 9-patch 样式存在")
+			if style != null and style.texture != null:
+				check(style.texture.resource_path == "res://assets/art/phone_noir_9p.png", "noir：手机使用 phone_noir_9p")
+		var tab: Button = phone.get_node_or_null("Root/Panel/Margin/VBox/Header/TabTask")
+		check(tab != null, "noir：任务 Tab 存在")
+		if tab != null:
+			check(tab.get_theme_stylebox("pressed") != tab.get_theme_stylebox("normal"), "noir：任务 Tab 选中样式独立")
+		phone.free()
+
+	var museum_script := load("res://src/world/museum.gd") as GDScript
+	check(museum_script != null, "noir：museum.gd 可加载")
+	if museum_script != null:
+		var constants: Dictionary = museum_script.get_script_constant_map()
+		var tiles: Texture2D = constants.get("BM_TILES")
+		var case_tex: Texture2D = constants.get("BM_CASE")
+		check(tiles != null and tiles.resource_path == "res://assets/sprites/bm/bm_tiles_noir.png", "noir：BM 地砖使用 noir 图集")
+		check(case_tex != null and case_tex.resource_path == "res://assets/sprites/bm/bm_case_noir.png", "noir：BM 展柜使用 noir 图")
+		var decor: Dictionary = constants.get("BM_DECOR_TEX", {})
+		check(decor.size() == 16, "noir：BM 装饰共 16 个")
+		for key in decor:
+			var tex: Texture2D = decor[key]
+			check(tex != null and tex.resource_path.contains("/decor_noir/"), "noir：BM 装饰走 decor_noir（%s）" % key)
 
 
 func _collect(dir_path: String) -> Array[String]:

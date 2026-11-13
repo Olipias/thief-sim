@@ -1,7 +1,7 @@
 [gd_scene load_steps=3 format=3]
 
 [ext_resource type="Script" path="res://src/ui/hub.gd" id="1_script"]
-[ext_resource type="Texture2D" path="res://assets/art/safehouse_bg.png" id="2_bg"]
+[ext_resource type="Texture2D" path="res://assets/art/safehouse_noir.png" id="2_bg"]
 
 [node name="Hub" type="Control"]
 anchors_preset = 15

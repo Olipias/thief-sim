@@ -1,7 +1,7 @@
 [gd_scene load_steps=5 format=3]
 
 [ext_resource type="Script" path="res://src/actors/police.gd" id="1_script"]
-[ext_resource type="Texture2D" path="res://assets/sprites/chars/police_sheet_v2.png" id="2_sheet"]
+[ext_resource type="Texture2D" path="res://assets/sprites/chars/police_noir.png" id="2_sheet"]
 [ext_resource type="Texture2D" path="res://assets/sprites/light_cone.png" id="3_cone"]
 
 [sub_resource type="RectangleShape2D" id="RectangleShape2D_body"]

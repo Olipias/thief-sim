@@ -111,22 +111,22 @@ const BM_THEMES := {
 
 ## 装饰层：纯视觉 Sprite，不新增碰撞；key → 贴图。
 const BM_DECOR_TEX := {
-	"security_gate": preload("res://assets/sprites/bm/decor/security_gate.png"),
-	"ticket_desk": preload("res://assets/sprites/bm/decor/ticket_desk.png"),
-	"museum_map": preload("res://assets/sprites/bm/decor/museum_map.png"),
-	"vase_case": preload("res://assets/sprites/bm/decor/vase_case.png"),
-	"jade_case": preload("res://assets/sprites/bm/decor/jade_case.png"),
-	"scroll_case": preload("res://assets/sprites/bm/decor/scroll_case.png"),
-	"lacquer_cabinet": preload("res://assets/sprites/bm/decor/lacquer_cabinet.png"),
-	"mural_panel": preload("res://assets/sprites/bm/decor/mural_panel.png"),
-	"crate_stack": preload("res://assets/sprites/bm/decor/crate_stack.png"),
-	"pallet": preload("res://assets/sprites/bm/decor/pallet.png"),
-	"forklift": preload("res://assets/sprites/bm/decor/forklift.png"),
-	"pipe_panel": preload("res://assets/sprites/bm/decor/pipe_panel.png"),
-	"bench": preload("res://assets/sprites/bm/decor/bench.png"),
-	"security_camera": preload("res://assets/sprites/bm/decor/security_camera.png"),
-	"alarm_beacon": preload("res://assets/sprites/bm/decor/alarm_beacon.png"),
-	"skylight_panel": preload("res://assets/sprites/bm/decor/skylight_panel.png"),
+	"security_gate": preload("res://assets/sprites/bm/decor_noir/security_gate.png"),
+	"ticket_desk": preload("res://assets/sprites/bm/decor_noir/ticket_desk.png"),
+	"museum_map": preload("res://assets/sprites/bm/decor_noir/museum_map.png"),
+	"vase_case": preload("res://assets/sprites/bm/decor_noir/vase_case.png"),
+	"jade_case": preload("res://assets/sprites/bm/decor_noir/jade_case.png"),
+	"scroll_case": preload("res://assets/sprites/bm/decor_noir/scroll_case.png"),
+	"lacquer_cabinet": preload("res://assets/sprites/bm/decor_noir/lacquer_cabinet.png"),
+	"mural_panel": preload("res://assets/sprites/bm/decor_noir/mural_panel.png"),
+	"crate_stack": preload("res://assets/sprites/bm/decor_noir/crate_stack.png"),
+	"pallet": preload("res://assets/sprites/bm/decor_noir/pallet.png"),
+	"forklift": preload("res://assets/sprites/bm/decor_noir/forklift.png"),
+	"pipe_panel": preload("res://assets/sprites/bm/decor_noir/pipe_panel.png"),
+	"bench": preload("res://assets/sprites/bm/decor_noir/bench.png"),
+	"security_camera": preload("res://assets/sprites/bm/decor_noir/security_camera.png"),
+	"alarm_beacon": preload("res://assets/sprites/bm/decor_noir/alarm_beacon.png"),
+	"skylight_panel": preload("res://assets/sprites/bm/decor_noir/skylight_panel.png"),
 }
 
 ## 房间索引 → 装饰（cell + offset）。offset 用于让贴图跨格或贴墙。
@@ -204,9 +204,9 @@ const TEX_PLANT := preload("res://assets/sprites/plant.png")
 const TEX_EXIT := preload("res://assets/sprites/exit_door.png")
 const TEX_LIGHT_SOFT := preload("res://assets/sprites/light_soft.png")
 # Room 3（大英博物馆·青铜礼器厅）主题资产；由 tools/gen_bm_art.py 生成。
-const BM_TILES := preload("res://assets/sprites/bm/bm_tiles.png")
+const BM_TILES := preload("res://assets/sprites/bm/bm_tiles_noir.png")
 const BM_PROPS := preload("res://assets/sprites/bm/bm_props.png")
-const BM_CASE := preload("res://assets/sprites/bm/bm_case.png")
+const BM_CASE := preload("res://assets/sprites/bm/bm_case_noir.png")
 const BM_ZUN_ICON := preload("res://assets/sprites/bm/bm_zun_32.png")
 const PLAYER_SCENE := preload("res://src/actors/player.tscn")
 const POLICE_SCENE := preload("res://src/actors/police.tscn")

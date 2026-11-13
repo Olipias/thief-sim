@@ -4,6 +4,8 @@
 > 依据：用户 #thief id 53 / id 67；plan 的 A-00 范围（`docs/STORY_PLAN.md` §3D）。
 > 概念图见 `a00_src/`；生成脚本 `tools/gen_a00_art.py` + `tools/a00_characters.py`。
 >
+> **Rev.6（2026-11-13，complete noir pack）**：已把 `handoff_thief_art_complete_2026-11-13` 的素材/工具/源图复制进项目，并已按 `docs/art_direction/noir_pack/接入参考.patch` 接入（v0.19.6 验收）。
+>
 > **Rev.5（2026-11-13，C 方案）**：用户选择 **C**——玩法继续用 **原 24×32 主角 sprite**（从 862de05 恢复，和警察同尺寸），AI 1280 高清图只用于标题/特写/立绘层。48px、32×40、24px 棕褐风衣重绘实验全部废弃，不再进游戏。
 
 ## 0. 一句话
@@ -16,14 +18,17 @@
 
 | 文件 | 尺寸 | 用途 | 接入方 |
 | --- | --- | --- | --- |
-| `assets/sprites/chars/player_sheet_v2.png` | **96×96** | **主角 24×32 × 12 帧（原版，C 方案）** | `player.tscn/gd` |
-| `assets/sprites/chars/police_sheet_v2.png` | 96×96 | 警察 24×32 × 12 帧 | `police.tscn/gd` |
+| `assets/sprites/chars/player_noir.png` | **96×96** | **主角 24×32 × 12 帧（complete noir pack，当前使用）** | `player.tscn/gd` |
+| `assets/sprites/chars/police_noir.png` | **96×96** | **警察 24×32 × 12 帧（complete noir pack，当前使用）** | `police.tscn/gd` |
+| `assets/sprites/chars/player_sheet_v2.png` | 96×96 | 主角原版 24×32（回退） | 回退 |
+| `assets/sprites/chars/police_sheet_v2.png` | 96×96 | 警察原版 24×32（回退） | 回退 |
 | `docs/art_direction/a00_src/police_v2_preview.png` | 576×576 | 6× 预览（不进游戏） | 评审 |
 | `assets/art/safehouse_bg.png` | 1280×720 | 据点背景（640×360 逻辑 ×2） | `hub.tscn` |
 | `assets/art/phone_frame_9p.png` | 96×96 | 电话 9-patch 边框（margin 12） | `mission_phone.tscn` |
 | `docs/art_direction/A00_characters_board.png` | 1280×720 | 旧 24×32 角色规格板（历史） | 评审 |
 | `docs/art_direction/A00_safehouse_ui.png` | 1280×720 | 据点 UI 目标稿 | 评审/接入 |
 | `docs/art_direction/A00_phone_ui.png` | 1280×720 | 电话 UI 目标稿 | 评审/接入 |
+| `docs/art_direction/A00_noir_ingame.png` | 1280×720 | handoff noir 主角实机效果 | 评审 |
 | `docs/art_direction/A00_concept_board.png` | 1280×720 | SiliconFlow 概念总览 | 评审 |
 | `docs/art_direction/a00_src/thief_turnaround_a.png` | 1280×720 | 主角高清设计参考（只用于立绘/特写） | 参考 |
 | `docs/art_direction/A00_ingame_scale.png` | 1280×720 | 现有 16×24 vs A-00 24×32 的游戏尺度对比 | 评审/验收 |
@@ -45,22 +50,22 @@
 
 ### 2.2 设计
 
-- 玩家：恢复 **862de05 的原 24×32 sprite**（兜帽/围巾/斜挎包/靴）；与警察同尺寸，腿部分明、轮廓清晰。
-- 警察：原 24×32 制服 sprite。
+- 玩家：使用 complete noir pack `player_noir.png`（黑宽檐帽 + 浅棕长风衣 + 白脸 + 黑手套/靴；AI 生成源图 24×32 帧表）；`player_sheet_v2.png` 保留为原版回退。
+- 警察：complete noir pack `police_noir.png`（深蓝制服）；`police_sheet_v2.png` 保留为回退。
 - 已废弃：48px 填满画面、32×40 棕褐风衣、24×32 棕褐风衣重绘——这些实验不再进 `assets/sprites/chars/`。
-- AI 高清参考：`docs/art_direction/a00_src/thief_turnaround_a.png`、`thief_tall_side_a/b.png`；只用于立绘/特写，不做 24×32 直接缩放。
+- AI 高清参考：`docs/art_direction/a00_src/thief_turnaround_a.png`、`thief_tall_side_a/b.png`、`thief_noir_generated.png`；只用于立绘/特写，不做 24×32 直接缩放。
 
 ### 2.3 接入
 
-- `player.tscn` / `police.tscn`：texture 指向 `assets/sprites/chars/player_sheet_v2.png` / `police_sheet_v2.png`；`hframes=4`、`vframes=3`、`position.y=-10`。
+- `player.tscn` / `police.tscn`：texture 指向 `assets/sprites/chars/player_noir.png` / `police_noir.png`；`hframes=4`、`vframes=3`、`position.y=-10`。
 - `player.gd` / `police.gd`：保持现有 `row*4 + col` / `8 + col` 逻辑。
 - 不再改碰撞、不再改帧尺寸。
 
 ### 2.4 验收
 
-- [ ] 玩家/警察均 24×32，96×96 sheet；脚底不悬空。
-- [ ] 腿部分明，行走帧可读；碰撞/视锥/交互距离不变。
-- [ ] 没有任何 48/32/棕褐风衣 sprite 残留在 `assets/sprites/chars/`。
+- [x] 玩家/警察均 24×32，96×96 sheet；脚底对齐（v0.19.6，双方帧内同高）。
+- [x] 腿部分明，行走帧可读；碰撞/视锥/交互距离不变。
+- [x] 没有任何 48/32/棕褐风衣 sprite 残留在 `assets/sprites/chars/`。
 
 ## 3. 安全屋（据点）
 

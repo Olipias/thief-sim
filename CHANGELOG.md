@@ -5,6 +5,21 @@
 
 ---
 
+## [v0.19.6] - 2026-11-13
+
+### 新增（complete noir 美术包）
+- **角色**：`player_noir.png` / `police_noir.png`（24×32 / 96×96 / 4×3 / 锚点 -10；碰撞 8×8 不变），由 `tools/gen_noir_player.py`、`tools/gen_noir_art.py` 生成；玩家与警察统一为 noir 风格。
+- **据点**：`assets/art/safehouse_noir.png`（1280×720）接入 `hub.tscn`，任务/商店/销赃页统一换背景。
+- **电话**：`assets/art/phone_noir_9p.png` + 任务/档案 Tab 独立样式（选中金底、未选中深色描边），9-patch 边距不变。
+- **大英博物馆**：`bm_tiles_noir.png`（128×128）、`bm_case_noir.png`（32×48）、`decor_noir/` 16 个装饰（尺寸与原 decor 一致）；`museum.gd` 的 `BM_TILES` / `BM_CASE` / `BM_DECOR_TEX` 全部切到 noir 资源。
+- **源图/参考**：`docs/art_direction/a00_src/` 新增 noir 源图与预览，`docs/art_direction/noir_pack/` 保存交接说明、接入参考 patch 与 10 张预览。
+
+### 测试
+- `tests/test_scenes.gd`：A-00 改为精确路径断言（`player_noir` / `police_noir`），并新增三方向待机/行走帧差异检查（防高清源图降采样后压成静帧）；新增 noir 资产检查（decor 16 个尺寸、hub/phone 场景引用、手机 Tab 样式、museum 常量）；场景自检 76 → **149**。
+- `tests/test_content.gd`：补 `bm_tiles_noir` / `bm_case_noir` 尺寸检查；内容 567 → **573**。
+- `tools/verify.sh --visual` **16 项全绿**：逻辑 2509 / 内容 573 / 输入 105 / 存档 88 / 进度 48 / 剧情 32 / 独立剧情 68 / 场景 149 / monkey 600 / 冒烟 162 / 视觉 33。
+- 33 张视觉基线与 complete noir 包重建，逐张人眼确认（据点、电话、BM 六厅、玩家/警察同屏比例）。
+
 ## [v0.19.5] - 2026-11-13
 
 ### 修改（角色比例，用户要求）

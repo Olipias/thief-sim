@@ -167,6 +167,8 @@ func _test_bm_assets() -> void:
 		"res://assets/sprites/bm/bm_ui.png": Vector2i(256, 32),
 		"res://assets/sprites/bm/bm_zun_32.png": Vector2i(32, 32),
 		"res://assets/sprites/bm/bm_case.png": Vector2i(32, 48),
+		"res://assets/sprites/bm/bm_tiles_noir.png": Vector2i(128, 128),
+		"res://assets/sprites/bm/bm_case_noir.png": Vector2i(32, 48),
 	}
 	for path in expected:
 		check(FileAccess.file_exists(path), "Room 3 资产存在：%s" % path)
