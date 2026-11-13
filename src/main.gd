@@ -63,7 +63,19 @@ func _process(delta: float) -> void:
 	_bag_cooldown = maxf(0.0, _bag_cooldown - delta)
 	if _museum == null or not is_instance_valid(_museum) or _busy:
 		return
-	if backpack.is_open() or dialogue.is_active() or phone.is_open() or relic_closeup.is_open():
+	if dialogue.is_active() or relic_closeup.is_open():
+		return
+	if backpack.is_open():
+		# 背包打开时：B 关闭背包；P/ESC 不在这里处理（手机不打开）
+		if Input.is_action_just_pressed("bag") and toggle_allowed(_bag_cooldown):
+			backpack.close()
+			_bag_cooldown = 0.2
+		return
+	if phone.is_open():
+		# 手机打开时：B 也关闭手机（契约 P/B/ESC）；P/ESC 由 MissionPhone 自己处理
+		if Input.is_action_just_pressed("bag") and toggle_allowed(_bag_cooldown):
+			phone.close()
+			_bag_cooldown = 0.2
 		return
 	if Input.is_action_just_pressed("bag") and toggle_allowed(_bag_cooldown):
 		open_backpack()
@@ -88,6 +100,7 @@ func _on_phone_closed() -> void:
 	get_tree().paused = false
 	hud.set_compact(false)
 	_phone_cooldown = 0.2
+	_bag_cooldown = 0.2
 
 
 ## 文物志对谈（呈现层 A）：播放指定段落，结束时推进进度。

@@ -247,9 +247,13 @@ func _ready() -> void:
 	)
 	if _failures > 0:
 		print("FAILED %d 处（seed=%d，%d 步）" % [_failures, _seed, _steps])
+		Audio.shutdown()
+		await _wait(0.4)
 		get_tree().quit(1)
 	else:
 		print("ALL %d 步随机操作通过（seed=%d）" % [_steps, _seed])
+		Audio.shutdown()
+		await _wait(0.4)
 		get_tree().quit(0)
 
 

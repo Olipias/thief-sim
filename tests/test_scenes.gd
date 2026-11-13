@@ -40,9 +40,14 @@ func _ready() -> void:
 		get_tree().quit(0)
 
 
-## A-00 角色资产规格（art 交付 + code 接入）：96×96 / 4×3 帧 / 锚点 -10 / 新 sheet。
+## A-00 角色资产规格（Rev.3：主角 32×40 / 128×120；警察 24×32 / 96×96；锚点与碰撞固定）。
 func _test_a00_actor_assets() -> void:
-	for actor in ["player", "police"]:
+	var specs := {
+		"player": {"sheet": Vector2i(128, 120), "anchor": -13.0},
+		"police": {"sheet": Vector2i(96, 96), "anchor": -10.0},
+	}
+	for actor in specs:
+		var spec: Dictionary = specs[actor]
 		var scene := load("res://src/actors/%s.tscn" % actor) as PackedScene
 		check(scene != null, "A-00：%s.tscn 可加载" % actor)
 		if scene == null:
@@ -53,10 +58,18 @@ func _test_a00_actor_assets() -> void:
 		if sprite != null:
 			check(sprite.texture != null, "A-00：%s 有贴图" % actor)
 			if sprite.texture != null:
-				check(sprite.texture.get_width() == 96 and sprite.texture.get_height() == 96, "A-00：%s sheet 为 96×96" % actor)
+				var size: Vector2i = spec["sheet"]
+				check(
+					sprite.texture.get_width() == size.x and sprite.texture.get_height() == size.y,
+					"A-00：%s sheet 为 %d×%d" % [actor, size.x, size.y]
+				)
 				check(sprite.texture.resource_path.contains("_v2"), "A-00：%s 使用 v2 sheet" % actor)
 			check(sprite.hframes == 4 and sprite.vframes == 3, "A-00：%s 为 4 列 × 3 行" % actor)
-			check(is_equal_approx(sprite.position.y, -10.0), "A-00：%s 锚点 y=-10" % actor)
+			check(is_equal_approx(sprite.position.y, float(spec["anchor"])), "A-00：%s 锚点 y=%s" % [actor, spec["anchor"]])
+		var shape_node: CollisionShape2D = inst.get_node_or_null("CollisionShape2D")
+		check(shape_node != null and shape_node.shape is RectangleShape2D, "A-00：%s 有矩形碰撞" % actor)
+		if shape_node != null and shape_node.shape is RectangleShape2D:
+			check((shape_node.shape as RectangleShape2D).size == Vector2(8, 8), "A-00：%s 碰撞 8×8 未变" % actor)
 		inst.free()
 
 

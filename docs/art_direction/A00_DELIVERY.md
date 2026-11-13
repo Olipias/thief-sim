@@ -1,12 +1,14 @@
-# A-00 交付：玩家/警察 24×32 + 安全屋 + 电话 UI
+# A-00 交付：主角 32×40 / 警察 24×32 + 安全屋 + 电话 UI
 
-> 2026-11-13 · art（agent-mail：OrangeThrush）· **未改 `src/`、`tests/`**
+> 2026-11-13 · art（agent-mail：OrangeThrush）· UI 收口修改 `src/ui/hub.*`、`mission_phone.*`、`relic_view.gd`；主角 32×40 接入 `player.tscn`；未改 `tests/`、角色/故事逻辑
 > 依据：用户 #thief id 53 / id 67；plan 的 A-00 范围（`docs/STORY_PLAN.md` §3D）。
 > 概念图见 `a00_src/`；生成脚本 `tools/gen_a00_art.py` + `tools/a00_characters.py`。
+>
+> **Rev.3（2026-11-13）**：主角按用户指定 `a00_src/thief_turnaround_a.png`（礼帽 + 棕褐风衣 + 斜挎包）重做；游戏内用 **32×40 / 128×120 sheet**，角色高约 39px，与 24×32 守卫同屏不突兀。48px 填满 canvas 的版本已废弃（太大且像制服）；1280×720 AI turnaround 保留为高分辨率设计参考。警察仍为 24×32。
 
 ## 0. 一句话
 
-把玩家/警察从 16×24 升级到 **24×32 / 3 向 × 4 帧**；给据点一张可直接铺的 **安全屋背景** 与一套 **博物馆标签化 UI**；给任务终端一套 **黄铜手机边框 + 纸卡/朱印** 的皮肤。全部为纯像素/程序化资产，AI 概念只作方向参考。
+主角按 `thief_turnaround_a` 设计重做为 **32×40 游戏 sprite**（39px 高），警察保持 **24×32**，均为 **3 向 × 4 帧**；给据点一张可直接铺的 **安全屋背景** 与一套 **博物馆标签化 UI**；给任务终端一套 **黄铜手机边框 + 纸卡/朱印** 的皮肤。全部为纯像素/程序化资产，AI 概念只作方向参考。
 
 ---
 
@@ -14,13 +16,17 @@
 
 | 文件 | 尺寸 | 用途 | 接入方 |
 | --- | --- | --- | --- |
-| `assets/sprites/chars/player_sheet_v2.png` | 96×96 | 玩家 24×32 × 12 帧 | `player.tscn/gd` |
+| `assets/sprites/chars/player_sheet_v2.png` | **128×120** | **主角 32×40 × 12 帧（Rev.3）** | `player.tscn/gd` |
+| `assets/sprites/chars/thief32_front.png` / `_side.png` / `_back.png` | 32×40 | 主角三视图单帧 | 评审/参考 |
+| `assets/sprites/chars/thief32_turnaround.png` | 96×40 | 正 / 侧 / 背三视图 | 评审 |
 | `assets/sprites/chars/police_sheet_v2.png` | 96×96 | 警察 24×32 × 12 帧 | `police.tscn/gd` |
-| `docs/art_direction/a00_src/player_v2_preview.png` | 576×576 | 6× 预览（不进游戏） | 评审 |
 | `docs/art_direction/a00_src/police_v2_preview.png` | 576×576 | 6× 预览（不进游戏） | 评审 |
 | `assets/art/safehouse_bg.png` | 1280×720 | 据点背景（640×360 逻辑 ×2） | `hub.tscn` |
 | `assets/art/phone_frame_9p.png` | 96×96 | 电话 9-patch 边框（margin 12） | `mission_phone.tscn` |
-| `docs/art_direction/A00_characters_board.png` | 1280×720 | 角色规格板 | 评审 |
+| `docs/art_direction/A00_characters_board.png` | 1280×720 | 旧 24×32 角色规格板（历史） | 评审 |
+| `docs/art_direction/A00_thief32_turnaround.png` | 960×400 | 主角 32×40 三视图 10× 预览 | 评审/验收 |
+| `docs/art_direction/A00_thief32_sheet.png` | 1024×960 | 主角 128×120 sheet 8× 预览 | 评审/验收 |
+| `docs/art_direction/A00_thief32_ingame.png` | 1280×720 | 新主角实机尺度（与 24×32 守卫同屏） | 评审/验收 |
 | `docs/art_direction/A00_safehouse_ui.png` | 1280×720 | 据点 UI 目标稿 | 评审/接入 |
 | `docs/art_direction/A00_phone_ui.png` | 1280×720 | 电话 UI 目标稿 | 评审/接入 |
 | `docs/art_direction/A00_concept_board.png` | 1280×720 | SiliconFlow 概念总览 | 评审 |
@@ -31,23 +37,24 @@
 
 ---
 
-## 2. 角色 sprite（24×32）
+## 2. 角色 sprite（主角 32×40；警察 24×32）
 
 ### 2.1 规格
 
-- 单帧 **24×32**；sheet **96×96**：**4 列 × 3 行**。
+- 主角：单帧 **32×40**；sheet **128×120**：**4 列 × 3 行**；角色高约 39px。
+- 警察：仍为 24×32 / 96×96，待后续同风格重制。
 - 行：`0 = 下`、`1 = 上`、`2 = 侧`（侧向默认朝右，向左用 `flip_h`）。
 - 列：`0 = 待机 A`、`1 = 待机 B`、`2 = 行走 A`、`3 = 行走 B`。
-- 锚点：`Sprite2D.position.y = -10`（脚底仍在角色原点；从 16×24 的 `-6` 调整为 32px 高）。
-- 碰撞：**保持 10×8 不变**；只换视觉，不改手感、视锥、交互距离。
+- 主角锚点：`Sprite2D.position.y = -13`（40px 帧高，脚底在原点）；警察仍为 `-10`。
+- 碰撞：不改（当前 `8×8`）；只换视觉，不改手感、视锥、交互距离。
 - `hframes = 4`、`vframes = 3`。
 
 ### 2.2 设计
 
-- 玩家：暗脸兜帽 + 金色眼睛、青绿围巾、斜挎皮包、破边衣摆、棕靴；冷色左轮廓光 + 暖色右轮廓光。
+- 主角（Rev.3）：`thief_turnaround_a` 同款礼帽 + 棕褐长风衣 + 斜挎皮包 + 白手套 + 棕靴；无兜帽/围巾/发光眼；不再用 48px 填满画面。
 - 警察：深藏青制服、帽徽、胸牌、对讲机、腰带、手电筒、胡子；暖光在右，冷光在左。
 - 调色板见 `A00_characters_board.png` 底部；每个角色 8 色主色 + 轮廓/高光。
-- 待机 A/B 是呼吸/衣摆微动；行走 A/B 是脚交替 + 身体 1px 起伏。
+- 待机 A/B 为同一站姿（呼吸暂以 1 帧占位）；行走 A/B 为脚部 1px 交替。后续可补 4 帧步态。
 
 ### 2.3 接入（@code）
 
@@ -57,7 +64,7 @@
 [ext_resource type="Texture2D" path="res://assets/sprites/chars/player_sheet_v2.png" id="2_sheet"]
 ...
 [node name="Sprite" type="Sprite2D" parent="."]
-position = Vector2(0, -10)
+position = Vector2(0, -13)
 texture = ExtResource("2_sheet")
 hframes = 4
 vframes = 3
@@ -109,7 +116,7 @@ func _update_visual(delta: float) -> void:
 
 - [ ] 1× 截图能区分玩家/警察；侧面能看出朝向。
 - [ ] 行走 4 帧（待机 2 + 行走 2）不抖动；脚底不悬空。
-- [ ] 碰撞 10×8、视锥、交互距离未变。
+- [ ] 碰撞 8×8、视锥、交互距离未变。
 - [ ] 手机/背包截图中的角色不被裁切。
 
 ---
@@ -252,8 +259,8 @@ content_margin_bottom = 16.0
 
 ### @test（A-02）
 
-1. 资源存在/尺寸：两张 sheet 必须 96×96；`hframes=4`、`vframes=3`、`position.y=-10`。
-2. 角色：四向移动 + 行走动画；侧向 `flip_h`；碰撞 10×8 不变。
+1. 资源存在/尺寸：主角 sheet 必须 128×120（32×40），`position.y=-13`；警察 96×96（24×32），`position.y=-10`；两者 `hframes=4`、`vframes=3`。
+2. 角色：四向移动 + 行走动画；侧向 `flip_h`；碰撞 8×8 不变。
 3. 据点：背景不拦截点击；卡片/商店/销赃/返回标题可点。
 4. 电话：P/B/ESC 关闭；任务/档案切换；9-patch 不变形。
 5. `tools/verify.sh` 全量 + `--visual`；基线经人眼确认后更新。
@@ -268,8 +275,8 @@ content_margin_bottom = 16.0
 ## 7. 验收清单
 
 - [ ] 两张 96×96 sheet 已导入，无缺失引用。
-- [ ] 玩家/警察 24×32，3 向 × 4 帧；待机/行走映射正确。
-- [ ] 锚点 -10，碰撞 10×8 未变。
+- [ ] 主角 32×40、警察 24×32；3 向 × 4 帧；待机/行走映射正确；主角脚底不悬空。
+- [ ] 锚点 -10，碰撞 8×8 未变。
 - [ ] 安全屋背景 1280×720 全屏铺满，`mouse_filter=2`。
 - [ ] 卡片/按钮/标签样式与目标稿一致（或至少 Phase 1 背景接入）。
 - [ ] 电话 9-patch 边框不变形；P/B/ESC 关闭。

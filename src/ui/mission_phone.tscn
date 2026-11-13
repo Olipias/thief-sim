@@ -157,12 +157,6 @@ theme_override_font_sizes/font_size = 9
 autowrap_mode = 2
 text = ""
 
-[node name="Footer" type="Label" parent="Root/Panel/Margin/VBox/TaskPage"]
-theme_override_colors/font_color = Color(0.45, 0.47, 0.53, 1)
-theme_override_font_sizes/font_size = 9
-text = "任务 / 档案 · P / ESC 关闭"
-horizontal_alignment = 2
-
 [node name="ArchivePage" type="HBoxContainer" parent="Root/Panel/Margin/VBox"]
 visible = false
 theme_override_constants/separation = 10
@@ -172,3 +166,9 @@ custom_minimum_size = Vector2(130, 0)
 theme_override_constants/separation = 4
 
 [node name="Inspect" parent="Root/Panel/Margin/VBox/ArchivePage" instance=ExtResource("3_inspect")]
+
+[node name="Footer" type="Label" parent="Root/Panel/Margin/VBox"]
+theme_override_colors/font_color = Color(0.45, 0.47, 0.53, 1)
+theme_override_font_sizes/font_size = 9
+text = "任务 / 档案 · P / B / ESC 关闭"
+horizontal_alignment = 2

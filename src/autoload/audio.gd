@@ -64,6 +64,4 @@ func shutdown() -> void:
 		if is_instance_valid(player):
 			player.stop()
 			player.stream = null
-			player.free()
-	_players.clear()
 	_streams.clear()

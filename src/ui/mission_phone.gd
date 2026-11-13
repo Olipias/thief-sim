@@ -123,6 +123,6 @@ func _on_dim_input(event: InputEvent) -> void:
 func _unhandled_input(event: InputEvent) -> void:
 	if not visible:
 		return
-	if event.is_action_pressed("phone") or event.is_action_pressed("pause") or event.is_action_pressed("ui_cancel"):
+	if event.is_action_pressed("phone") or event.is_action_pressed("pause") or event.is_action_pressed("ui_cancel") or event.is_action_pressed("bag"):
 		close()
 		get_viewport().set_input_as_handled()

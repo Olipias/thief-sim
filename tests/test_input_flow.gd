@@ -158,16 +158,14 @@ func _test_cross_keys() -> void:
 	check(not main.backpack.is_open(), "交叉键后背包仍可正常关闭")
 	_check_pause_contract("交叉键（背包）清理后")
 
-	# 手机开着时按 B：不应打开背包，且手机仍能关
+	# 手机开着时按 B：按 ARCHITECTURE §5 契约，B 也关闭手机（不打开背包）
 	await _wait(0.3)
 	await _tap(KEY_P)
 	check(main.phone.is_open(), "交叉键：手机已打开")
 	await _tap(KEY_B)
 	check(not main.backpack.is_open(), "手机开着时 B 不应打开背包")
-	check(main.phone.is_open(), "手机不受 B 影响")
-	await _wait(0.3)
-	await _tap(KEY_P)
-	check(not main.phone.is_open(), "交叉键后手机仍可正常关闭")
+	check(not main.phone.is_open(), "B 关闭手机")
+	_check_pause_contract("交叉键（B 关手机）清理后")
 	_check_pause_contract("交叉键（手机）清理后")
 
 
@@ -391,6 +389,7 @@ func _ready() -> void:
 	await _test_statements_from_title()
 	await _test_title_collection()
 	await _test_sell_tab()
+	await _test_phone_archive_footer()
 	await _test_bm_story_interactions()
 
 	# 停止音频并给音频服务端一点真实时间释放播放引用（否则退出时报假泄漏）
@@ -403,6 +402,36 @@ func _ready() -> void:
 	else:
 		print("ALL %d CHECKS PASSED" % _checks)
 		get_tree().quit(0)
+
+
+# ---------------------------------------------------------------- A-00 电话页脚
+
+func _visible_close_hint(root: Node) -> bool:
+	for child in root.get_children():
+		if child is Label and child.is_visible_in_tree() and (child as Label).text.contains("关闭"):
+			return true
+		if _visible_close_hint(child):
+			return true
+	return false
+
+
+## A-00：任务页与档案页都必须有可读的关闭提示（P/B/ESC），Footer 不能只挂在一个页面里。
+func _test_phone_archive_footer() -> void:
+	var museum := await _enter_british_museum()
+	check(museum != null, "电话页脚：关卡已开始")
+	if museum == null:
+		return
+	await _wait(0.2)
+	await _tap(KEY_P)
+	check(main.phone.is_open(), "电话页脚：手机已打开")
+	main.phone._show_tab("archive")
+	await _frames(2)
+	check(_visible_close_hint(main.phone), "A-00：档案页显示关闭提示（P/B/ESC）")
+	main.phone._show_tab("task")
+	await _frames(2)
+	check(_visible_close_hint(main.phone), "A-00：任务页显示关闭提示")
+	main.phone.close()
+	await _frames(2)
 
 
 # ---------------------------------------------------------------- 大英博物馆剧情交互（S-03）

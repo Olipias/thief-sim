@@ -5,6 +5,19 @@
 
 ---
 
+## [v0.19.3] - 2026-11-13
+
+### 修复（A-00 验收收尾）
+- **主角 sprite 规格同步到 Rev.3**：按 `docs/art_direction/A00_DELIVERY.md` Rev.3，主角改为 **32×40 / 128×120 sheet**（`assets/sprites/chars/player_sheet_v2.png`），`src/actors/player.tscn` 锚点回 `-13`，与 `tools/gen_thief32.py` 生成物保持一致；废弃 48×48 方案（与守卫比例失衡）。
+- **电话关闭键正式支持 P/B/ESC**：`src/main.gd` 在手机打开时让 B 键关闭手机（不打开背包），`src/ui/mission_phone.gd` 的 `_unhandled_input` 也响应 `bag` 动作；关闭后给背包加 0.2s 冷却，防止手机一关背包立刻弹开。
+- **电话 Footer 不再只挂在任务页**：`src/ui/mission_phone.tscn` 将关闭提示移到 `VBox` 层级，任务页/档案页都可见；文案同步为「P / B / ESC 关闭」。
+- **monkey 退出音频泄漏**：`tests/test_monkey.gd` 在 `get_tree().quit` 前先 `Audio.shutdown()` 并等待 0.4s，避免 `denied.wav` 播放中途退出报 ObjectDB/资源泄漏；`src/autoload/audio.gd` 的 `shutdown()` 不再立即 `free()` 播放器（与 smoke_test 的兜底方式一致）。
+
+### 测试
+- `tests/test_scenes.gd` 同步 Rev.3 主角规格断言（128×120 / y=-13）；`tests/test_input_flow.gd` 交叉键用例改为 B 关闭手机并断言不打开背包（105 项全绿）。
+- `tools/verify.sh --fast` 11 项全绿（逻辑 2509 / 内容 567 / 输入流 105 / 存档 88 / 进度 48 / 剧情 32 / 场景 76 / 冒烟 162 / monkey 600）。
+- `tools/verify.sh --visual` 15 项全绿；33 张视觉基线因主角 sprite 规格与电话 Footer 位置更新已重新生成并人眼确认。
+
 ## [v0.19.1] - 2026-11-13
 
 ### 修复（剧情交互 · S-03 收尾）
