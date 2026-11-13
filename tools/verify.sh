@@ -85,6 +85,7 @@ step "输入流自检（真实按键驱动 UI 覆盖层）" "$GODOT" --headless 
 step "存档兼容自检（老档 / 脏档 / 未来档）" "$GODOT" --headless --script tests/test_save_compat.gd
 step "玩家进度自检（结算 / 仓库 / 收集册 / 存档健壮性）" "$GODOT" --headless --script tests/test_progression.gd
 step "剧情自检（story_flags / 双羊尊文物志）" "$GODOT" --headless --script tests/test_story.gd
+step "剧情验收（独立：隐藏条件 / 双羊全分支播放）" "$GODOT" --headless --script tests/test_story_flow.gd
 step "场景实例化自检（src/*.tscn）" "$GODOT" --headless res://tests/test_scenes.tscn
 if [ "$FAST" -eq 0 ]; then
 	step "随机操作自检（monkey，规则不变量）" "$GODOT" --headless res://tests/test_monkey.tscn
