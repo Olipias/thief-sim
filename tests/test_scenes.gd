@@ -40,10 +40,10 @@ func _ready() -> void:
 		get_tree().quit(0)
 
 
-## A-00 角色资产规格（Rev.3：主角 32×40 / 128×120；警察 24×32 / 96×96；锚点与碰撞固定）。
+## A-00 角色资产规格（Rev.4：主角/警察同为 24×32 / 96×96；锚点与碰撞固定）。
 func _test_a00_actor_assets() -> void:
 	var specs := {
-		"player": {"sheet": Vector2i(128, 120), "anchor": -13.0},
+		"player": {"sheet": Vector2i(96, 96), "anchor": -10.0},
 		"police": {"sheet": Vector2i(96, 96), "anchor": -10.0},
 	}
 	for actor in specs:

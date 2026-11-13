@@ -94,25 +94,9 @@ readable text, logo, photorealistic, 3D render, blurry, modern flat UI, white ba
 - 游戏内资产：`assets/sprites/chars/*.png`、`assets/art/safehouse_bg.png`、`assets/art/phone_frame_9p.png`，全部由 `tools/gen_a00_art.py` 生成。
 - 真实文物/史实口径仍以 `docs/SOURCES.md` 为准。
 
-## 7. 主角 Rev.3：按 `thief_turnaround_a` 的 32×40 游戏 sprite（2026-11-13）
+## 7. 主角最终方案（C）
 
-参考：`assets/art/title_key_art.png` 左侧屋顶小偷（礼帽 + 长风衣 + 斜挎包）；用户指定设计稿：`a00_src/thief_turnaround_a.png`（1280×720，礼帽 + 棕褐风衣）。
-
-### 7.1 三视图 turnaround（采用 seed 25011）
-
-- 文件：`thief_chibi_turnaround_a.png` · 1280×720 · seed 25011 · Kolors
-- Prompt：
-
-```text
-Pixel art character turnaround reference sheet, exactly 3 full-body views in a row: front view, back view, right side profile, the same super-deformed chibi character in all three, 2.5 heads tall, oversized head, short compact body, short legs, a noir gentleman thief, oversized black fedora with wide brim, knee-length charcoal trench coat with high collar and belt, black gloves, brown leather satchel with a diamond-shaped brass buckle on the back, dark trousers, black boots, pale face, simple sharp eyes, no hood, no scarf, no mask, no glowing eyes, no extra straps, clean readable silhouette, crisp 1px dark outline, flat limited palette of charcoal, warm brown, brass and muted teal, 48x48 pixel art sprite scaled 8x with chunky pixels, full body with feet visible, isolated on solid chroma key green background, no text, no UI, no watermark, no shadow
-```
-
-- 其他候选：`thief_chibi_turnaround_b..g.png`、`thief_side_a..c.png`（seed 25012–25043）。AI 很难稳定给出「正/侧/背」三张不重复且完全一致；最终把 A 的前/后与手工清理的侧面统一成 32×40 游戏 sprite（1280×720 概念保留为高分辨率参考）。
-
-### 7.2 最终 32×40 游戏 sprite（Rev.3）
-
-- 生成器：`tools/gen_thief32.py`
-- 输出：`thief32_front.png` / `thief32_side.png` / `thief32_back.png` / `thief32_turnaround.png` / `player_sheet_v2.png`（128×120，4×3）
-- 透明背景、32×40 帧、角色高约 39px；礼帽/棕褐风衣/斜挎包；与 24×32 守卫同屏不突兀。
-- 高分辨率设计参考仍是 `thief_turnaround_a.png`（1280×720）；48px 填满 canvas 的版本已废弃（太大且像制服）。
-- 说明：原始 AI 图有白底/白描边、三视图不一致，不能直接当游戏 sprite；`gen_thief32.py` 是「AI 概念 → 游戏像素」的清理步骤。
+- 用户选择 **C**：玩法保持原 24×32 sprite（从 862de05 恢复，与警察同尺寸）；AI 1280 高清图只用于标题/特写/立绘层。
+- 已废弃：48px 填满画面、32×40、24×32 棕褐风衣重绘；`tools/gen_thief32.py` 已删除。
+- 保留的高清参考：`thief_turnaround_a.png`（1280×720）、`thief_tall_side_a/b.png`。
+- 结论：AI 1280 插画无法直接塞进 24×32；24×32 玩法需要独立像素 sprite，二者分层使用。

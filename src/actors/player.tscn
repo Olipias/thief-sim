@@ -17,7 +17,7 @@ motion_mode = 1
 script = ExtResource("1_script")
 
 [node name="Sprite" type="Sprite2D" parent="."]
-position = Vector2(0, -13)
+position = Vector2(0, -10)
 texture = ExtResource("2_sheet")
 hframes = 4
 vframes = 3
