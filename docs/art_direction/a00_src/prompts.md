@@ -99,7 +99,7 @@ readable text, logo, photorealistic, 3D render, blurry, modern flat UI, white ba
 - 用户选择 **C**：玩法保持原 24×32 sprite（从 862de05 恢复，与警察同尺寸）；AI 1280 高清图只用于标题/特写/立绘层。
 - 已废弃：48px 填满画面、32×40、24×32 棕褐风衣重绘；`tools/gen_thief32.py` 已删除。
 - 保留的高清参考：`thief_turnaround_a.png`（1280×720）、`thief_tall_side_a/b.png`。
-- 2026-11-13 用户 handoff：`thief_noir_generated.png` + `tools/gen_noir_player.py` 生成 `player_noir_v2.png`（96×96，24×32 × 4×3），当前已接入 `player.tscn`。
+- 2026-11-13 用户 handoff：`thief_noir_generated.png` + `tools/gen_noir_player.py` 生成 `player_noir.png`（96×96，24×32 × 4×3），当前已接入 `player.tscn`。
 - 结论：AI 1280 插画无法直接塞进 24×32；24×32 玩法需要独立像素 sprite，二者分层使用。
 
 ## 8. Complete noir pack（2026-11-13）

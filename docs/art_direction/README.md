@@ -38,7 +38,7 @@
 - 角色：`assets/sprites/chars/player_noir.png` / `police_noir.png`（96×96，24×32 × 4×3）。
 - 场景：`assets/art/safehouse_noir.png`、`assets/art/phone_noir_9p.png`、`assets/sprites/bm/bm_tiles_noir.png`、`bm_case_noir.png`、`decor_noir/`。
 - 预览：`noir_pack/preview/`（六展厅/据点/手机/角色）。
-- 代码接入由 @code 按 patch 手动合并；测试基线由 @test 更新。
+- 代码接入已按 patch 手动合并；测试基线由 @test 更新（v0.19.6 验收）。
 
 ## 剧情美术文本规范（2026-11-13）
 
