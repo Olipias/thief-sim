@@ -12,6 +12,9 @@ func _ready() -> void:
 	Game.backpack_level = 1
 	Game.smoke_count = 2
 	Game.archive_seen = {"mask": true, "ram_zun": true}
+	# 截图流程只关注 UI 与关卡画面，跳过据点剧情，避免 show_menu/start_mission 被剧情阻塞。
+	Game.set_story_flag("saw_p01")
+	Game.set_story_flag("saw_h02")
 	Game.save_game()
 	# 鼠标悬停会给按钮加 hover 样式；把指针移到角落，保证 UI 截图可复现
 	Input.warp_mouse(Vector2(2, 2))

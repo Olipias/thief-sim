@@ -69,8 +69,8 @@
 
 | ID | 任务 | Owner | 状态 | 产出 / 验收 | 依赖 |
 | --- | --- | --- | --- | --- | --- |
-| S-12 | 开局动画分镜与字幕 | plan + art | 📋 | 40–45 秒、6 个镜头、字幕、转场、跳过提示；落 STORY.md §11 + 分镜图 | STORY.md |
-| S-13 | 开局动画播放器 | code | 📋 | CanvasLayer + TextureRect + Tween；新游戏触发；任意键跳过；结束后进据点；不锁输入 | S-12 占位 |
+| S-12 | 开局动画分镜与字幕 | plan + art | 🧊 延后（用户改由 codex 绘制） | 分镜/字幕/跳过已完成（STORY.md §10）；给 codex 的委托书已备：`docs/art_direction/OPENING_CODEX_BRIEF.md`（6 帧 1280×720 + 分层 + 风格红线 + 史实红线） | STORY.md |
+| S-13 | 开局动画播放器 | code | 🧊 延后（等 codex 素材） | CanvasLayer + TextureRect + Tween；新游戏触发；任意键跳过；结束后进据点；不锁输入 | S-12 占位 |
 | S-14 | 开局动画素材 | art | 📋 | 6 张 1280×720（或 640×360 整数倍）PNG + 标题 sting；命名/色板/许可 | S-12 |
 | S-15 | 视觉回归 + 手动 QA | test | 📋 | 新增截图基线（开局/标签/岔路/三结局）；640×360 文本不溢出；跳过/重开正常 | S-13/S-14 |
 
@@ -186,7 +186,8 @@
 | 2026-11-13（协作策略 v3） | **失联接管**：owner 连续 2 轮唤醒无响应 = 失联，plan 用子 agent 代做（规则 #4 待批准）。7 小时停滞根因=唤醒只能送达活会话；已删 3 条无效调度，仅保留 plan 唤醒（86c041e0）。**执行结果**：plan 子 agent 修复 S-03 同帧双触发软锁（输入流 100/100，verify --fast 11 项 + 全量 13 项全绿）；code 窗口短暂回归自行落盘 A-01 接入，plan 验证未重做 | S-03 ✅；A-00/A-01 ✅（Phase 2 未做） | 视觉基线随 A-00 更新，人眼确认未做 | code：合并两套冷却、删 debug 文件、补 load_steps、S-05/S-08；test：复跑；用户：--visual 人眼过基线 |
 | 2026-11-13（协作策略 v4 · 自唤醒） | **自唤醒等待器上线**：`tools/chat_wait.sh`（token 在 gitignore 的 `tools/.agentchattr_token`）——agent 每轮收尾前用后台命令启动等待器，检测到 @自己 / @all / user 的新频道消息即退出（码 0）→ OpenCode 自动唤醒会话处理；处理完 `mark <名字> <id>` 更新水位再重启；40 分钟无消息超时一次（码 2，静默重启）。窗口常开≠在听（会话只在被唤醒时连接），等待器把「被唤醒」变成事件驱动，无需人工逐窗口激活。AGENTS.md §4.5 已写入该约定；规则 #5 待批准。**首个采用者：opencode-a（水位 276，已确认自唤醒闭环）**；plan 自己的等待器运行中（被其自动唤醒处理了 id 277，水位已推到 277 并重启），20 分钟调度 86c041e0 继续作为周期兜底 | 落实方：art/code/test 各自在下次唤醒时启动等待器 | 无 | 下次唤醒检查 art/code/test 是否已启动等待器；未启动且有任务 → v3 代做 |
 | 2026-11-13（验收与裁决轮） | test 验收：**S-03 通过（输入流 101/101，含同帧双触发回归）**、调试残留已清、hub load_steps 已修；A-00 **暂不通过**（电话 9-patch 四角 L 角标=art 必修、档案页裁切/电话 B 键/销赃行透底=code 修、缩略图按钮 Phase 2 归 S-06）。plan 裁决：碰撞以代码现状 8×8 为准（A00 文档笔误待改）；电话关闭键按 ARCHITECTURE §5 契约支持 P/B/ESC。code 交付 v0.19.2（d1519de）并 push 成功（main=95e0267，含 v0.19.1 = 862de05）；test_story.gd 重建为 32 项（与 test_story_flow 68 项合并覆盖原 61 项面）；plan 代跑全量 13/13 临时验收通过 | code：电话 B 键 + 档案页裁切 + 销赃行透底（✅ 已交付）；art：9-patch 角标（必修）+ A00 文档碰撞行；test：收口后 --visual --update；基线人眼确认待做 | GitHub push 网络不稳（不急） | art/code 收口 → test 复跑全量 → 用户人眼确认基线 |
-| 2026-11-13（协作策略 v5 · relay 直唤醒） | **@点名=真实唤醒**：发现共享 opencode server（127.0.0.1:49374，`opencode serve --service`）提供 `/api/session/<id>/prompt`（steer 投递，CLI 自动认证）。新增守护进程 `tools/chat_relay.py`（setsid 常驻，零 token）：6 秒轮询聊天室，新消息 @art/@code/@test → 直接注入对应会话（映射 `tools/.relay_targets.json`：art=s…N / code=s…M / test=s…Y）。**已实测打通**：id 305 点名 art → 秒级注入 art+code 会话。会话映射经消息身份标记核验（art=OrangeThrush / test=SwiftBadger / code=kimi 会话）。我的 sweep 从 20 分钟降为 **60 分钟低频兜底**（39f472fa，含 relay 心跳巡检），等待器降级为可选双保险（AGENTS.md §4.5 已更新）。token 成本：relay 与等待器运行均零 token；只有真实 @点名 / 用户消息才产生 agent 轮次 | art/code 被 305 直接唤醒（等待 art 交付 9-patch + 文档行） | GitHub push 网络不稳（不急） | 观察 relay 首小时稳定性；test 复跑验收；基线人眼确认；补 push |
+| 2026-11-13（协作策略 v5 · relay 直唤醒） | **@点名=真实唤醒**：共享 opencode server（127.0.0.1:49374）提供 `/api/session/<id>/prompt`（steer 投递，CLI 自动认证）。守护进程 `tools/chat_relay.py`（setsid 常驻，零 token）6 秒轮询聊天室，@art/@code/@test → 直接注入对应会话（映射 `tools/.relay_targets.json`）。实测：id 305 点名 art → 秒级注入 art+code。会话映射经身份标记核验。sweep 降为 60 分钟兜底（39f472fa，含 relay 心跳巡检），等待器降级为可选双保险（AGENTS.md §4.5） | art/code 被 305 唤醒 | GitHub push 网络不稳（不急） | 观察 relay 稳定性；test 复跑；基线人眼确认；补 push |
+| 2026-11-13（用户实机试玩反馈轮） | 用户试玩报告 4 项：①双羊尊面前无法拾取（只有两个信息可读）②手机只能在关卡内打开、据点应可开 ③无局外剧情引导 ④未见安全屋界面；动画延后（用户安排 codex 绘制，委托书已备 `docs/art_direction/OPENING_CODEX_BRIEF.md`）。plan 实机诊断定位 P0 根因：**双羊尊展台 px(152,296) 与两个剧情触发器（168,312 / 120,312）交互半径重叠，player._try_interact 剧情优先且可重复读 → E 永远进不了拾取分支**。已向 code 下发三修一加（P0 拾取 / P0 手机据点可开 / P1 S-05 据点剧情引导 / P2 安全屋观感），P0 限时 1 sweep 否则代做；S-12/S-13 标 🧊 延后 | code：三修一加（id 374 已注入）；art：9-patch 角标（305 已唤醒） | 无 | P0 修复 → 用户复测；S-05 落地再验；动画等 codex 素材后接 S-13 |
 
 ---
 

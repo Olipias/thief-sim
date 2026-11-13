@@ -320,6 +320,7 @@ func _test_sell_tab() -> void:
 	Game.loot_stash = [] as Array[String]
 	var items: Array[String] = ["vase", "gem"]
 	Game.loot_stash = items
+	Game.set_story_flag("saw_p01")
 	main.show_menu()
 	await _frames(4)
 	var hub: Hub = null
@@ -347,6 +348,67 @@ func _test_sell_tab() -> void:
 	await _click(hub.sell_all_button.get_global_rect().get_center())
 	check(Game.loot_stash.is_empty(), "全部出手后仓库清空")
 	check(Game.money == money_before + 420, "全部出手结清剩余金币")
+
+
+func _test_hub_phone() -> void:
+	# P0-2：据点按 P 打开手机，只显示任务页、不暂停、档案页隐藏。
+	Game.reset_progress()
+	Game.set_story_flag("saw_p01")
+	main.show_menu()
+	await _frames(4)
+	# 等手机/背包关闭留下的按键冷却过去（open_phone 有 0.2s 冷却）。
+	await _wait(0.3)
+	check(main._hub != null, "P0-2：据点已打开")
+	if main._hub == null:
+		return
+	await _tap(KEY_P)
+	check(main.phone.is_open(), "P0-2：据点按 P 打开手机")
+	check(not get_tree().paused, "P0-2：据点打开手机不暂停")
+	check(not main.phone.tab_archive.visible, "P0-2：据点手机隐藏档案标签")
+	check(not main.phone.archive_page.visible, "P0-2：据点手机隐藏档案页")
+	check(main.phone.task_page.visible, "P0-2：据点手机显示任务页")
+	await _tap(KEY_P)
+	check(not main.phone.is_open(), "P0-2：据点再按 P 关闭手机")
+
+
+func _test_hub_stories() -> void:
+	# P-01：新游戏首次进据点。
+	Game.reset_progress()
+	main.show_menu()
+	await _frames(2)
+	check(main.dialogue_tree.is_active(), "P-01：新游戏首次进据点播放剧情")
+	if main.dialogue_tree.is_active():
+		await _finish_story_tree()
+	check(Game.story_flag("saw_p01"), "P-01：saw_p01 落档")
+	check(not main.dialogue_tree.is_active(), "P-01：剧情结束后关闭")
+	check(main._hub != null, "P-01：剧情结束后回到据点")
+
+	# H-01：完成第一次任务后回据点。
+	Game.reset_progress()
+	Game.set_story_flag("saw_p01")
+	Game.set_story_flag("completed_museum")
+	main.show_menu()
+	await _frames(2)
+	check(main.dialogue_tree.is_active(), "H-01：首次任务后回据点播放标签课")
+	if main.dialogue_tree.is_active():
+		await _finish_story_tree()
+	check(Game.story_flag("saw_h01"), "H-01：saw_h01 落档")
+	check(not main.dialogue_tree.is_active(), "H-01：剧情结束后关闭")
+
+	# H-02：大英任务开始前。
+	Game.reset_progress()
+	Game.set_story_flag("saw_p01")
+	main.show_menu()
+	await _frames(3)
+	main.start_mission("british_museum")
+	await _frames(2)
+	check(main.dialogue_tree.is_active(), "H-02：大英任务前播放两个地址")
+	if main.dialogue_tree.is_active():
+		await _finish_story_tree()
+	check(Game.story_flag("saw_h02"), "H-02：saw_h02 落档")
+	# H-02 结束后应继续进入 briefing/关卡。
+	await _frames(4)
+	check(main.dialogue.is_active() or main._museum != null, "H-02：剧情结束后进入 briefing")
 
 
 func _test_leave_scene_clean() -> void:
@@ -390,6 +452,8 @@ func _ready() -> void:
 	await _test_title_collection()
 	await _test_sell_tab()
 	await _test_phone_archive_footer()
+	await _test_hub_phone()
+	await _test_hub_stories()
 	await _test_bm_story_interactions()
 
 	# 停止音频并给音频服务端一点真实时间释放播放引用（否则退出时报假泄漏）
@@ -447,9 +511,12 @@ func _enter_british_museum() -> Museum:
 	while main.dialogue.is_active():
 		main.dialogue.advance()
 		await _frames(1)
+	Game.reset_progress()
+	# BM 剧情交互测试只测关卡内行为，跳过据点入场剧情 P-01 与大英任务前 H-02。
+	Game.set_story_flag("saw_p01")
+	Game.set_story_flag("saw_h02")
 	main.show_menu()
 	await _frames(3)
-	Game.reset_progress()
 	main.start_mission("british_museum")
 	await _frames(4)
 	while main.dialogue.is_active():
@@ -502,14 +569,54 @@ func _advance_until_choices() -> bool:
 	return false
 
 
+## 把玩家瞬移到指定坐标并等物理刷新，供剧情交互测试用。
+func _set_player_at(museum: Museum, pos: Vector2) -> void:
+	museum.player.global_position = pos
+	museum.player.velocity = Vector2.ZERO
+	# headless 下瞬移后 Area2D 重叠列表刷新较慢，多等几帧物理与 process。
+	await _physics_frames(3)
+	await _frames(3)
+
+
+## 轮询等待 HUD 提示包含指定文本（最多等 0.5s）。
+func _wait_for_prompt(substring: String) -> void:
+	var guard := 0
+	while guard < 30:
+		if main.hud.prompt_label.text.contains(substring):
+			return
+		await _frames(1)
+		guard += 1
+
+
 func _test_bm_story_interactions() -> void:
-	# A. 只读馆方标签
+	# 触发器新位置贴左右墙；墙边格可能紧挨着展品，_stand_at 的自动偏移
+	# 会站到展品与触发器之间，导致展品更近而读不到纸。这里用显式站位。
+	const LABEL_STAND := Vector2(40, 314)   # 标签正下方，无更近展品
+	const NOTE_STAND := Vector2(280, 314)   # 留言正下方，无更近展品
+	const ZUN_STAND := Vector2(152, 280)    # 双羊尊正上方一格
+
+	# P0-1 回归：未读标签时站在双羊尊前，按 E 应拾取目标（打开特写），而非读纸。
 	var museum := await _enter_british_museum()
 	check(museum != null, "BM 剧情：关卡已开始")
 	if museum == null:
 		return
-	await _stand_at(museum, museum.BM_LABEL_POS)
-	await _frames(3)
+	_set_player_at(museum, ZUN_STAND)
+	await _wait_for_prompt("双羊尊")
+	check(main.hud.prompt_label.text.contains("双羊尊") or main.hud.prompt_label.text.contains("端详"), "P0-1：双羊尊旁提示为拾取/端详（当前：%s）" % main.hud.prompt_label.text)
+	await _tap(KEY_E)
+	check(not main.dialogue_tree.is_active(), "P0-1：未读标签时按 E 不开剧情对谈")
+	check(main.relic_closeup.is_open() or Game.has_item("ram_zun"), "P0-1：未读标签时按 E 打开特写或已拾取")
+	if main.relic_closeup.is_open():
+		main.relic_closeup.close()
+		await _frames(2)
+
+	# A. 只读馆方标签
+	museum = await _enter_british_museum()
+	check(museum != null, "BM 剧情：标签关卡已开始")
+	if museum == null:
+		return
+	_set_player_at(museum, LABEL_STAND)
+	await _wait_for_prompt("馆方标签")
 	check(main.hud.prompt_label.text.contains("馆方标签"), "标签旁提示：显示「按 E 阅读：馆方标签」（当前：%s）" % main.hud.prompt_label.text)
 	await _tap(KEY_E)
 	check(main.dialogue_tree.is_active(), "只读标签：按 E 打开剧情对谈")
@@ -520,10 +627,11 @@ func _test_bm_story_interactions() -> void:
 
 	# B. 只读观众留言
 	museum = await _enter_british_museum()
-	check(museum != null, "BM 剧情：只读留言关卡已开始")
+	check(museum != null, "BM 剧情：留言关卡已开始")
 	if museum == null:
 		return
-	await _stand_at(museum, museum.BM_NOTE_POS)
+	_set_player_at(museum, NOTE_STAND)
+	await _wait_for_prompt("观众留言")
 	await _tap(KEY_E)
 	check(main.dialogue_tree.is_active(), "只读留言：按 E 打开剧情对谈")
 	await _finish_story_tree()
@@ -535,13 +643,15 @@ func _test_bm_story_interactions() -> void:
 	museum = await _enter_british_museum()
 	if museum == null:
 		return
-	await _stand_at(museum, museum.BM_LABEL_POS)
+	_set_player_at(museum, LABEL_STAND)
+	await _wait_for_prompt("馆方标签")
 	await _tap(KEY_E)
 	await _finish_story_tree()
 	# 等玩家交互冷却结束（0.25s，暂停期间冻结）：测试里瞬移代替走路，
 	# 不等的话紧接着的留言 E 会被冷却吃掉（真实游玩中走路时间远长于冷却）。
 	await _wait(0.3)
-	await _stand_at(museum, museum.BM_NOTE_POS)
+	_set_player_at(museum, NOTE_STAND)
+	await _wait_for_prompt("观众留言")
 	await _tap(KEY_E)
 	check(main.dialogue_tree.is_active(), "两张都读：留言对谈已打开")
 	var saw_choices := await _advance_until_choices()
@@ -550,10 +660,22 @@ func _test_bm_story_interactions() -> void:
 	check(Game.story_flag("read_label") and Game.story_flag("read_note"), "两张都读：两个 flag 均落档")
 	check(not main.dialogue_tree.is_active() and not get_tree().paused, "两张都读：结束后不卡界面/暂停")
 
+	# P0-1 回归：读完两张后站在双羊尊前，按 E 仍可拾取（触发器已读，不应拦截）。
+	await _wait(0.3)
+	_set_player_at(museum, ZUN_STAND)
+	await _wait_for_prompt("双羊尊")
+	await _tap(KEY_E)
+	check(not main.dialogue_tree.is_active(), "P0-1：读完两张后按 E 不开剧情对谈")
+	check(main.relic_closeup.is_open() or Game.has_item("ram_zun"), "P0-1：读完两张后按 E 仍可拾取/特写")
+	if main.relic_closeup.is_open():
+		main.relic_closeup.close()
+		await _frames(2)
+
 	# D. 重复阅读同一张：允许重看，但必须能正常关闭、不软锁
 	# 同上：先等上一段对谈留下的交互冷却结束，再瞬移去重读。
 	await _wait(0.3)
-	await _stand_at(museum, museum.BM_LABEL_POS)
+	_set_player_at(museum, LABEL_STAND)
+	await _wait_for_prompt("馆方标签")
 	await _tap(KEY_E)
 	if main.dialogue_tree.is_active():
 		await _finish_story_tree()
@@ -581,11 +703,11 @@ func _test_bm_story_interactions() -> void:
 			main.dialogue.advance()
 			await _frames(1)
 		await _wait(0.5)
-		await _stand_at(museum, museum.BM_LABEL_POS)
+		_set_player_at(museum, LABEL_STAND)
 		# 把器灵挪到玩家身边，确保 _ghost_near() 为真（否则测不到优先级冲突）
 		if museum.ghost != null and is_instance_valid(museum.ghost):
 			museum.ghost.global_position = museum.player.global_position + Vector2(8, 0)
-		await _frames(3)
+		await _wait_for_prompt("馆方标签")
 		check(
 			main.hud.prompt_label.text.contains("馆方标签"),
 			"幽灵在场时：标签提示应优先显示「按 E 阅读」（当前：%s）" % main.hud.prompt_label.text

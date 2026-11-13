@@ -104,12 +104,15 @@ func _try_interact() -> void:
 	# 冷却期内直接忽略：拦下“关闭对谈的同一帧再次触发交互”。
 	if _interact_cooldown > 0.0:
 		return
-	var story_group := _nearest_story_trigger_group()
-	if story_group != "":
-		_interact_cooldown = INTERACT_COOLDOWN
-		story_trigger_requested.emit(story_group)
-		return
+
+	var trigger := _nearest_story_trigger()
 	var target := _closest_artifact()
+
+	if trigger != null and _should_trigger_story(trigger, target):
+		_interact_cooldown = INTERACT_COOLDOWN
+		story_trigger_requested.emit(trigger.get_groups()[0])
+		return
+
 	if target == null:
 		return
 	# 文物拾取/端详同样加冷却：防止同帧 E 关掉对谈后又拾取/打开旁边的文物特写。
@@ -126,30 +129,43 @@ func start_interact_cooldown() -> void:
 	_interact_cooldown = INTERACT_COOLDOWN
 
 
-## 优先检测剧情触发器（group 为 "story_label" / "story_note" 等）。
-func _nearest_story_trigger_group() -> String:
+## 返回最近的剧情触发器（group 为 "story_label" / "story_note" 等）。
+func _nearest_story_trigger() -> Area2D:
 	var best: Area2D = null
 	var best_dist := INF
 	for area in interact_area.get_overlapping_areas():
+		if area.is_queued_for_deletion() or area.get_parent() != get_parent():
+			continue
 		if not (area.is_in_group("story_label") or area.is_in_group("story_note")):
 			continue
 		var dist := global_position.distance_squared_to(area.global_position)
 		if dist < best_dist:
 			best_dist = dist
 			best = area
-	if best == null:
-		return ""
-	if best.is_in_group("story_label"):
-		return "story_label"
-	if best.is_in_group("story_note"):
-		return "story_note"
-	return ""
+	return best
+
+
+## 决定是否触发剧情：只要剧情触发器严格比文物更近就触发；否则让位给文物。
+## 已读/未读只影响 museum 里的自动双纸对谈与落档，不影响单次按 E 的优先级：
+## 玩家站在双羊尊前时，即使标签未读也应拾取目标，而不是被纸拦住。
+func _should_trigger_story(trigger: Area2D, target: Artifact) -> bool:
+	if target == null:
+		return true
+	var t_dist := global_position.distance_squared_to(trigger.global_position)
+	var a_dist := global_position.distance_squared_to(target.global_position)
+	return t_dist < a_dist - 4.0
 
 
 func _closest_artifact() -> Artifact:
 	var best: Artifact = null
 	var best_dist := INF
 	for area in interact_area.get_overlapping_areas():
+		if area.is_queued_for_deletion():
+			continue
+		# 过滤旧关卡残留的 artifact：旧关卡的节点仍会在树上存活一帧，
+		# 但其父节点（museum）已被 queue_free；只接受与玩家同属于当前 museum 的。
+		if area.get_parent() != get_parent():
+			continue
 		var artifact := area as Artifact
 		if artifact == null:
 			continue

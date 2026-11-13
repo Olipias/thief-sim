@@ -34,8 +34,9 @@ const GHOST_LINES := {
 }
 
 ## BM Room 3 剧情触发器：馆方标签与观众留言。
-const BM_LABEL_POS := Vector2(168, 312)
-const BM_NOTE_POS := Vector2(120, 312)
+## 贴左右墙边，避免与双羊尊展台（T≈(152,296)）的交互半径重叠导致无法拾取。
+const BM_LABEL_POS := Vector2(40, 296)
+const BM_NOTE_POS := Vector2(280, 296)
 const BM_LABEL_CARDS := {
 	"zun_label": {
 		"title": "馆方说明 · 商代双羊尊",

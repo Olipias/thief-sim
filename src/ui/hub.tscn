@@ -35,33 +35,42 @@ stretch_mode = 6
 anchor_right = 1.0
 offset_bottom = 72.0
 grow_horizontal = 2
-color = Color(0.02, 0.03, 0.04, 0.38)
+color = Color(0.02, 0.03, 0.04, 0.18)
 mouse_filter = 2
 
 [node name="ContentShade" type="ColorRect" parent="."]
-anchor_right = 1.0
+anchor_left = 0.5
+anchor_right = 0.5
+offset_left = -208.0
 offset_top = 68.0
+offset_right = 208.0
 offset_bottom = 330.0
 grow_horizontal = 2
-color = Color(0.02, 0.03, 0.04, 0.28)
+color = Color(0.02, 0.03, 0.04, 0.14)
 mouse_filter = 2
 
 [node name="HeaderShade" type="ColorRect" parent="."]
-anchor_right = 1.0
+anchor_left = 0.5
+anchor_right = 0.5
+offset_left = -208.0
 offset_top = 68.0
+offset_right = 208.0
 offset_bottom = 112.0
 grow_horizontal = 2
-color = Color(0.02, 0.03, 0.04, 0.45)
+color = Color(0.02, 0.03, 0.04, 0.22)
 mouse_filter = 2
 
 [node name="BottomShade" type="ColorRect" parent="."]
+anchor_left = 0.5
+anchor_right = 0.5
 anchor_top = 1.0
-anchor_right = 1.0
 anchor_bottom = 1.0
+offset_left = -208.0
 offset_top = -36.0
+offset_right = 208.0
 grow_horizontal = 2
 grow_vertical = 0
-color = Color(0.02, 0.03, 0.04, 0.45)
+color = Color(0.02, 0.03, 0.04, 0.22)
 mouse_filter = 2
 
 [node name="Title" type="Label" parent="."]
@@ -125,17 +134,17 @@ grow_horizontal = 0
 text = "返回标题"
 
 [node name="LevelsBox" type="VBoxContainer" parent="."]
-offset_left = 16.0
+offset_left = 120.0
 offset_top = 74.0
-offset_right = 624.0
+offset_right = 520.0
 offset_bottom = 330.0
 theme_override_constants/separation = 8
 
 [node name="Shop" type="VBoxContainer" parent="."]
 visible = false
-offset_left = 60.0
+offset_left = 120.0
 offset_top = 82.0
-offset_right = 580.0
+offset_right = 520.0
 offset_bottom = 254.0
 theme_override_constants/separation = 6
 
@@ -222,9 +231,9 @@ text = "购买"
 
 [node name="SellBox" type="VBoxContainer" parent="."]
 visible = false
-offset_left = 60.0
+offset_left = 120.0
 offset_top = 82.0
-offset_right = 580.0
+offset_right = 520.0
 offset_bottom = 320.0
 theme_override_constants/separation = 6
 

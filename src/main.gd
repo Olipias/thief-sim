@@ -36,6 +36,7 @@ const BRIEFINGS := {
 
 var _busy := false
 var _museum: Museum = null
+var _hub: Hub = null
 ## 关闭手机/背包后，同一帧的按键会被 _process 再读到；用短冷却防“刚关就又被打开”。
 var _phone_cooldown := 0.0
 var _bag_cooldown := 0.0
@@ -61,7 +62,7 @@ func _ready() -> void:
 func _process(delta: float) -> void:
 	_phone_cooldown = maxf(0.0, _phone_cooldown - delta)
 	_bag_cooldown = maxf(0.0, _bag_cooldown - delta)
-	if _museum == null or not is_instance_valid(_museum) or _busy:
+	if _busy:
 		return
 	if dialogue.is_active() or relic_closeup.is_open():
 		return
@@ -84,13 +85,18 @@ func _process(delta: float) -> void:
 
 
 func open_phone() -> void:
-	if _museum == null or not is_instance_valid(_museum) or _busy or phone.is_open():
+	if _busy or phone.is_open():
 		return
 	if dialogue.is_active() or dialogue_tree.is_active() or relic_closeup.is_open():
 		return
-	phone.open()
+	var in_level := _museum != null and is_instance_valid(_museum)
+	var in_hub := _hub != null and is_instance_valid(_hub)
+	if not in_level and not in_hub:
+		return
+	phone.open(in_hub)
 	hud.set_compact(true)
-	get_tree().paused = true
+	if in_level:
+		get_tree().paused = true
 
 
 func _on_phone_closed() -> void:
@@ -211,6 +217,7 @@ func show_title() -> void:
 	if relic_closeup.is_open():
 		relic_closeup.close()
 	_museum = null
+	_hub = null
 	_clear_screen()
 	_clear_ui()
 	hud.set_compact(false)
@@ -244,26 +251,55 @@ func show_menu() -> void:
 		collection.close()
 	if relic_closeup.is_open():
 		relic_closeup.close()
+	if dialogue_tree.is_active():
+		dialogue_tree.close()
 	_museum = null
+	_hub = null
 	_clear_screen()
 	_clear_ui()
 	hud.set_compact(false)
 	hud.unbind_level()
 	hud.hide_hud()
 	var hub := HUB.instantiate() as Hub
+	_hub = hub
 	hub.start_requested.connect(start_mission)
 	hub.quit_requested.connect(show_title)
 	ui_layer.add_child(hub)
+	# 据点剧情：P-01 首次进入；H-01 第一次任务结算后回据点。
+	if not Game.story_flag("saw_p01"):
+		await _play_hub_story("p01_door_in_rain", "saw_p01")
+	elif Game.story_flag("completed_museum") and not Game.story_flag("saw_h01"):
+		await _play_hub_story("h01_label_lesson", "saw_h01")
+
+
+## 在据点播放一段 DialogueTree 剧情，结束后设置对应 story_flag。
+func _play_hub_story(entry_id: String, flag: String) -> void:
+	if not Story.has_entry(entry_id):
+		return
+	get_tree().paused = true
+	hud.set_compact(true)
+	var on_finished := func() -> void:
+		Game.set_story_flag(flag)
+	dialogue_tree.play(Story.script(entry_id), Story.cards(entry_id), on_finished, true)
+	await dialogue_tree.finished
+	get_tree().paused = false
+	hud.set_compact(false)
 
 
 func start_mission(level_id := "museum") -> void:
 	if _busy:
 		return
 	_busy = true
+	if dialogue_tree.is_active():
+		dialogue_tree.close()
+	# H-02：大英任务前，洗衣店后门阿岚递地址。
+	if level_id == "british_museum" and not Game.story_flag("saw_h02"):
+		await _play_hub_story("h02_two_addresses", "saw_h02")
 	Game.set_level(level_id)
 	Game.reset_run()
 	_clear_screen()
 	_clear_ui()
+	_hub = null
 	var museum := MUSEUM.instantiate() as Museum
 	museum.level_id = level_id
 	museum.escaped.connect(_on_escaped.bind(museum))
@@ -313,6 +349,7 @@ func _finish(museum: Museum, success: bool) -> void:
 	if phone.is_open():
 		phone.close()
 	_museum = null
+	_hub = null
 	museum.end_game()
 	hud.set_alert(0)
 	hud.set_prompt("")

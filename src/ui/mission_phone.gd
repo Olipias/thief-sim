@@ -24,6 +24,7 @@ signal card_requested(item_id: String, card_id: String)
 @onready var notes_label: Label = $Root/Panel/Margin/VBox/TaskPage/Body/Info/Notes
 
 var _item_ids: Array[String] = []
+var _hub_mode := false
 
 
 func _ready() -> void:
@@ -40,9 +41,11 @@ func is_open() -> bool:
 	return visible
 
 
-func open() -> void:
+func open(hub_mode := false) -> void:
 	if visible:
 		return
+	_hub_mode = hub_mode
+	tab_archive.visible = not _hub_mode
 	_fill_task()
 	_fill_archive()
 	visible = true

@@ -34,6 +34,7 @@
 * **剧情文本（v0.18.4）**：完整剧情圣经与逐场剧本 [docs/STORY.md](docs/STORY.md)——两关主线、据点角色、双羊双声道器灵、出售/归还/隐藏三结局，含双羊尊文物志全文与「可考 / 不可考 / 传说」的史料边界；冲刺排期与 owner 见 [docs/STORY_PLAN.md](docs/STORY_PLAN.md)
 * **剧情落地（v0.19.0）**：双羊尊文物志进游戏（3 段器灵对谈 + 3 张展签卡 + 4 个端详热点，`src/data/lore.gd`）；剧情旗标 `Game.story_flags` 进存档（读标签/留言、面具诚实、双羊信任、ending_id 结局路由），老档/脏档兼容；BM Room 3 馆方标签/观众留言可读（DialogueTree 占位），触发器冷却由 `body_exited` 驱动；双羊 stage 3 出口前兜底触发并安抚右羊；隐藏结局条件 `Game.hidden_ending_unlocked()` 落地；输入流 `tests/test_input_flow` 100 项、剧情自检 `tests/test_story.gd`（61 项）与 `tests/test_story_flow.gd`（68 项）并入 verify
 * **A-00 美术接入（v0.19.6）**：complete noir 包——玩家/警察统一为 24×32 noir sprite（`player_noir.png` / `police_noir.png`），据点安全屋背景、电话 9-patch + Tab 样式、大英博物馆六厅地砖/展柜/16 个装饰全部换 noir；关闭键契约 P/B/ESC 保持；33 张视觉基线已更新
+* **三修一加（v0.19.7）**：修复用户实机反馈 P0-1 双羊尊无法拾取、P0-2 据点不能开手机、P1-3 缺局外剧情引导、P2-4 据点面板遮挡安全屋背景；新增 `src/data/story.gd` 落地 P-01/H-01/H-02；输入流 128 项；视觉基线已更新
 * **多关卡**：城西博物馆（青铜面具）与大英博物馆·中国馆（**商代双羊尊**，首个真实文物）——据点选关、按关卡目标与报酬
 * **标题界面**（场景化菜单）：新封面为「屋顶小偷 + 大英博物馆正门」；开始/继续贴在角色手边、**文物档案收集册**在博物馆入口、声明/退出缩在右下角，带淡入/盖章/悬停/呼吸光框动效（`assets/art/title_key_art.png`）
 * **近期更新（v0.18.2）**：发布准备——Web / Windows / Linux 导出预设、`tools/export.sh`、`docs/DEPLOY.md`；Web 版可直接上 itch.io

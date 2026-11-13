@@ -426,6 +426,11 @@ func finish_run(success: bool) -> Dictionary:
 	# 赃物不再自动出售：全部存入据点仓库，由玩家在「销赃」页决定
 	bag_items.clear()
 	mission_complete = false
+	# 记录关卡完成，用于据点剧情（H-01 等）触发判定。
+	if current_level_id == "museum":
+		set_story_flag("completed_museum")
+	elif current_level_id == "british_museum":
+		set_story_flag("completed_british_museum")
 	summary["success"] = true
 	summary["stash_items"] = taken
 	summary["stash_value"] = stash_value
