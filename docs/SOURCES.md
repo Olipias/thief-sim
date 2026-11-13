@@ -62,6 +62,28 @@
   - Asian Art Newspaper, *The Oriental Ceramics Society: 100 Years*（1934 年 Eumorfopoulos 因经济压力出售大批藏品给大英博物馆/V&A）
   - 长沙晚报 2023-09-08《两羊圆尊致四羊方尊的家书》——仅作为“现代民间叙事”样本，不作为史实依据
 
+### S-003 古埃及第 19 王朝彩绘墓碑（游戏内 ID：egypt_stela）
+- 年代：古埃及新王国第 19 王朝（约公元前 1250 年，拉美西斯二世时期）
+- 现藏地：英国大英博物馆（馆藏编号 `EA191`，Registration number `1823,0614.1`）
+- 出土地：埃及底比斯西岸，代尔麦地那（Deir el-Medina，王陵工匠村）
+- 流失/流转经过：**可考部分**——由 19 世纪初英国驻埃及总领事亨利·索尔特（Henry Salt, 1780–1827）在底比斯雇工采办收集，1823 年作为索尔特第一批藏品售予大英博物馆；**争议背景**——19 世纪初奥斯曼埃及帕夏统治时期，欧洲外交官凭借领事特权与雇工许可大规模发掘并外运埃及文物，学界与公众围绕殖民外交背景下的文物采办存在持续的伦理与归属讨论
+- 参考来源：
+  - 大英博物馆藏品页（Stela of Qaha, EA191）：https://www.britishmuseum.org/collection/object/Y_EA191
+  - Bierbrier M. L., 1982, *The Tomb-Builders of the Pharaohs*, British Museum Publications（代尔麦地那工匠墓碑与 Salt 收藏流转）
+  - Manley D. & Rée P., 2001, *Henry Salt: Artist, Traveller, Diplomat, Egyptologist*（Henry Salt 第一批藏品 1823 年入藏大英博物馆史实）
+- 演绎部分（虚构）：游戏内可单人背负的尺寸简化、工匠器灵对白、恶魔契约、中间人邮件与展厅安保配置均为虚构演绎。
+
+### S-004 帕特农神庙北翼骑手浮雕残块（游戏内 ID：greek_relief）
+- 年代：古希腊古典时期（约公元前 447–432 年）
+- 现藏地：英国大英博物馆（馆藏编号 `1816,0610.28`，杜维恩展厅 Duveen Gallery）
+- 原属建筑：希腊雅典卫城帕特农神庙外圈北侧浮雕带（North Frieze）
+- 流失/流转经过：**可考部分**——1801–1805 年间由英国驻奥斯曼帝国大使第七代额尔金伯爵（Thomas Bruce, 7th Earl of Elgin）团队从帕特农神庙建筑及周边拆运至伦敦，1816 年经英国议会专门委员会质询后出资 35,000 英镑购入并交大英博物馆保存；**争议部分**——希腊政府与多位历史学者指出当年奥斯曼当局许可文书（Firman）仅存意大利文译本、未见土耳其文原件，且措辞是否允许大规模锯切建筑构件长期存疑，希腊持续要求归还雅典卫城博物馆；大英博物馆则主张 1816 年议会收购合法
+- 参考来源：
+  - 大英博物馆藏品页（Parthenon North Frieze Block XLVII, 1816,0610.28）：https://www.britishmuseum.org/collection/object/G_1816-0610-28
+  - St Clair W., 1998, *Lord Elgin and the Marbles: The Controversial History of the Parthenon Sculptures*, Oxford University Press
+  - 雅典卫城博物馆官方帕特农浮雕档案：https://www.theacropolismuseum.gr/en/parthenon-gallery
+- 演绎部分（虚构）：游戏内将其设定为处于夜间维护支架上、可由单人拆卸带走的独立残块；石匠器灵台词、恶魔催交与中间人交易均为虚构演绎。
+
 ## 条目模板
 
 ```md
