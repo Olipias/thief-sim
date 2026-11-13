@@ -32,6 +32,7 @@ func _initialize() -> void:
 	_test_dirty_lore_entries()
 	_test_dirty_stash()
 	_test_dirty_archive()
+	_test_dirty_story_flags()
 	_test_current_round_trip()
 
 	if _failures > 0:
@@ -62,6 +63,7 @@ func _defaults_ok(gs, where: String) -> void:
 	check(gs.smoke_count >= 0 and gs.money >= 0, "%s：数值非负" % where)
 	check(gs.loot_stash.is_empty(), "%s：仓库为空" % where)
 	check(gs.archive_seen.is_empty(), "%s：收集册为空" % where)
+	check(gs.story_flags.is_empty(), "%s：剧情旗标为空" % where)
 
 
 func _test_missing_file() -> void:
@@ -222,6 +224,43 @@ func _test_dirty_archive() -> void:
 	gs3.free()
 
 
+## 剧情旗标字段：老档缺失 → 空字典；整段类型脏（字符串/数字）→ 重置；键值脏 → 过滤。
+func _test_dirty_story_flags() -> void:
+	var legacy := _write_save("legacy_no_flags.json", '{"money": 10}')
+	var gs = _new_game(legacy)
+	gs.load_game()
+	check(gs.story_flags.is_empty(), "老档缺 story_flags：默认空旗标")
+	check(not gs.story_flag("read_label"), "老档缺 story_flags：旗标读取为 false")
+	check(gs.money == 10, "老档缺 story_flags：其余字段正常")
+	gs.free()
+
+	var dirty_str := _write_save("dirty_flags_str.json", '{"money": 5, "story_flags": "nope"}')
+	var gs2 = _new_game(dirty_str)
+	gs2.load_game()
+	check(gs2.story_flags.is_empty(), "脏旗标：整段为字符串时重置为空")
+	check(gs2.money == 5, "脏旗标：整段类型脏不影响其余字段")
+	gs2.free()
+
+	var dirty_num := _write_save("dirty_flags_num.json", '{"money": 5, "story_flags": 42}')
+	var gs3 = _new_game(dirty_num)
+	gs3.load_game()
+	check(gs3.story_flags.is_empty(), "脏旗标：整段为数字时重置为空")
+	gs3.free()
+
+	# 键值脏：合法 bool 与 ending_id 字符串保留，数字/数组等非法值丢弃
+	var dirty_values := _write_save(
+		"dirty_flags_values.json",
+		'{"story_flags": {"read_label": true, "zun_trusted": 5, "ending_id": "return", "junk": {"x": 1}}}'
+	)
+	var gs4 = _new_game(dirty_values)
+	gs4.load_game()
+	check(gs4.story_flag("read_label"), "脏旗标：合法布尔值保留")
+	check(String(gs4.story_flags.get("ending_id", "")) == "return", "脏旗标：ending_id 字符串保留")
+	check(not gs4.story_flag("zun_trusted"), "脏旗标：非布尔值丢弃（读取为 false）")
+	check(gs4.story_flags.size() == 2, "脏旗标：非法键值对被过滤（%d）" % gs4.story_flags.size())
+	gs4.free()
+
+
 func _test_current_round_trip() -> void:
 	# 当前完整档：写完再读，全部字段一致（新增字段时别忘了同步本用例的断言）
 	var path := DIR + "/current.json"
@@ -241,6 +280,7 @@ func _test_current_round_trip() -> void:
 	writer.lore_stage = {"mask": 2}
 	writer.lore_found = {"mask": [0, 2]}
 	writer.archive_seen = {"mask": true, "ram_zun": true}
+	writer.story_flags = {"read_label": true, "read_note": true, "honest_to_mask": true, "zun_trusted": true, "ending_id": "return"}
 	writer.save_game()
 	writer.free()
 
@@ -255,5 +295,8 @@ func _test_current_round_trip() -> void:
 	check(reader.lore_stage_of("mask") == 2, "完整档：lore_stage")
 	check(reader.hotspot_found("mask", 2), "完整档：lore_found")
 	check(reader.archive_seen.size() == 2 and reader.is_archived("ram_zun"), "完整档：archive_seen")
+	check(reader.story_flag("read_label") and reader.story_flag("read_note"), "完整档：story_flags 布尔旗标（标签/留言）")
+	check(reader.story_flag("honest_to_mask") and reader.story_flag("zun_trusted"), "完整档：story_flags 布尔旗标（面具/双羊）")
+	check(String(reader.story_flags.get("ending_id", "")) == "return", "完整档：ending_id 字符串")
 	reader.free()
 	DirAccess.remove_absolute(path)

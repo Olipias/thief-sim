@@ -340,8 +340,8 @@ func _test_sell_tab() -> void:
 	check(hub.sell_list.get_child_count() == 2, "仓库列出两件战利品")
 
 	var money_before := Game.money
-	var first_row: HBoxContainer = hub.sell_list.get_child(0)
-	var sell_button: Button = first_row.get_child(2)
+	var first_row: PanelContainer = hub.sell_list.get_child(0)
+	var sell_button: Button = first_row.get_child(0).get_child(2)
 	await _click(sell_button.get_global_rect().get_center())
 	check(Game.money == money_before + 120, "点击卖出获得对应金币")
 	check(Game.loot_stash.size() == 1, "卖出的物品移出仓库")
@@ -391,6 +391,7 @@ func _ready() -> void:
 	await _test_statements_from_title()
 	await _test_title_collection()
 	await _test_sell_tab()
+	await _test_bm_story_interactions()
 
 	# 停止音频并给音频服务端一点真实时间释放播放引用（否则退出时报假泄漏）
 	Audio.shutdown()
@@ -402,3 +403,160 @@ func _ready() -> void:
 	else:
 		print("ALL %d CHECKS PASSED" % _checks)
 		get_tree().quit(0)
+
+
+# ---------------------------------------------------------------- 大英博物馆剧情交互（S-03）
+
+## 进入大英博物馆并关掉守卫 AI（剧情交互测试不需要追捕）。
+func _enter_british_museum() -> Museum:
+	if main.phone.is_open():
+		main.phone.close()
+	if main.backpack.is_open():
+		main.backpack.close()
+	if main.dialogue_tree.is_active():
+		main.dialogue_tree.close()
+	while main.dialogue.is_active():
+		main.dialogue.advance()
+		await _frames(1)
+	main.show_menu()
+	await _frames(3)
+	Game.reset_progress()
+	main.start_mission("british_museum")
+	await _frames(4)
+	while main.dialogue.is_active():
+		main.dialogue.advance()
+		await _frames(1)
+	var museum: Museum = main._museum
+	if museum != null:
+		for cop in museum.police:
+			cop.set_ai_enabled(false)
+	return museum
+
+
+func _stand_at(museum: Museum, pos: Vector2) -> void:
+	# 触发点可能贴着围栏/展柜：优先选一个可站立且仍在交互半径内的相邻格
+	var offsets: Array[Vector2] = [Vector2(0, -18), Vector2(0, 18), Vector2(18, 0), Vector2(-18, 0)]
+	for offset in offsets:
+		var p: Vector2 = pos + offset
+		var cell := Vector2i(int(p.x / museum.TILE), int(p.y / museum.TILE))
+		if not museum.is_cell_blocked(cell.x, cell.y):
+			museum.player.global_position = p
+			await _physics_frames(3)
+			return
+	museum.player.global_position = pos
+	await _physics_frames(3)
+
+
+## 等物理帧而不是 process 帧：传送后 Area2D 重叠列表要等物理步收尾才刷新，
+## headless 下 process 帧和物理帧不是一一对应，只等 process 帧时
+## 紧随其后的按 E 会在「重叠还没刷新」的物理帧里被读走（偶发吃键、提示不更新）。
+func _physics_frames(n: int) -> void:
+	for i in n:
+		await get_tree().physics_frame
+
+
+func _finish_story_tree() -> void:
+	var guard := 0
+	while main.dialogue_tree.is_active() and guard < 120:
+		await _tap(KEY_E)
+		guard += 1
+
+
+## 一路按 E 直到出现选项（双纸对谈）；返回是否见到选项。
+func _advance_until_choices() -> bool:
+	var guard := 0
+	while main.dialogue_tree.is_active() and guard < 120:
+		if main.dialogue_tree.choices_box.visible:
+			return true
+		await _tap(KEY_E)
+		guard += 1
+	return false
+
+
+func _test_bm_story_interactions() -> void:
+	# A. 只读馆方标签
+	var museum := await _enter_british_museum()
+	check(museum != null, "BM 剧情：关卡已开始")
+	if museum == null:
+		return
+	await _stand_at(museum, museum.BM_LABEL_POS)
+	await _frames(3)
+	check(main.hud.prompt_label.text.contains("馆方标签"), "标签旁提示：显示「按 E 阅读：馆方标签」（当前：%s）" % main.hud.prompt_label.text)
+	await _tap(KEY_E)
+	check(main.dialogue_tree.is_active(), "只读标签：按 E 打开剧情对谈")
+	await _finish_story_tree()
+	check(Game.story_flag("read_label"), "只读标签：read_label = true")
+	check(not Game.story_flag("read_note"), "只读标签：read_note = false")
+	check(not main.dialogue_tree.is_active() and not get_tree().paused, "只读标签：结束后不卡界面/暂停")
+
+	# B. 只读观众留言
+	museum = await _enter_british_museum()
+	check(museum != null, "BM 剧情：只读留言关卡已开始")
+	if museum == null:
+		return
+	await _stand_at(museum, museum.BM_NOTE_POS)
+	await _tap(KEY_E)
+	check(main.dialogue_tree.is_active(), "只读留言：按 E 打开剧情对谈")
+	await _finish_story_tree()
+	check(Game.story_flag("read_note"), "只读留言：read_note = true")
+	check(not Game.story_flag("read_label"), "只读留言：read_label = false")
+	check(not main.dialogue_tree.is_active() and not get_tree().paused, "只读留言：结束后不卡界面/暂停")
+
+	# C. 两张都读 → 自动触发双纸对谈（带选项）
+	museum = await _enter_british_museum()
+	if museum == null:
+		return
+	await _stand_at(museum, museum.BM_LABEL_POS)
+	await _tap(KEY_E)
+	await _finish_story_tree()
+	# 等玩家交互冷却结束（0.25s，暂停期间冻结）：测试里瞬移代替走路，
+	# 不等的话紧接着的留言 E 会被冷却吃掉（真实游玩中走路时间远长于冷却）。
+	await _wait(0.3)
+	await _stand_at(museum, museum.BM_NOTE_POS)
+	await _tap(KEY_E)
+	check(main.dialogue_tree.is_active(), "两张都读：留言对谈已打开")
+	var saw_choices := await _advance_until_choices()
+	check(saw_choices, "两张都读：自动触发双纸对谈并出现选项")
+	await _finish_story_tree()
+	check(Game.story_flag("read_label") and Game.story_flag("read_note"), "两张都读：两个 flag 均落档")
+	check(not main.dialogue_tree.is_active() and not get_tree().paused, "两张都读：结束后不卡界面/暂停")
+
+	# D. 重复阅读同一张：允许重看，但必须能正常关闭、不软锁
+	# 同上：先等上一段对谈留下的交互冷却结束，再瞬移去重读。
+	await _wait(0.3)
+	await _stand_at(museum, museum.BM_LABEL_POS)
+	await _tap(KEY_E)
+	if main.dialogue_tree.is_active():
+		await _finish_story_tree()
+	check(not main.dialogue_tree.is_active() and not get_tree().paused, "重复阅读：可正常关闭、不软锁")
+
+	# E. 都不读：flag 保持 false，不自动弹对谈
+	museum = await _enter_british_museum()
+	if museum == null:
+		return
+	await _frames(3)
+	check(not Game.story_flag("read_label") and not Game.story_flag("read_note"), "都不读：flag 保持 false")
+	check(not main.dialogue_tree.is_active(), "都不读：没有自动弹出对谈")
+
+	# F. 幽灵在场时的提示优先级：剧情物应优先于"与器灵交谈"（否则提示与 E 行为相反）
+	var zun: Artifact = null
+	for child in museum.get_children():
+		if child is Artifact and child.item_id == "ram_zun":
+			zun = child
+	if zun != null:
+		Game.lore_stage["ram_zun"] = 3  # 跳过双羊对谈，只留幽灵跟随
+		museum.ghost_delay = 0.1
+		zun.try_pickup()
+		await _frames(2)
+		while main.dialogue.is_active():
+			main.dialogue.advance()
+			await _frames(1)
+		await _wait(0.5)
+		await _stand_at(museum, museum.BM_LABEL_POS)
+		await _frames(3)
+		check(
+			main.hud.prompt_label.text.contains("馆方标签"),
+			"幽灵在场时：标签提示应优先显示「按 E 阅读」（当前：%s）" % main.hud.prompt_label.text
+		)
+	else:
+		check(false, "BM 剧情：找不到双羊尊，无法验证幽灵提示优先级")

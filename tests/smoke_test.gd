@@ -648,13 +648,16 @@ func _test_inspect_page() -> void:
 	check(Game.hotspot_found("mask", 0), "hotspot discovery is recorded")
 	check(page.cards_box.get_child_count() == Lore.cards("mask").size(), "cards are listed")
 
-	# 双羊尊没有剧本，但档案/端详页也要用混元 3D 渲染的特写（而不是 24×24 图标放大）
+	# 双羊尊已有文物志（3 段 / 3 卡 / 4 热点），档案/端详页仍用混元 3D 渲染的特写
 	page.set_item("ram_zun")
+	await get_tree().process_frame  # 让 mask 的旧卡片按钮真正出队，再数数量
 	check(page.image.texture != null, "zun inspect page loads a closeup")
 	check(page.image.texture.resource_path.contains("relic_ram_zun_closeup"), "zun inspect uses the 2.5D 3D-render closeup")
-	check(page._marker_buttons.is_empty(), "zun has no hotspots yet")
-	check(not page.cards_label.visible, "empty card section is hidden for the zun")
-	check(not page.progress_label.text.contains("0 / 0"), "no misleading 0/0 hotspot counter")
+	var zun_hotspots := Lore.hotspots("ram_zun").size()
+	check(page._marker_buttons.size() == zun_hotspots, "one marker per zun hotspot")
+	check(page.cards_label.visible, "zun card section is visible")
+	check(page.cards_box.get_child_count() == Lore.cards("ram_zun").size(), "zun cards are listed")
+	check(page.progress_label.text.contains("0 / %d" % zun_hotspots), "zun hotspot counter is data-driven")
 	page.queue_free()
 	await get_tree().process_frame
 

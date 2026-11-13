@@ -3,6 +3,18 @@
 [ext_resource type="Script" path="res://src/ui/mission_phone.gd" id="1_script"]
 [ext_resource type="Script" path="res://src/ui/relic_view.gd" id="2_relic"]
 [ext_resource type="PackedScene" path="res://src/ui/inspect_page.tscn" id="3_inspect"]
+[ext_resource type="Texture2D" path="res://assets/art/phone_frame_9p.png" id="4_frame"]
+
+[sub_resource type="StyleBoxTexture" id="StyleBoxTexture_phone"]
+texture = ExtResource("4_frame")
+texture_margin_left = 12.0
+texture_margin_top = 12.0
+texture_margin_right = 12.0
+texture_margin_bottom = 12.0
+content_margin_left = 18.0
+content_margin_top = 16.0
+content_margin_right = 18.0
+content_margin_bottom = 16.0
 
 [sub_resource type="StyleBoxFlat" id="StyleBoxFlat_phone"]
 content_margin_left = 14.0
@@ -55,7 +67,7 @@ anchor_right = 1.0
 anchor_bottom = 1.0
 grow_horizontal = 2
 grow_vertical = 2
-color = Color(0.02, 0.02, 0.04, 0.6)
+color = Color(0.02, 0.02, 0.04, 0.86)
 
 [node name="Panel" type="PanelContainer" parent="Root"]
 anchor_left = 0.5
@@ -64,7 +76,8 @@ anchor_right = 0.5
 anchor_bottom = 0.5
 grow_horizontal = 2
 grow_vertical = 2
-theme_override_styles/panel = SubResource("StyleBoxFlat_phone")
+theme_override_styles/panel = SubResource("StyleBoxTexture_phone")
+custom_minimum_size = Vector2(560, 0)
 
 [node name="Margin" type="MarginContainer" parent="Root/Panel"]
 
@@ -81,11 +94,13 @@ theme_override_font_sizes/font_size = 14
 text = "神偷组织 · 任务终端"
 
 [node name="TabTask" type="Button" parent="Root/Panel/Margin/VBox/Header"]
+theme_override_font_sizes/font_size = 10
 toggle_mode = true
 button_pressed = true
 text = "任务"
 
 [node name="TabArchive" type="Button" parent="Root/Panel/Margin/VBox/Header"]
+theme_override_font_sizes/font_size = 10
 toggle_mode = true
 text = "档案"
 
@@ -96,6 +111,8 @@ theme_override_constants/separation = 6
 theme_override_constants/separation = 12
 
 [node name="RelicCard" type="PanelContainer" parent="Root/Panel/Margin/VBox/TaskPage/Body"]
+custom_minimum_size = Vector2(86, 100)
+size_flags_vertical = 0
 theme_override_styles/panel = SubResource("StyleBoxFlat_paper")
 
 [node name="Relic" type="Control" parent="Root/Panel/Margin/VBox/TaskPage/Body/RelicCard"]
@@ -105,21 +122,23 @@ script = ExtResource("2_relic")
 
 [node name="Info" type="VBoxContainer" parent="Root/Panel/Margin/VBox/TaskPage/Body"]
 custom_minimum_size = Vector2(390, 0)
-theme_override_constants/separation = 4
+theme_override_constants/separation = 3
 
 [node name="TargetName" type="Label" parent="Root/Panel/Margin/VBox/TaskPage/Body/Info"]
 theme_override_colors/font_color = Color(0.96, 0.84, 0.4, 1)
-theme_override_font_sizes/font_size = 16
+theme_override_font_sizes/font_size = 14
 text = "任务目标"
 
 [node name="Meta" type="Label" parent="Root/Panel/Margin/VBox/TaskPage/Body/Info"]
 theme_override_colors/font_color = Color(0.78, 0.8, 0.86, 1)
+theme_override_font_sizes/font_size = 10
 autowrap_mode = 2
 text = "行动地点："
 
 [node name="Story" type="Label" parent="Root/Panel/Margin/VBox/TaskPage/Body/Info"]
 size_flags_vertical = 3
 theme_override_colors/font_color = Color(0.68, 0.7, 0.78, 1)
+theme_override_font_sizes/font_size = 10
 autowrap_mode = 2
 text = ""
 
@@ -128,19 +147,20 @@ theme_override_styles/panel = SubResource("StyleBoxFlat_paper")
 
 [node name="Archive" type="Label" parent="Root/Panel/Margin/VBox/TaskPage/Body/Info/ArchiveCard"]
 theme_override_colors/font_color = Color(0.26, 0.22, 0.16, 1)
-theme_override_font_sizes/font_size = 10
+theme_override_font_sizes/font_size = 9
 autowrap_mode = 2
 text = ""
 
 [node name="Notes" type="Label" parent="Root/Panel/Margin/VBox/TaskPage/Body/Info"]
 theme_override_colors/font_color = Color(0.55, 0.5, 0.4, 1)
+theme_override_font_sizes/font_size = 9
 autowrap_mode = 2
 text = ""
 
 [node name="Footer" type="Label" parent="Root/Panel/Margin/VBox/TaskPage"]
 theme_override_colors/font_color = Color(0.45, 0.47, 0.53, 1)
-theme_override_font_sizes/font_size = 10
-text = "档案 / 商店 app 开发中 · P 或 Esc 关闭"
+theme_override_font_sizes/font_size = 9
+text = "任务 / 档案 · P / ESC 关闭"
 horizontal_alignment = 2
 
 [node name="ArchivePage" type="HBoxContainer" parent="Root/Panel/Margin/VBox"]

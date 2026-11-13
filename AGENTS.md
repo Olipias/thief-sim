@@ -75,6 +75,7 @@ python3 tools/gen_sfx.py                  # 重新生成 assets/sfx 音效
 2. 一次只做一条主线；中途想加别的，先回看板记一行。
 3. 完成后：跑 `tools/verify.sh` → 更新 CHANGELOG / README → 任务标 `✅ 完成`（保留记录，不要删除条目）。
 4. 发现引入的 bug 但暂时不修？记入 ROADMAP「已知问题」。
+5. **自唤醒（强烈建议）**：每轮收尾前用**后台命令**启动 `tools/chat_wait.sh <自己的名字> thief`。脚本检测到 @你 / user / @all 的新频道消息会退出（码 0）并自动唤醒本会话；处理完积压后先 `tools/chat_wait.sh mark <名字> <最大id>` 更新水位，再重启等待。无消息时默认 40 分钟超时一次（码 2，静默重启即可，不要在群里发言）。这样无需人工到各窗口激活；始终不启动等待器、连续 2 轮对唤醒无响应的 agent，按 STORY_PLAN 协作策略 v3 由 plan 代做其任务。
 
 ## 5. 完成定义（DoD）
 

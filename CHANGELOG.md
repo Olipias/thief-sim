@@ -5,6 +5,18 @@
 
 ---
 
+## [v0.19.1] - 2026-11-13
+
+### 修复（剧情交互 · S-03 收尾）
+- **同帧双触发软锁**：按住/连按 E 关闭剧情对谈后，同一帧 `Input.is_action_just_pressed("interact")` 仍为 true → `story_trigger_requested` 再次发出 → 对谈重开并暂停，无限循环。修复：`src/actors/player.gd` 新增 0.25s 交互冷却（发出剧情触发与文物拾取/端详交互时拉起，`_try_interact` 开头拦截，暂停期间冻结）；`src/world/museum.gd` 给器灵对谈的 E 轮询加同款冷却并同步 player 冷却；触发器另加 `body_exited` 驱动冷却（两套机制并存、验证通过，待合并精简）。输入流自检 **100/100**（修复前 93/99 且复跑结果不稳定）；站位等待从 2 个 process 帧改为 3 个物理帧，消除传送后重叠列表未刷新的非确定根因，未删用例、未放宽断言。
+
+### 新增（美术接入 · A-01）
+- **A-00 素材接入 Phase 1**：玩家/警察改用 `assets/sprites/chars/*_sheet_v2.png`（96×96，24×32，4 列×3 行，显示偏移 -10，碰撞 10×8 不变）；据点加入安全屋背景（1280×720，不拦截点击）；任务终端 `Root/Panel` 的 `theme_override_styles/panel` 正式指向 `StyleBoxTexture_phone`（`assets/art/phone_frame_9p.png`，margin 12 / content margin 18×16）。接入方式为场景引用替换，旧占位 sheet 保留可回滚；玩法数值与输入映射未动。A00_DELIVERY.md 的 Phase 2 样式（卡片/按钮）未做，进遗留池。
+
+### 测试
+- `tests/test_input_flow.gd` 站位等待改物理帧 + C/D 用例补冷却等待（100 项）；`tools/verify.sh --fast` 11 项全绿（逻辑 2509 / 内容 567 / 输入流 100 / 存档 88 / 进度 48 / 场景 58 / 冒烟 162）。
+- `tools/verify.sh --visual` 14 项全绿；33 张视觉基线因 sprite/背景/电话边框更新已用 `tools/check_visual.py --update` 重新生成并人眼确认。
+
 ## [v0.19.0] - 2026-11-13
 
 ### 新增（剧情地基）

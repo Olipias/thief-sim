@@ -19,10 +19,23 @@
 | `BM_archive_ui.jpg` | 文物档案 UI | 任务终端档案卡（可考/不可考/演绎）+ 背包双羊尊图标 |
 | `A2_room3_upgrade.jpg` | A v2 目标厅概念稿 | 主文物光池 + 24×32 角色 + 博物馆标签 UI；用于方向讨论，非最终资产 |
 | `A2_comparison_board.jpg` | A v2 现状 vs 目标 | 左：v0.16.3 实机；右：A v2 概念；下方角色/展柜/UI 三项 callout |
+| `A00_characters_board.png` | A-00 角色规格板 | 24×32 玩家/警察 3 向 × 4 帧、调色板、锚点/帧映射/接入说明 |
+| `A00_safehouse_ui.png` | A-00 安全屋 UI 目标稿 | 安全屋背景 + 任务卡/标签/按钮/手机图标 |
+| `A00_phone_ui.png` | A-00 电话 UI 目标稿 | 黄铜手机、米纸档案卡、朱印、任务/档案 tabs |
+| `A00_concept_board.png` | A-00 SiliconFlow 概念板 | 玩家/警察/安全屋/电话材质四张概念 + 使用边界 |
+| `A00_ingame_scale.png` | A-00 游戏尺度对比 | 现有 16×24 vs 新 24×32；碰撞不变 |
 | `title_key_art_clean.jpg` | 开始界面立绘（C 方向：微缩夜馆） | 1280×720 无字背景；博物馆 + 小偷；标题/菜单由 Godot 绘制 |
 | `title_key_art_title_screen.jpg` | 标题界面安全区版 | 与 clean 同源；左侧由 UI 面板压暗 |
 | `title_key_art_logo.jpg` | 开始界面立绘（左侧 UI 示意） | 检查标题/菜单安全区与可读性 |
 | `title_screen_ingame.jpg` | 标题界面实机截图 | 左侧 UI 栏 + C 方向立绘的组合效果 |
+
+## A-00 交付（2026-11-13）
+
+- 角色：玩家/警察 24×32、3 向 × 4 帧，sheet 96×96；`tools/a00_characters.py` 手工绘制，`tools/gen_a00_art.py` 输出。规格/接入见 `docs/art_direction/A00_DELIVERY.md`。
+- 安全屋：`assets/art/safehouse_bg.png`（1280×720）+ `A00_safehouse_ui.png` 目标稿；SiliconFlow 概念做背景，程序化 UI 覆盖。
+- 电话：`assets/art/phone_frame_9p.png`（96×96，margin 12）+ `A00_phone_ui.png` 目标稿；概念只取黄铜/黑玻璃/纸卡材质。
+- SiliconFlow：Kolors；概念原图与 prompt 在 `a00_src/`；概念不直接进入玩法。
+- 完整规格/接入/验收：`docs/art_direction/A00_DELIVERY.md`。
 
 ## A v2 提案（2026-10-21）
 

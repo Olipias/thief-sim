@@ -8,6 +8,87 @@ signal quit_requested
 const ROWS := ["backpack", "sneakers", "smoke"]
 const RELIC_ZOOM := 0.75
 
+
+func _panel_style() -> StyleBoxFlat:
+	var style := StyleBoxFlat.new()
+	style.bg_color = Color(0.047, 0.078, 0.094, 0.92)
+	style.border_width_left = 1
+	style.border_width_top = 1
+	style.border_width_right = 1
+	style.border_width_bottom = 1
+	style.border_color = Color("604a28")
+	style.corner_radius_top_left = 2
+	style.corner_radius_top_right = 2
+	style.corner_radius_bottom_left = 2
+	style.corner_radius_bottom_right = 2
+	style.content_margin_left = 8.0
+	style.content_margin_top = 5.0
+	style.content_margin_right = 8.0
+	style.content_margin_bottom = 5.0
+	return style
+
+
+func _style_panel(panel: PanelContainer) -> void:
+	panel.add_theme_stylebox_override("panel", _panel_style())
+
+
+func _style_button(button: Button, primary := false, font_size := 12) -> void:
+	var normal := StyleBoxFlat.new()
+	normal.bg_color = Color("d8a84e") if primary else Color(0.063, 0.102, 0.118, 0.96)
+	normal.border_width_left = 1
+	normal.border_width_top = 1
+	normal.border_width_right = 1
+	normal.border_width_bottom = 1
+	normal.border_color = Color("604a28")
+	normal.corner_radius_top_left = 2
+	normal.corner_radius_top_right = 2
+	normal.corner_radius_bottom_left = 2
+	normal.corner_radius_bottom_right = 2
+	normal.content_margin_left = 8.0
+	normal.content_margin_top = 3.0
+	normal.content_margin_right = 8.0
+	normal.content_margin_bottom = 3.0
+	var hover := normal.duplicate() as StyleBoxFlat
+	hover.bg_color = Color("f4d48a") if primary else Color(0.102, 0.165, 0.18, 0.98)
+	var pressed := normal.duplicate() as StyleBoxFlat
+	pressed.bg_color = Color("b88938") if primary else Color("d8a84e")
+	button.add_theme_stylebox_override("normal", normal)
+	button.add_theme_stylebox_override("hover", hover)
+	button.add_theme_stylebox_override("pressed", pressed)
+	button.add_theme_stylebox_override("focus", StyleBoxEmpty.new())
+	button.add_theme_color_override("font_color", Color("1a120c") if primary else Color("d8a84e"))
+	button.add_theme_color_override("font_hover_color", Color("1a120c") if primary else Color("f4d48a"))
+	button.add_theme_color_override("font_pressed_color", Color("1a120c"))
+	button.add_theme_color_override("font_disabled_color", Color("6a6254"))
+	button.add_theme_font_size_override("font_size", font_size)
+
+
+func _style_static_ui() -> void:
+	var tabs: Array[Button] = [tab_levels, tab_shop, tab_sell, sell_all_button]
+	for button in tabs:
+		_style_button(button)
+	var quit: Button = $QuitButton
+	_style_button(quit)
+	for id in ROWS:
+		var row := _row(id)
+		_style_panel(row)
+		var buy: Button = row.get_node("HBox/Buy")
+		_style_button(buy, false, 10)
+		var name_label: Label = row.get_node("HBox/Info/Name")
+		name_label.add_theme_font_size_override("font_size", 12)
+		var desc_label: Label = row.get_node("HBox/Info/Desc")
+		desc_label.add_theme_font_size_override("font_size", 9)
+		var price_label: Label = row.get_node("HBox/Price")
+		price_label.add_theme_font_size_override("font_size", 10)
+	var sell_title: Label = $SellBox/SellHeader/SellTitle
+	sell_title.add_theme_font_size_override("font_size", 12)
+	var sell_total_label: Label = $SellBox/SellHeader/SellTotal
+	sell_total_label.add_theme_font_size_override("font_size", 10)
+	feedback.add_theme_font_size_override("font_size", 10)
+	money_label.add_theme_font_size_override("font_size", 12)
+	var hint: Label = $Hint
+	hint.add_theme_font_size_override("font_size", 9)
+
 @onready var money_label: Label = $MoneyLabel
 @onready var feedback: Label = $Feedback
 @onready var levels_box: VBoxContainer = $LevelsBox
@@ -19,6 +100,7 @@ const RELIC_ZOOM := 0.75
 @onready var tab_levels: Button = $TabLevels
 @onready var tab_shop: Button = $TabShop
 @onready var tab_sell: Button = $TabSell
+@onready var hint_label: Label = $Hint
 
 
 func _ready() -> void:
@@ -33,6 +115,7 @@ func _ready() -> void:
 	_build_level_cards()
 	_refresh()
 	_show_tab("levels")
+	_style_static_ui()
 
 
 func _row(id: String) -> PanelContainer:
@@ -44,6 +127,13 @@ func _show_tab(tab: String) -> void:
 	shop_box.visible = tab == "shop"
 	sell_box.visible = tab == "sell"
 	feedback.visible = tab == "shop"
+	match tab:
+		"levels":
+			hint_label.text = "点击卡片开始行动 · 任务详情见手机（P）· 存档自动保存"
+		"shop":
+			hint_label.text = "购买升级 · 金币不足时先去干一票"
+		"sell":
+			hint_label.text = "选择战利品出手 · 或全部出手"
 	tab_levels.button_pressed = tab == "levels"
 	tab_shop.button_pressed = tab == "shop"
 	tab_sell.button_pressed = tab == "sell"
@@ -58,11 +148,17 @@ func _build_level_cards() -> void:
 	for level_id in Game.LEVELS:
 		var info: Dictionary = Game.LEVELS[level_id]
 		var card := PanelContainer.new()
-		card.custom_minimum_size = Vector2(0, 66)
+		card.custom_minimum_size = Vector2(0, 70)
+		_style_panel(card)
 
 		var hbox := HBoxContainer.new()
-		hbox.add_theme_constant_override("separation", 10)
+		hbox.add_theme_constant_override("separation", 8)
 		card.add_child(hbox)
+
+		var strip := ColorRect.new()
+		strip.color = Color("a63126")
+		strip.custom_minimum_size = Vector2(3, 0)
+		hbox.add_child(strip)
 
 		var relic := RelicView.new()
 		relic.zoom = RELIC_ZOOM
@@ -71,21 +167,29 @@ func _build_level_cards() -> void:
 
 		var info_box := VBoxContainer.new()
 		info_box.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		info_box.add_theme_constant_override("separation", 1)
 		var name_label := Label.new()
 		name_label.text = String(info.get("name", level_id))
-		name_label.add_theme_font_size_override("font_size", 14)
+		name_label.add_theme_font_size_override("font_size", 12)
 		name_label.add_theme_color_override("font_color", Color("f5d766"))
 		info_box.add_child(name_label)
 		var target := String(info.get("target", ""))
 		var detail := Label.new()
 		detail.text = "目标：%s · 报酬：%d 金币" % [Game.item_name(target), int(info.get("reward", 0))]
-		detail.add_theme_color_override("font_color", Color("9fa6b4"))
+		detail.add_theme_font_size_override("font_size", 10)
+		detail.add_theme_color_override("font_color", Color("c8c2b2"))
 		info_box.add_child(detail)
+		var hint := Label.new()
+		hint.text = "点击卡片查看任务 · 目标文物已归档"
+		hint.add_theme_font_size_override("font_size", 8)
+		hint.add_theme_color_override("font_color", Color("969c96"))
+		info_box.add_child(hint)
 		hbox.add_child(info_box)
 
 		var start_button := Button.new()
 		start_button.text = "开始行动"
-		start_button.custom_minimum_size = Vector2(96, 0)
+		start_button.custom_minimum_size = Vector2(96, 34)
+		_style_button(start_button, true, 12)
 		start_button.pressed.connect(func() -> void: start_requested.emit(level_id))
 		hbox.add_child(start_button)
 
@@ -106,31 +210,42 @@ func _build_sell_list() -> void:
 	sell_total.text = "估值 %d 金币" % Game.stash_value()
 	sell_all_button.disabled = Game.loot_stash.is_empty()
 	if Game.loot_stash.is_empty():
+		var empty_panel := PanelContainer.new()
+		_style_panel(empty_panel)
 		var empty := Label.new()
 		empty.text = "仓库里还没有战利品。成功撤离并带回文物后，会存放在这里。"
 		empty.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+		empty.add_theme_font_size_override("font_size", 10)
 		empty.add_theme_color_override("font_color", Color("8a8f9c"))
-		sell_list.add_child(empty)
+		empty_panel.add_child(empty)
+		sell_list.add_child(empty_panel)
 		return
 	for i in Game.loot_stash.size():
 		var id := String(Game.loot_stash[i])
+		var panel := PanelContainer.new()
+		_style_panel(panel)
 		var row := HBoxContainer.new()
+		row.add_theme_constant_override("separation", 8)
 		var name_label := Label.new()
 		name_label.text = Game.item_name(id)
 		name_label.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		name_label.add_theme_font_size_override("font_size", 11)
 		row.add_child(name_label)
 		var value_label := Label.new()
 		value_label.text = "%d 金币" % Game.item_value(id)
 		value_label.custom_minimum_size = Vector2(90, 0)
 		value_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
 		value_label.add_theme_color_override("font_color", Color("f5d766"))
+		value_label.add_theme_font_size_override("font_size", 10)
 		row.add_child(value_label)
 		var button := Button.new()
 		button.text = "卖出"
-		button.custom_minimum_size = Vector2(64, 0)
+		button.custom_minimum_size = Vector2(64, 26)
+		_style_button(button, false, 10)
 		button.pressed.connect(_on_sell.bind(i))
 		row.add_child(button)
-		sell_list.add_child(row)
+		panel.add_child(row)
+		sell_list.add_child(panel)
 
 
 func _on_sell(index: int) -> void:

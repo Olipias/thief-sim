@@ -18,6 +18,11 @@ signal story_requested(lines: Array, cards: Dictionary, on_finished: Callable)
 const TILE := 16
 const SMOKE_RADIUS := 72.0
 const SMOKE_BLIND_TIME := 3.5
+## 器灵对谈冷却（秒）：防同帧双触发——对谈关闭解除暂停的同一帧，
+## 本 _process 的 E 轮询仍可能读到同一个按键（is_action_just_pressed 的边界
+## 在同一帧内对 physics/process 两侧都可能成立），把刚关的对谈再打开。
+## 与 player.gd / main.gd 的交互冷却同一思路。
+const TALK_COOLDOWN := 0.25
 const WALKABLE := ".~TapXP123456789"
 const NIGHT_TINT := Color(0.33, 0.37, 0.55)
 const NIGHT_TINT_BM := Color(0.46, 0.50, 0.66)  ## 大英博物馆：冷夜但保留展厅可读性
@@ -221,6 +226,7 @@ var level_id := "museum"
 
 var _ended := false
 var _last_prompt := ""
+var _talk_cooldown := 0.0
 var _noise_warned := false
 var _wail_warned := false
 var _patrol_hint_shown := false
@@ -607,6 +613,8 @@ func _cell_center(x: int, y: int) -> Vector2:
 func _process(delta: float) -> void:
 	_bm_time += delta
 	_animate_bm_decor()
+	# 对谈打开期间游戏暂停、_process 不跑，冷却正好冻结到关闭那一帧，拦下同一次按键。
+	_talk_cooldown = maxf(0.0, _talk_cooldown - delta)
 	if player == null or _ended:
 		return
 	var idx := room_index_at(player.global_position)
@@ -630,7 +638,11 @@ func _process(delta: float) -> void:
 	if prompt != _last_prompt:
 		_last_prompt = prompt
 		prompt_changed.emit(prompt)
-	if _ghost_near() and Input.is_action_just_pressed("interact"):
+	if _ghost_near() and Input.is_action_just_pressed("interact") and _talk_cooldown <= 0.0:
+		_talk_cooldown = TALK_COOLDOWN
+		# 器灵对谈由 museum 发起，但玩家轮询同样会读这颗 E：把玩家交互冷却一并拉起，
+		# 防止对谈关闭的同一帧玩家 _try_interact 又触发旁边的剧情/文物交互。
+		player.start_interact_cooldown()
 		_talk_to_ghost()
 
 

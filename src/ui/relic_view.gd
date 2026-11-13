@@ -19,6 +19,16 @@ var _time := 0.0
 
 
 func set_item(item_id: String) -> void:
+	# 面具用 48×48 的特写头像，手机/据点卡片里比 16×16 图标更可读。
+	var closeup_path := "res://assets/sprites/%s_closeup.png" % item_id
+	if item_id == "mask" and ResourceLoader.exists(closeup_path):
+		_texture = load(closeup_path)
+		_frames = 1
+		_frame_size = Vector2i(_texture.get_width(), _texture.get_height())
+		_scale = zoom
+		custom_minimum_size = Vector2(_frame_size.x * _scale, _frame_size.y * _scale)
+		queue_redraw()
+		return
 	var ui_path := "res://assets/sprites/relic_%s_ui_strip.png" % item_id
 	if ResourceLoader.exists(ui_path):
 		_texture = load(ui_path)

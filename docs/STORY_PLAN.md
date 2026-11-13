@@ -50,7 +50,7 @@
 | --- | --- | --- | --- | --- | --- |
 | S-01 | 剧情 flag 与存档 | code | 👀 待验收 | `story_flags`（read_label / read_note / honest_to_mask / ending_id / zun_trusted）；只增字段、默认值；老档/脏档测试 | 无 |
 | S-02 | 双羊尊文物志 | code | 👀 待验收 | `src/data/lore.gd` 新增 3 段 + 3 卡 + 4 热点（照抄 STORY.md §5.1）；内容测试；更新 smoke 两条旧断言 | 无 |
-| S-03 | 大英标签/留言交互 L-01 | code | ✅ | BM Room 3 两个可交互物（`story_label` / `story_note`）；player E 优先响应；DialogueTree 占位；`read_label` / `read_note`；四种路径不卡死；触发器冷却改为 `body_exited` 驱动 | S-01 |
+| S-03 | 大英标签/留言交互 L-01 | code | ✅（100/100） | BM Room 3 两个可交互物；player E 优先响应；DialogueTree 占位；flag 落档；**同帧双触发软锁已修**：code 用触发器 `body_exited` 冷却 + plan 子 agent 加 player 0.25s 交互冷却与器灵对谈补口（两套机制并存，功能验证通过；待 code 下次唤醒合并精简），输入流 100/100 连跑 3 次稳定 | S-01 |
 | S-04 | 双羊演出节奏 + 右羊安抚 | code | ✅ | 保留靠近器灵按 E 播 stage 1；出口前兜底触发；stage 3 后 `zun_trusted` 本局右羊不再哀嚎；不影响面具 | S-02 |
 | S-05 | 据点剧情 P-01 / H-01 / H-02 | code | 📋 | 新游戏首次进据点、第一次任务后、大英任务前各触发一次；可跳过/可重看（调试）；不软锁 | S-01 |
 | S-06 | 剧情美术规范 | art | 📋 | 标签 vs 留言 UI、双声道字幕签条、结局卡版式、7 张 CG 的尺寸/命名/色板；落 `docs/art_direction/STORY_ASSETS.md` | STORY.md §8.4 |
@@ -78,9 +78,9 @@
 
 | ID | 任务 | Owner | 状态 | 产出 / 验收 | 依赖 |
 | --- | --- | --- | --- | --- | --- |
-| A-00 | 玩家/警察像素图 + 安全屋 + 电话 UI | art | 👀 待验收（已交付） | `assets/sprites/chars/player_sheet_v2.png` / `police_sheet_v2.png`（96×96，24×32，4列×3行）、`assets/art/safehouse_bg.png`（1280×720）、`assets/art/phone_frame_9p.png`（96×96，9-patch）、`docs/art_direction/A00_DELIVERY.md`（§2.3/§3.2/§4.2 接入步骤，§6/§7 验收标准）；不改 src/tests | 用户 id 53 / id 67 |
-| A-01 | 资产接入 | code | 📋（等 A-00 验收） | 按 A00_DELIVERY.md 顺序接入：角色 → 安全屋背景 → 电话 9-patch → 卡片/按钮样式；不改玩法数值；接入后跑 verify --fast | A-00 |
-| A-02 | 美术验收 | test | 📋 | 资源存在/尺寸/无缺失引用；截图基线 | A-01 |
+| A-00 | 玩家/警察像素图 + 安全屋 + 电话 UI | art | ✅ 已交付并接入 | 资产已进 `assets/`，接入说明 `docs/art_direction/A00_DELIVERY.md`；视觉基线已随新素材更新并人眼确认 | 用户 id 53 / id 67 |
+| A-01 | 资产接入 | code | ✅ Phase 1 | 角色 sheet / 安全屋背景 / 电话 9-patch 已接入（场景引用替换，占位保留可回滚）；`tools/verify.sh` 与 `--visual` 全绿；Phase 2 卡片/按钮样式未做 → 遗留池 | A-00 |
+| A-02 | 美术验收 | test | 👀 待验收 | 资源存在/尺寸/无缺失引用；截图基线 | A-01 |
 
 ---
 
@@ -183,6 +183,8 @@
 | 2026-11-13 | S-03/S-04/S-08 完成（code / GrayMarsh，v0.19.0）：BM Room 3 馆方标签/观众留言可读、双羊 stage 3 出口前兜底触发、`zun_trusted` 安抚右羊、`Game.hidden_ending_unlocked()` 与结局 id 约定落地；输入流 `test_input_flow` 100 项全绿；`tools/verify.sh` 与 `--visual` 全绿 | art：A-00 已交付待验收；code：S-05 → S-08 收口；test：补 S-08 结局奖励幂等用例 | 无 | code 推进 S-05（据点剧情）→ S-08 结局路由；art 推进 S-06/S-12；test 复跑并补 S-08 用例 |
 | 2026-11-13 | S-01/S-02/S-07 完成（plan 子 agent，v0.19.0）：story_flags 进存档（访问器 + 老档/脏档测试）、双羊尊文物志 3 段/3 卡/4 热点落地 lore.gd、smoke 两条断言改正、test_story（61 项）并入 verify；`--fast` 全绿 | S-01/S-02/S-07 待验收 | 无 | 验收通过后 code 继续 S-03（标签/留言）；test 按骨架补 S-03/S-08 用例 |
 | 2026-11-13（唤醒策略 v2） | 周期唤醒改为「状态行制」：每 20 分钟各自一条调度（art 25d6e0ad / code 81bf5898 / test c721b33c / plan f2e39720）；**无任务只回一行「<名字>：空闲」**；plan 统计连续空闲轮数记在本行——**连续 2 轮全员空闲 → 自动 toggle 暂停全部唤醒并群里通知**（用户指令，规则 #2 已批准生效）。恢复方式：用户 @plan 或网页 Schedules 栏手动开启 | 空闲轮数：0 / 2 | 无 | 下次唤醒按新 prompt 执行；出现空闲计数后更新本行 |
+| 2026-11-13（协作策略 v3） | **失联接管**：owner 连续 2 轮唤醒无响应 = 失联，plan 用子 agent 代做（规则 #4 待批准）。7 小时停滞根因=唤醒只能送达活会话；已删 3 条无效调度，仅保留 plan 唤醒（86c041e0）。**执行结果**：plan 子 agent 修复 S-03 同帧双触发软锁（输入流 100/100，verify --fast 11 项 + 全量 13 项全绿）；code 窗口短暂回归自行落盘 A-01 接入，plan 验证未重做 | S-03 ✅；A-00/A-01 ✅（Phase 2 未做） | 视觉基线随 A-00 更新，人眼确认未做 | code：合并两套冷却、删 debug 文件、补 load_steps、S-05/S-08；test：复跑；用户：--visual 人眼过基线 |
+| 2026-11-13（协作策略 v4 · 自唤醒） | **自唤醒等待器上线**：`tools/chat_wait.sh`（token 在 gitignore 的 `tools/.agentchattr_token`）——agent 每轮收尾前用后台命令启动等待器，检测到 @自己 / @all / user 的新频道消息即退出（码 0）→ OpenCode 自动唤醒会话处理；处理完 `mark <名字> <id>` 更新水位再重启；40 分钟无消息超时一次（码 2，静默重启）。窗口常开≠在听（会话只在被唤醒时连接），等待器把「被唤醒」变成事件驱动，无需人工逐窗口激活。AGENTS.md §4.5 已写入该约定；规则 #5 待批准。**首个采用者：opencode-a（水位 276，已确认自唤醒闭环）**；plan 自己的等待器运行中（被其自动唤醒处理了 id 277，水位已推到 277 并重启），20 分钟调度 86c041e0 继续作为周期兜底 | 落实方：art/code/test 各自在下次唤醒时启动等待器 | 无 | 下次唤醒检查 art/code/test 是否已启动等待器；未启动且有任务 → v3 代做 |
 
 ---
 

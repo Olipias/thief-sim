@@ -113,7 +113,9 @@ func _ready() -> void:
 		await _wait(0.2)
 		main.dialogue_tree.advance()
 		await _wait(0.2)
-		await _shot("/tmp/shot_lore_choices.png")
+		if not main.dialogue_tree._choice_buttons.is_empty():
+			main.dialogue_tree._choice_buttons[0].grab_focus()
+		await _shot("/tmp/shot_lore_choices.png", true)
 		if not main.dialogue_tree._choice_buttons.is_empty():
 			main.dialogue_tree._choice_buttons[0].pressed.emit()
 			await _wait(0.2)
@@ -201,6 +203,7 @@ func _ready() -> void:
 			zun.try_pickup()
 			await _wait(0.8)
 			_skip_dialogue(main)
+			_skip_dialogue_tree(main)  # S-02：双羊拾取后会自动弹器灵对谈，截图前要先走完
 			await _wait(0.4)
 			await _shot("/tmp/shot_bm_ghost.png")
 			# 背包里的双羊尊 32×32 图标（bm_zun_32.png）
@@ -217,6 +220,26 @@ func _ready() -> void:
 			await _shot("/tmp/shot_bm_archive.png")
 			main.phone.close()
 			await _wait(0.2)
+		# 大英博物馆 Room 3 剧情：馆方标签 / 观众留言 / 双纸对谈（S-03）
+		bm.player.global_position = bm.BM_LABEL_POS + Vector2(0, -18)
+		await _wait(0.3)
+		bm.player.story_trigger_requested.emit("story_label")
+		await _wait(0.4)
+		await _shot("/tmp/shot_bm_label.png")
+		_skip_dialogue_tree(main)
+		await _wait(0.2)
+		bm.player.global_position = bm.BM_NOTE_POS + Vector2(0, -18)
+		await _wait(0.2)
+		bm.player.story_trigger_requested.emit("story_note")
+		await _wait(0.4)
+		await _shot("/tmp/shot_bm_note.png")
+		_advance_tree_to_choices(main)
+		await _wait(0.2)
+		if not main.dialogue_tree._choice_buttons.is_empty():
+			main.dialogue_tree._choice_buttons[0].grab_focus()
+		await _shot("/tmp/shot_bm_both.png", true)
+		_skip_dialogue_tree(main)
+		await _wait(0.2)
 	# 据点：销赃页
 	var stash: Array[String] = ["vase", "gem", "jade"]
 	Game.loot_stash = stash
@@ -244,11 +267,37 @@ func _skip_dialogue(main: Main) -> void:
 		main.dialogue.advance()
 
 
+## 器灵对谈/展签卡：一路确认选项直到结束（截图流程用；真实玩家由按键驱动）。
+func _skip_dialogue_tree(main: Main) -> void:
+	var guard := 0
+	while main.dialogue_tree.is_active() and guard < 200:
+		if main.dialogue_tree.choices_box.visible and not main.dialogue_tree._choice_buttons.is_empty():
+			main.dialogue_tree._choice_buttons[0].pressed.emit()
+		else:
+			main.dialogue_tree.advance()
+		guard += 1
+
+
+## 推进对谈直到出现选项（用于截取「双纸对谈」的选项画面）。
+func _advance_tree_to_choices(main: Main) -> void:
+	var guard := 0
+	while main.dialogue_tree.is_active() and guard < 200:
+		if main.dialogue_tree.choices_box.visible:
+			return
+		main.dialogue_tree.advance()
+		guard += 1
+
+
 func _wait(seconds: float) -> void:
 	await get_tree().create_timer(seconds).timeout
 
 
-func _shot(path: String) -> void:
+func _shot(path: String, keep_focus := false) -> void:
+	# 截图要可复现：默认清掉键盘焦点并把鼠标移出交互区（按钮 focus/hover 会随操作历史漂移）；
+	# 选项类截图需要"当前选中"焦点框，调用时 keep_focus=true（并显式 grab_focus）。
+	if not keep_focus:
+		get_viewport().gui_release_focus()
+	Input.warp_mouse(Vector2(2, 2))
 	await RenderingServer.frame_post_draw
 	var img := get_viewport().get_texture().get_image()
 	img.save_png(path)

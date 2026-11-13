@@ -321,12 +321,15 @@ func _update_visual(delta: float) -> void:
 	var moving := velocity != Vector2.ZERO
 	if moving:
 		_walk_time += delta * 8.0
+	var col := 0
+	if moving:
+		col = 2 + int(_walk_time) % 2
 	if absf(_facing.x) > absf(_facing.y):
 		sprite.flip_h = _facing.x < 0.0
-		sprite.frame = 4 + (int(_walk_time) % 2 if moving else 0)
+		sprite.frame = 8 + col
 	else:
 		var row := 1 if _facing.y < 0.0 else 0
-		sprite.frame = row * 2 + (int(_walk_time) % 2 if moving else 0)
+		sprite.frame = row * 4 + col
 
 
 func _draw() -> void:
