@@ -64,6 +64,8 @@ func _test_game_state() -> void:
 	check(gs.money == gs.MISSION_REWARD, "loot is NOT auto-sold (reward only)")
 	check(gs.loot_stash.size() == 2, "loot waits in the stash")
 	check(gs.bag_items.is_empty(), "backpack is cleared after the run")
+	check(gs.story_flag("completed_museum"), "成功结算记录 completed_museum")
+	check(not gs.story_flag("completed_british_museum"), "城西结算不误记大英完成")
 
 	# 手动销赃
 	var before: int = gs.money
@@ -80,6 +82,7 @@ func _test_game_state() -> void:
 	gs.reset_run()
 	check(not gs.finish_run(false)["success"], "busted run reports failure")
 	check(gs.loot_stash.is_empty(), "busted run adds nothing to the stash")
+	check(not gs.story_flag("completed_museum"), "被逮不记录关卡完成")
 	gs.free()
 
 
@@ -222,6 +225,7 @@ func _test_levels() -> void:
 	check(summary["target_name"] == "商代双羊尊", "summary names the double-ram zun")
 	check(summary["reward"] == 400, "british museum pays its own reward")
 	check(summary["stash_items"].size() == 1, "british museum loot waits in the stash")
+	check(gs.story_flag("completed_british_museum"), "大英成功结算记录 completed_british_museum")
 
 	gs.set_level("museum")
 	check(gs.mission_target_id == "mask", "switching back restores the first level")

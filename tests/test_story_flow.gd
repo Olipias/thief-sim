@@ -30,6 +30,7 @@ func _initialize() -> void:
 	_test_dirty_flags()
 	_test_hidden_ending_condition()
 	_test_zun_lore_contract()
+	_test_hub_story_contract()
 	_run_playback_then_finish()
 
 
@@ -37,6 +38,7 @@ func _run_playback_then_finish() -> void:
 	# --script 模式下主循环尚未启动：等一帧，让场景节点的 @onready 生效
 	await process_frame
 	await _test_zun_playback()
+	await _test_hub_story_playback()
 	if _failures > 0:
 		print("FAILED %d / %d checks" % [_failures, _checks])
 		quit(1)
@@ -93,6 +95,10 @@ func _assert_flags_default(gs, where: String) -> void:
 	check(bool(_flag(gs, "honest_to_mask", false)) == false, "%s：honest_to_mask 默认 false" % where)
 	check(String(_flag(gs, "ending_id", "")) == "", "%s：ending_id 默认空" % where)
 	check(bool(_flag(gs, "zun_trusted", false)) == false, "%s：zun_trusted 默认 false" % where)
+	check(bool(_flag(gs, "saw_p01", false)) == false, "%s：saw_p01 默认 false" % where)
+	check(bool(_flag(gs, "saw_h01", false)) == false, "%s：saw_h01 默认 false" % where)
+	check(bool(_flag(gs, "saw_h02", false)) == false, "%s：saw_h02 默认 false" % where)
+	check(bool(_flag(gs, "completed_museum", false)) == false, "%s：completed_museum 默认 false" % where)
 
 
 # ---------------------------------------------------------------- A. flag 存档
@@ -208,7 +214,81 @@ func _test_hidden_ending_condition() -> void:
 	gs.free()
 
 
-# ---------------------------------------------------------------- C. 双羊文物志契约
+# ---------------------------------------------------------------- C. 据点剧情
+
+const HUB_STORIES := ["p01_door_in_rain", "h01_label_lesson", "h02_two_addresses"]
+
+
+## 结构契约：每段剧本非空、所有 goto/选项目标可达、卡片引用存在。
+func _test_hub_story_contract() -> void:
+	check(Story.ENTRIES.size() >= 3, "据点剧情：至少 3 段（实际 %d）" % Story.ENTRIES.size())
+	for entry_id in HUB_STORIES:
+		check(Story.has_entry(entry_id), "据点剧情：存在 %s" % entry_id)
+		if not Story.has_entry(entry_id):
+			continue
+		var script := Story.script(entry_id)
+		var cards := Story.cards(entry_id)
+		check(not script.is_empty(), "据点剧情 %s：剧本非空" % entry_id)
+		var labels := {}
+		for entry in script:
+			if entry.has("label"):
+				labels[String(entry["label"])] = true
+		var links_ok := true
+		var cards_ok := true
+		for entry in script:
+			if entry.has("goto") and not labels.has(String(entry["goto"])):
+				links_ok = false
+			if entry.has("choices"):
+				for choice in entry["choices"]:
+					if not labels.has(String(choice.get("goto", ""))):
+						links_ok = false
+			if entry.has("card") and not cards.has(String(entry["card"])):
+				cards_ok = false
+		check(links_ok, "据点剧情 %s：goto/选项均可达" % entry_id)
+		check(cards_ok, "据点剧情 %s：卡片引用均存在" % entry_id)
+
+
+## 用真实 DialogueTree 播放所有选项组合，确保每条分支都能走到结束。
+func _test_hub_story_playback() -> void:
+	var scene := load("res://src/ui/dialogue_tree.tscn") as PackedScene
+	check(scene != null, "据点剧情播放：DialogueTree 可加载")
+	if scene == null:
+		return
+	var tree := scene.instantiate()
+	get_root().add_child(tree)
+	await process_frame
+	for entry_id in HUB_STORIES:
+		var script := Story.script(entry_id)
+		var cards := Story.cards(entry_id)
+		var choice_points := 0
+		for entry in script:
+			if entry.has("choices"):
+				choice_points += 1
+		var combos := 1
+		for i in choice_points:
+			combos *= 3
+		for combo in combos:
+			var picks: Array[int] = []
+			var value := combo
+			for i in choice_points:
+				picks.append(value % 3)
+				value /= 3
+			tree.play(script, cards)
+			var guard := 0
+			var pick_index := 0
+			while tree.is_active() and guard < 500:
+				if tree.choices_box.visible and not tree._choice_buttons.is_empty():
+					var pick: int = picks[pick_index] if pick_index < picks.size() else 0
+					pick_index += 1
+					tree._choice_buttons[mini(pick, tree._choice_buttons.size() - 1)].pressed.emit()
+				else:
+					tree.advance()
+				guard += 1
+			check(not tree.is_active(), "据点剧情 %s（选项组合 %d）：可完整播放到结束" % [entry_id, combo])
+	tree.queue_free()
+
+
+# ---------------------------------------------------------------- D. 双羊文物志契约
 
 func _test_zun_lore_contract() -> void:
 	check(Lore.ENTRIES.has("ram_zun"), "S-02：Lore 中存在 ram_zun 条目")

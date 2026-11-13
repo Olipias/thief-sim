@@ -10,14 +10,16 @@
 ### 修复（三修一加，用户实机反馈）
 - **P0-1 双羊尊可拾取**：
   - 把 BM Room 3 剧情触发器 `BM_LABEL_POS`/`BM_NOTE_POS` 移到左右墙边 `(40,296)` / `(280,296)`，避开双羊尊展台交互半径。
-  - `player._try_interact()` 改为「就近 + 已读让位」：剧情触发器只有严格比文物更近时才触发，否则拾取文物；已读触发器不再永久拦截拾取。
+  - `player._try_interact()` 改为「就近」：剧情触发器只有严格比文物更近时才触发，否则拾取文物；触发器已移到墙边，不再与双羊尊展台交互半径重叠。
   - `_closest_artifact()` / `_nearest_story_trigger()` 增加 `is_queued_for_deletion()` 与同 museum 父节点过滤，避免旧关卡残留 Area2D 干扰距离判断。
 - **P0-2 据点可开手机**：`MissionPhone.open(hub_mode)` 支持据点模式，隐藏档案标签/页面且不暂停；`Main` 增加 `_hub` 引用，据点按 P 只显示任务页，`Main.open_phone()` 在关卡外也能打开。
 - **P1-3 据点剧情引导**：按 `docs/STORY.md` §4 实现 P-01「雨里的门」、H-01「标签课」、H-02「两个地址」，使用 `DialogueTree`；新增 `src/data/story.gd` 管理剧本与卡片；`Game.finish_run()` 记录 `completed_museum`/`completed_british_museum`；`Main.show_menu()` / `start_mission("british_museum")` 按条件触发剧情并写 `story_flags`。
 - **P2-4 据点面板观感**：据点任务/商店/销赃面板收窄并居中（400px），顶部/内容/底部遮罩透明度降低，面板与按钮背景增加透明，让 `safehouse_noir` 背景可辨识。
 
 ### 测试
-- `tests/test_input_flow.gd`：BM 剧情交互站位改为显式坐标；新增 P0-1 两条回归用例（未读/已读标签时双羊尊前均可拾取）；新增 `_test_hub_phone`（据点手机模式 P0-2）；新增 `_test_hub_stories`（P-01 / H-01 / H-02 播放与落档）；输入流 105 → **128**。
+- `tests/test_input_flow.gd`：BM 剧情交互站位改为显式坐标；新增 P0-1 两条回归用例（未读/已读标签时双羊尊前均可拾取），并补「特写内再按 E 真正入包」断言；新增 `_test_hub_phone`（据点手机模式 P0-2）；新增 `_test_hub_stories`（P-01 / H-01 / H-02 播放与落档）；输入流 105 → **129**。
+- `tests/test_logic.gd`：补 `finish_run()` 的 `completed_museum` / `completed_british_museum` 落档与「被逮不记录完成」用例；逻辑 2509 → **2513**。
+- `tests/test_story_flow.gd`：老档/新档补 `saw_p01` / `saw_h01` / `saw_h02` / `completed_museum` 默认 false；新增据点剧情结构契约（goto/卡片引用）与 P-01/H-01/H-02 全部选项组合的真实 DialogueTree 播放（39 组）；独立剧情 68 → **129**。
 - `tests/screenshot.gd`：截图流程跳过据点剧情，避免 `show_menu()` 被 P-01 阻塞影响关卡截图。
 - `tools/verify.sh --fast` **12 项全绿**；`--visual` **16 项全绿**，人眼确认后更新基线（据点/销赃界面收窄透明，BM 双纸对谈截图因粒子微调同步更新）。
 

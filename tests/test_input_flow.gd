@@ -66,6 +66,13 @@ func _frames(n: int) -> void:
 		await get_tree().process_frame
 
 
+func _has_item(item_id: String) -> bool:
+	for item in Game.bag_items:
+		if String(item["id"]) == item_id:
+			return true
+	return false
+
+
 func _wait(seconds: float) -> void:
 	await get_tree().create_timer(seconds, true).timeout
 
@@ -605,10 +612,11 @@ func _test_bm_story_interactions() -> void:
 	check(main.hud.prompt_label.text.contains("双羊尊") or main.hud.prompt_label.text.contains("端详"), "P0-1：双羊尊旁提示为拾取/端详（当前：%s）" % main.hud.prompt_label.text)
 	await _tap(KEY_E)
 	check(not main.dialogue_tree.is_active(), "P0-1：未读标签时按 E 不开剧情对谈")
-	check(main.relic_closeup.is_open() or Game.has_item("ram_zun"), "P0-1：未读标签时按 E 打开特写或已拾取")
+	check(main.relic_closeup.is_open() or _has_item("ram_zun"), "P0-1：未读标签时按 E 打开特写或已拾取")
 	if main.relic_closeup.is_open():
-		main.relic_closeup.close()
-		await _frames(2)
+		await _tap(KEY_E)
+		await _frames(3)
+	check(_has_item("ram_zun"), "P0-1：特写内再按 E 真正拾取双羊尊")
 
 	# A. 只读馆方标签
 	museum = await _enter_british_museum()
@@ -666,7 +674,7 @@ func _test_bm_story_interactions() -> void:
 	await _wait_for_prompt("双羊尊")
 	await _tap(KEY_E)
 	check(not main.dialogue_tree.is_active(), "P0-1：读完两张后按 E 不开剧情对谈")
-	check(main.relic_closeup.is_open() or Game.has_item("ram_zun"), "P0-1：读完两张后按 E 仍可拾取/特写")
+	check(main.relic_closeup.is_open() or _has_item("ram_zun"), "P0-1：读完两张后按 E 仍可拾取/特写")
 	if main.relic_closeup.is_open():
 		main.relic_closeup.close()
 		await _frames(2)
