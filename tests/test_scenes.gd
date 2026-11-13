@@ -25,6 +25,8 @@ func _ready() -> void:
 	Game.save_path = "/tmp/thief_sim_scene_check_save.json"
 	Game.reset_progress()
 
+	_test_a00_actor_assets()
+
 	var paths := _collect("res://src")
 	check(paths.size() >= 8, "src 下可实例化的场景数量合理（%d 个）" % paths.size())
 	for path in paths:
@@ -36,6 +38,26 @@ func _ready() -> void:
 	else:
 		print("ALL %d SCENES OK" % _checks)
 		get_tree().quit(0)
+
+
+## A-00 角色资产规格（art 交付 + code 接入）：96×96 / 4×3 帧 / 锚点 -10 / 新 sheet。
+func _test_a00_actor_assets() -> void:
+	for actor in ["player", "police"]:
+		var scene := load("res://src/actors/%s.tscn" % actor) as PackedScene
+		check(scene != null, "A-00：%s.tscn 可加载" % actor)
+		if scene == null:
+			continue
+		var inst := scene.instantiate()
+		var sprite: Sprite2D = inst.get_node_or_null("Sprite")
+		check(sprite != null, "A-00：%s 有 Sprite" % actor)
+		if sprite != null:
+			check(sprite.texture != null, "A-00：%s 有贴图" % actor)
+			if sprite.texture != null:
+				check(sprite.texture.get_width() == 96 and sprite.texture.get_height() == 96, "A-00：%s sheet 为 96×96" % actor)
+				check(sprite.texture.resource_path.contains("_v2"), "A-00：%s 使用 v2 sheet" % actor)
+			check(sprite.hframes == 4 and sprite.vframes == 3, "A-00：%s 为 4 列 × 3 行" % actor)
+			check(is_equal_approx(sprite.position.y, -10.0), "A-00：%s 锚点 y=-10" % actor)
+		inst.free()
 
 
 func _collect(dir_path: String) -> Array[String]:

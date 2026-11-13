@@ -13,9 +13,13 @@
 ### 新增（美术接入 · A-01）
 - **A-00 素材接入 Phase 1**：玩家/警察改用 `assets/sprites/chars/*_sheet_v2.png`（96×96，24×32，4 列×3 行，显示偏移 -10，碰撞 10×8 不变）；据点加入安全屋背景（1280×720，不拦截点击）；任务终端 `Root/Panel` 的 `theme_override_styles/panel` 正式指向 `StyleBoxTexture_phone`（`assets/art/phone_frame_9p.png`，margin 12 / content margin 18×16）。接入方式为场景引用替换，旧占位 sheet 保留可回滚；玩法数值与输入映射未动。A00_DELIVERY.md 的 Phase 2 样式（卡片/按钮）未做，进遗留池。
 
+### 修改
+- `src/ui/hub.gd`：据点面板/销赃行背景 alpha 从 0.92 改为 1.0，消除安全屋背景下销赃行半透明透出横线的问题。
+- `src/ui/inspect_page.tscn`：档案页端详区 ImageWrap 从 144×144 缩至 120×120，Info 与 Cards 间距收紧，解决 640×360 下档案页底部被 Panel 边框裁切的问题。
+
 ### 测试
-- `tests/test_input_flow.gd` 站位等待改物理帧 + C/D 用例补冷却等待（100 项）；`tools/verify.sh --fast` 11 项全绿（逻辑 2509 / 内容 567 / 输入流 100 / 存档 88 / 进度 48 / 场景 58 / 冒烟 162）。
-- `tools/verify.sh --visual` 14 项全绿；33 张视觉基线因 sprite/背景/电话边框更新已用 `tools/check_visual.py --update` 重新生成并人眼确认。
+- `tests/test_input_flow.gd` 站位等待改物理帧 + C/D 用例补冷却等待 + 销赃行 PanelContainer 包装修正（101 项）；`tools/verify.sh --fast` 11 项全绿（逻辑 2509 / 内容 567 / 输入流 101 / 存档 88 / 进度 48 / 剧情 32 / 场景 72 / 冒烟 162）。
+- `tools/verify.sh --visual` 15 项全绿；33 张视觉基线已用 `tools/check_visual.py --update` 重新生成并人眼确认。
 
 ## [v0.19.0] - 2026-11-13
 

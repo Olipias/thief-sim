@@ -553,6 +553,9 @@ func _test_bm_story_interactions() -> void:
 			await _frames(1)
 		await _wait(0.5)
 		await _stand_at(museum, museum.BM_LABEL_POS)
+		# 把器灵挪到玩家身边，确保 _ghost_near() 为真（否则测不到优先级冲突）
+		if museum.ghost != null and is_instance_valid(museum.ghost):
+			museum.ghost.global_position = museum.player.global_position + Vector2(8, 0)
 		await _frames(3)
 		check(
 			main.hud.prompt_label.text.contains("馆方标签"),

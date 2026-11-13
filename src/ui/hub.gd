@@ -11,7 +11,7 @@ const RELIC_ZOOM := 0.75
 
 func _panel_style() -> StyleBoxFlat:
 	var style := StyleBoxFlat.new()
-	style.bg_color = Color(0.047, 0.078, 0.094, 0.92)
+	style.bg_color = Color(0.047, 0.078, 0.094, 1.0)
 	style.border_width_left = 1
 	style.border_width_top = 1
 	style.border_width_right = 1
