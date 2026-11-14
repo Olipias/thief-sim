@@ -234,6 +234,25 @@ var _bm_skylights: Array[Node2D] = []
 var _bm_glints: Array[Node2D] = []
 var bm_solid_decor_count := 0
 
+## 路线预演系统（P1）：规划节点、自动执行、失败回放。
+var planning_mode := false
+var executing_plan := false
+var planned_points: Array[Vector2] = []
+var plan_point_index := 0
+const MAX_PLAN_POINTS := 5
+const PLAN_POINT_RADIUS := 5.0
+const CAMERA_VISION_RANGE := 112.0
+const CAMERA_VISION_HALF_ANGLE := deg_to_rad(42.0)
+
+var failure_replay := false
+var failure_reason := ""
+var failure_detector: Node2D = null
+var failure_line_start: Vector2 = Vector2.ZERO
+var failure_line_end: Vector2 = Vector2.ZERO
+var _failure_replay_timer := 0.0
+var _mouse_left_was_pressed := false
+var _mouse_right_was_pressed := false
+
 ## BM Room 3 的剧情触发器（馆方标签 / 观众留言）。
 var _story_triggers: Array[Area2D] = []
 ## 本局已读过的剧情触发器：group -> true。
@@ -538,6 +557,7 @@ func _spawn_police(id: String, pos: Vector2) -> void:
 	if level_id == "museum":
 		cop.spot_delay_scale = 1.6  # 教学关：守卫反应更慢，提高容错
 	cop.caught.connect(_on_police_caught)
+	cop.spotted_player.connect(_on_police_spotted.bind(cop))
 	cop.alert_changed.connect(_on_police_alert_changed)
 	police.append(cop)
 	add_child(cop)
@@ -603,6 +623,9 @@ func _process(delta: float) -> void:
 	_animate_bm_decor()
 	# 对谈打开期间游戏暂停、_process 不跑，冷却正好冻结到关闭那一帧，拦下同一次按键。
 	_talk_cooldown = maxf(0.0, _talk_cooldown - delta)
+	if failure_replay:
+		_process_failure_replay(delta)
+		return
 	if player == null or _ended:
 		return
 	var idx := room_index_at(player.global_position)
@@ -613,14 +636,28 @@ func _process(delta: float) -> void:
 		if not _patrol_hint_shown and _room_has_police(idx):
 			_patrol_hint_shown = true
 			toast.emit("前面有守卫在巡逻——先看清手电光锥的方向，再贴着边走。")
+	_check_camera_detection()
+	_process_planning_input()
+	if executing_plan and player != null and not player.auto_moving:
+		if Input.get_vector("move_left", "move_right", "move_up", "move_down") != Vector2.ZERO:
+			cancel_plan()
+		else:
+			_advance_plan_step()
 	var prompt := ""
-	var nearest_trigger := _nearest_story_trigger()
-	if nearest_trigger != null:
-		var data: Dictionary = nearest_trigger.get_meta("story_data", {})
-		prompt = "按 E 阅读：%s" % data.get("prompt", "")
+	if planning_mode:
+		prompt = "规划：左键加节点 · 右键删 · 空格执行 · Tab/R 退出"
+	elif executing_plan:
+		prompt = "执行中：按方向键或 E 接管"
+	elif player != null and player.crouching:
+		prompt = "蹲下潜行中（C/Ctrl 解除）"
 	else:
-		var target_name: String = player.interactable_name()
-		prompt = "按 E 拾取：%s" % target_name if target_name != "" else ""
+		var nearest_trigger := _nearest_story_trigger()
+		if nearest_trigger != null:
+			var data: Dictionary = nearest_trigger.get_meta("story_data", {})
+			prompt = "按 E 阅读：%s" % data.get("prompt", "")
+		else:
+			var target_name: String = player.interactable_name()
+			prompt = "按 E 拾取：%s" % target_name if target_name != "" else ""
 	if prompt != _last_prompt:
 		_last_prompt = prompt
 		prompt_changed.emit(prompt)
@@ -631,6 +668,199 @@ func _room_has_police(idx: int) -> bool:
 		if is_instance_valid(cop) and room_index_at(cop.global_position) == idx:
 			return true
 	return false
+
+
+func _process_planning_input() -> void:
+	if player == null or _ended:
+		return
+
+	# 失败回放：E / Space 回退重规划
+	if failure_replay:
+		if Input.is_action_just_pressed("plan_execute") or Input.is_action_just_pressed("interact"):
+			_failure_replay_timer = 0.0
+			_rewind_and_replan()
+		return
+
+	# Tab / R 切换规划模式
+	if Input.is_action_just_pressed("plan_toggle"):
+		if planning_mode:
+			toggle_planning_mode(false)
+		elif not executing_plan:
+			toggle_planning_mode(true)
+		return
+
+	# 规划模式下：空格执行（鼠标左右键在 _unhandled_input 中处理，使用事件坐标）。
+	if planning_mode:
+		if Input.is_action_just_pressed("plan_execute") and planned_points.size() >= 1:
+			execute_plan()
+		return
+
+	# 非规划/非执行：C / Ctrl 蹲下（按住式）
+	if not executing_plan:
+		player.set_crouch(Input.is_action_pressed("crouch"))
+
+
+func _unhandled_input(event: InputEvent) -> void:
+	if player == null or _ended or not planning_mode:
+		return
+	if event is InputEventMouseButton and event.pressed:
+		var pos: Vector2 = event.position
+		if event.button_index == MOUSE_BUTTON_LEFT:
+			if planned_points.size() < MAX_PLAN_POINTS and _is_walkable_world(pos):
+				_add_plan_point(pos)
+		elif event.button_index == MOUSE_BUTTON_RIGHT:
+			_remove_last_plan_point()
+
+
+func _is_walkable_world(pos: Vector2) -> bool:
+	var cx := int(pos.x / TILE)
+	var cy := int(pos.y / TILE)
+	return _is_walkable_at(cx, cy)
+
+
+func toggle_planning_mode(on: bool) -> void:
+	planning_mode = on
+	executing_plan = false
+	if player != null:
+		player.auto_moving = false
+		if on:
+			player.controls_enabled = false
+			player.velocity = Vector2.ZERO
+			player.set_crouch(false)
+		else:
+			player.controls_enabled = true
+	for cop in police:
+		if is_instance_valid(cop):
+			cop.set_ai_enabled(not on)
+			if not on:
+				cop._enter_patrol()
+	queue_redraw()
+
+
+func _add_plan_point(pos: Vector2) -> void:
+	if planned_points.size() >= MAX_PLAN_POINTS:
+		return
+	planned_points.append(pos)
+	queue_redraw()
+
+
+func _remove_last_plan_point() -> void:
+	if planned_points.is_empty():
+		return
+	planned_points.pop_back()
+	queue_redraw()
+
+
+func execute_plan() -> void:
+	if planned_points.is_empty() or player == null:
+		return
+	planning_mode = false
+	executing_plan = true
+	plan_point_index = 0
+	player.controls_enabled = true
+	player.start_auto_move(planned_points[0])
+	queue_redraw()
+
+
+func _advance_plan_step() -> void:
+	if not executing_plan or player == null:
+		return
+	plan_point_index += 1
+	if plan_point_index >= planned_points.size():
+		executing_plan = false
+		player.auto_moving = false
+		return
+	player.start_auto_move(planned_points[plan_point_index])
+
+
+func cancel_plan() -> void:
+	executing_plan = false
+	planned_points.clear()
+	plan_point_index = 0
+	if player != null:
+		player.auto_moving = false
+	queue_redraw()
+
+
+func _check_camera_detection() -> void:
+	if player == null or failure_replay or _ended or planning_mode:
+		return
+	for cam in _bm_cameras:
+		if cam == null or not is_instance_valid(cam):
+			continue
+		var facing := Vector2.RIGHT.rotated(cam.rotation)
+		if Police.in_cone(cam.global_position, facing, player.global_position, CAMERA_VISION_RANGE, CAMERA_VISION_HALF_ANGLE):
+			_on_player_detected(cam, "监控摄像头扇区")
+			return
+
+
+func _on_player_detected(detector: Node2D, reason: String) -> void:
+	if failure_replay or _ended:
+		return
+	enter_failure_replay(detector, reason)
+
+
+func enter_failure_replay(detector: Node2D, reason: String) -> void:
+	failure_replay = true
+	failure_detector = detector
+	failure_reason = reason
+	failure_line_start = detector.global_position if detector != null else player.global_position
+	failure_line_end = player.global_position
+	executing_plan = false
+	planning_mode = false
+	if player != null:
+		player.auto_moving = false
+		player.controls_enabled = false
+		player.velocity = Vector2.ZERO
+	for cop in police:
+		cop.set_ai_enabled(false)
+		cop.velocity = Vector2.ZERO
+	prompt_changed.emit("按 E / 空格 重新规划")
+	queue_redraw()
+
+
+func _process_failure_replay(delta: float) -> void:
+	_failure_replay_timer += delta
+	# 失败回放定格期间玩家即可按 E / Space 回退；保留计时器供视觉/测试使用。
+	if Input.is_action_just_pressed("interact") or Input.is_action_just_pressed("plan_execute"):
+		_failure_replay_timer = 0.0
+		_rewind_and_replan()
+
+
+func _rewind_and_replan() -> void:
+	failure_replay = false
+	failure_detector = null
+	failure_reason = ""
+	planned_points.clear()
+	plan_point_index = 0
+	if player != null:
+		# 回退到本房间起点（或当前位置，保证安全）
+		var room_idx := room_index_at(player.global_position)
+		if room_idx >= 0 and room_idx < rooms.size():
+			var r: Rect2 = rooms[room_idx]
+			player.global_position = r.position + Vector2(r.size.x * 0.5, r.size.y * 0.5)
+		player.controls_enabled = false
+		player.velocity = Vector2.ZERO
+	for cop in police:
+		cop.set_ai_enabled(true)
+		cop._enter_patrol()
+	toggle_planning_mode(true)
+
+
+func _estimate_eta_to_point(point: Vector2) -> float:
+	if player == null:
+		return 0.0
+	var dist := player.global_position.distance_to(point)
+	var speed := Player.WALK_SPEED * Player.CROUCH_SPEED_MULTIPLIER
+	return dist / speed if speed > 0.0 else 0.0
+
+
+func _nearest_police_distance_to(point: Vector2) -> float:
+	var best := INF
+	for cop in police:
+		if is_instance_valid(cop):
+			best = mini(best, cop.global_position.distance_to(point))
+	return best
 
 
 func _nearest_story_trigger() -> Area2D:
@@ -775,12 +1005,14 @@ func _end_escape() -> void:
 	escaped.emit()
 
 
+func _on_police_spotted(reason: String, cop: Police) -> void:
+	_on_player_detected(cop, reason)
+
+
 func _on_police_caught() -> void:
-	if _ended:
+	if _ended or failure_replay:
 		return
-	_ended = true
-	Audio.play("caught", -4.0)
-	caught.emit()
+	_on_player_detected(null, "保安近身抓获")
 
 
 func _on_police_alert_changed() -> void:
@@ -1006,6 +1238,68 @@ func _build_bm_atmosphere() -> void:
 	_bm_glints.append(glint)
 
 
+func _draw_planning_overlay() -> void:
+	if not planning_mode and not executing_plan and planned_points.is_empty():
+		return
+	var font := ThemeDB.fallback_font
+	# 已规划路径连线
+	if planned_points.size() >= 2:
+		var points := PackedVector2Array()
+		points.append(player.global_position if player != null else planned_points[0])
+		for p in planned_points:
+			points.append(p)
+		draw_polyline(points, Color(0.45, 0.85, 0.95, 0.75), 2.0)
+
+	# 节点与预测标签
+	for i in planned_points.size():
+		var p := planned_points[i]
+		draw_circle(p, PLAN_POINT_RADIUS, Color(0.35, 0.78, 0.92, 0.9))
+		draw_arc(p, PLAN_POINT_RADIUS + 2.0, 0.0, TAU, 12, Color(0.15, 0.35, 0.45, 0.6), 1.0)
+		var eta := _estimate_eta_to_point(p)
+		var label := "%.1fs" % eta
+		var dist_to_guard := _nearest_police_distance_to(p)
+		if dist_to_guard < 72.0:
+			label += " · 警戒"
+		if _is_in_camera_vision(p):
+			label += " · 监控"
+		draw_string(font, p + Vector2(6, -8), label, HORIZONTAL_ALIGNMENT_LEFT, -1, 9, Color(0.75, 0.88, 0.95, 0.9))
+
+	# 规划模式提示
+	if planning_mode:
+		var hint := "规划模式：左键添加节点（%d/%d）· 右键删除 · 空格执行 · Tab/R 退出" % [planned_points.size(), MAX_PLAN_POINTS]
+		draw_string(font, Vector2(8, 16), hint, HORIZONTAL_ALIGNMENT_LEFT, -1, 10, Color(0.95, 0.92, 0.75, 0.95))
+	elif executing_plan:
+		draw_string(font, Vector2(8, 16), "执行路线中……按方向键或 E 接管", HORIZONTAL_ALIGNMENT_LEFT, -1, 10, Color(0.95, 0.92, 0.75, 0.95))
+
+
+func _is_in_camera_vision(point: Vector2) -> bool:
+	for cam in _bm_cameras:
+		if cam == null or not is_instance_valid(cam):
+			continue
+		var facing := Vector2.RIGHT.rotated(cam.rotation)
+		if Police.in_cone(cam.global_position, facing, point, CAMERA_VISION_RANGE, CAMERA_VISION_HALF_ANGLE):
+			return true
+	return false
+
+
+func _draw_failure_replay() -> void:
+	if not failure_replay:
+		return
+	var font := ThemeDB.fallback_font
+	# 半透明暗屏
+	draw_rect(Rect2(Vector2.ZERO, Vector2(tiles[0].length() * TILE, tiles.size() * TILE)), Color(0.05, 0.0, 0.0, 0.45), true)
+	# 红色高亮连线：发现源 → 玩家
+	if failure_detector != null and is_instance_valid(failure_detector):
+		draw_line(failure_detector.global_position, failure_line_end, Color(1.0, 0.15, 0.15, 0.92), 2.0)
+		draw_circle(failure_detector.global_position, 6.0, Color(1.0, 0.15, 0.15, 0.7))
+	elif failure_line_start != failure_line_end:
+		draw_line(failure_line_start, failure_line_end, Color(1.0, 0.15, 0.15, 0.92), 2.0)
+	# 顶部红色原因说明
+	var msg := "【预演失败】%s" % failure_reason
+	draw_string(font, Vector2(8, 16), msg, HORIZONTAL_ALIGNMENT_LEFT, -1, 11, Color(1.0, 0.25, 0.25, 0.95))
+	draw_string(font, Vector2(8, 32), "按 E / 空格 回退到房间起点并重新规划", HORIZONTAL_ALIGNMENT_LEFT, -1, 10, Color(0.95, 0.85, 0.85, 0.9))
+
+
 func _animate_bm_decor() -> void:
 	var t := _bm_time
 	for i in _bm_cameras.size():
@@ -1061,3 +1355,5 @@ func _draw() -> void:
 					draw_texture_rect(TEX_PEDESTAL, rect, false)
 				"X":
 					draw_texture_rect(TEX_EXIT, rect, false)
+	_draw_planning_overlay()
+	_draw_failure_replay()

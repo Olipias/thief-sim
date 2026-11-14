@@ -8,6 +8,7 @@ extends CharacterBody2D
 
 signal caught
 signal alert_changed
+signal spotted_player(reason: String)
 
 enum State { PATROL, INVESTIGATE, CHASE }
 
@@ -234,6 +235,7 @@ func _enter_chase() -> void:
 	state = State.CHASE
 	_lose_timer = LOSE_TIME
 	Audio.play("alert", -9.0)
+	spotted_player.emit("保安巡逻视野")
 
 
 func _enter_patrol() -> void:

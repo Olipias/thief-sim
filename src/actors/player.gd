@@ -11,6 +11,7 @@ signal story_trigger_requested(group: String)
 
 const WALK_SPEED := 58.0
 const SPRINT_SPEED := 88.0
+const CROUCH_SPEED_MULTIPLIER := 0.65
 const SNEAKER_MULTIPLIER := 1.25
 const NOISE_RADIUS := 64.0
 const NOISE_INTERVAL := 0.35
@@ -26,6 +27,9 @@ const INTERACT_COOLDOWN := 0.25
 
 var controls_enabled := true
 var facing_row := 0
+var crouching := false
+var auto_moving := false
+var auto_target: Vector2 = Vector2.ZERO
 var _walk_time := 0.0
 var _sprinting := false
 var _sprint_speed := SPRINT_SPEED
@@ -48,22 +52,39 @@ func _physics_process(delta: float) -> void:
 		return
 
 	var dir := Input.get_vector("move_left", "move_right", "move_up", "move_down")
-	_sprinting = Input.is_action_pressed("sprint") and dir != Vector2.ZERO
+	_sprinting = false
+	if auto_moving:
+		# 自动沿路径点移动；玩家按方向键或交互键立即接管。
+		if dir != Vector2.ZERO or Input.is_action_just_pressed("interact"):
+			auto_moving = false
+		else:
+			var to_target := auto_target - global_position
+			if to_target.length() < 3.0:
+				auto_moving = false
+			else:
+				dir = to_target.normalized()
+	else:
+		# 手动模式：Shift 疾跑；C/Ctrl 蹲下。
+		_sprinting = Input.is_action_pressed("sprint") and dir != Vector2.ZERO and not crouching
+
 	var speed := _sprint_speed if _sprinting else WALK_SPEED
+	if crouching:
+		speed *= CROUCH_SPEED_MULTIPLIER
 	velocity = dir * speed
 	move_and_slide()
 	_update_visual(dir, delta)
 	_emit_sprinting_noise(delta)
 	_play_footsteps(delta)
 
-	if Input.is_action_just_pressed("interact"):
+	if Input.is_action_just_pressed("interact") and not auto_moving:
 		_try_interact()
 	if Input.is_action_just_pressed("use_item"):
 		use_item("smoke")
 
 
 func _emit_sprinting_noise(delta: float) -> void:
-	if not _sprinting:
+	# 蹲下潜行完全消除跑步噪音；自动执行也按当前状态判断。
+	if not _sprinting or crouching:
 		_noise_timer = 0.0
 		return
 	_noise_timer -= delta
@@ -84,6 +105,15 @@ func _play_footsteps(delta: float) -> void:
 
 func use_item(item_id: String) -> void:
 	used_item.emit(item_id)
+
+
+func set_crouch(on: bool) -> void:
+	crouching = on
+
+
+func start_auto_move(target: Vector2) -> void:
+	auto_target = target
+	auto_moving = true
 
 
 func _update_visual(dir: Vector2, delta: float) -> void:

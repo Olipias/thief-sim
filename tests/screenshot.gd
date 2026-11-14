@@ -88,6 +88,21 @@ func _ready() -> void:
 	await _wait(0.25)
 	await _shot("/tmp/shot_smoke.png")
 
+	# 路线预演：规划模式 + 节点连线 + 预测标签
+	museum.toggle_planning_mode(true)
+	museum.planned_points = [
+		Vector2(9 * 16, 8 * 16),
+		Vector2(11 * 16, 7 * 16),
+		Vector2(13 * 16, 9 * 16),
+	]
+	await _wait(0.4)
+	await _shot("/tmp/shot_planning.png")
+	museum.toggle_planning_mode(false)
+	await _wait(0.2)
+	# 退出规划模式会恢复守卫 AI；截图流程继续需要冻结守卫。
+	for p_cop in museum.police:
+		p_cop.set_ai_enabled(false)
+
 	# 任务终端（手机）
 	main.open_phone()
 	await _wait(0.4)
@@ -126,13 +141,16 @@ func _ready() -> void:
 	main.backpack.close()
 	await _wait(0.2)
 
-	# busted -> result screen
+	# 路线预演失败回放：红色高亮连线 + 原因标签
 	if not museum.police.is_empty():
 		var catcher: Police = museum.police[2]
-		catcher.set_ai_enabled(true)
-		museum.player.global_position = catcher.global_position
-	await _wait(2.0)
-	await _shot("/tmp/shot_result.png")
+		catcher.global_position = Vector2(10 * 16 + 8, 6 * 16 + 8)
+		museum.player.global_position = catcher.global_position + Vector2(36, 0)
+		museum.enter_failure_replay(catcher, "保安巡逻视野")
+		await _wait(0.4)
+		await _shot("/tmp/shot_failure_replay.png")
+		museum._rewind_and_replan()
+		await _wait(0.2)
 
 	# 大英博物馆·中国馆：目标「商代双羊尊」
 	main.show_menu()

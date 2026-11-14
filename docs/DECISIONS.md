@@ -173,3 +173,14 @@
 - 决定：按 GDD v2 新口径，完全删除博物馆内的幽灵生成、尾随哀嚎、按 E 安抚与器灵台词。`Museum` 不再在目标入包后生成 `Ghost`，不再触发文物志对谈，`InspectPage` 只展示「【档案】」史实端详、不再展示「【器灵】」演绎台词；`Game` 删除 `hidden_ending_unlocked()` 与 `zun_trusted` 判定。
 - 原因：GDD v2 明确「去掉全部倒计时设定」与「彻底删除文物幽灵/器灵设定」，文物的历史与「怨恨风味」改由安全屋电脑检索（档案库/浏览器/邮件）与博物馆现场展签/留言/维护记录呈现。
 - 影响：所有依赖 `Ghost`、`lore_requested`、`_talk_to_ghost`、隐藏结局的测试用例与视觉基线需同步删除；`DialogueTree` 继续保留，用于轻量剧情单卡/短句/展签卡播放。
+
+## D-027 路线预演系统：规划—执行—失败回放（P1）
+- 状态：已生效（v0.20.1）
+- 决定：新增路线预演系统替代直接 Game Over：
+  - 蹲下（`C` / `Ctrl`）：`Player.crouching` 为 true 时移速 ×0.65 且不发跑步噪音。
+  - 规划模式（`Tab` / `R`）：`Museum.planning_mode` 开启，玩家控制冻结、守卫 AI 冻结；鼠标左键在可行走格添加最多 5 个路径节点，右键删除；节点旁显示 ETA、警戒、监控预测标签。
+  - 执行模式（`Space`）：`Player` 自动沿节点顺序移动；玩家按方向键或 `E` 立即接管。
+  - 失败回放：被保安视野或监控扇区发现时进入 `Museum.failure_replay`，绘制红色高亮连线（发现源 → 玩家）并显示原因；按 `E` / `Space` 回退到本房间起点并自动进入规划模式。近身抓获同样走失败回放。
+  - 输入统一走 `project.godot` 新 action：`plan_toggle`、`plan_execute`、`crouch`；鼠标事件在 `Museum._unhandled_input` 中处理，使用事件坐标定位以兼容 headless 输入流。
+- 原因：GDD v2 / plan #487 要求把「试错」从惩罚性死亡改为可视化、可学习的预演循环；玩家可以提前观察巡逻、规划路径、失败后立即回退重试，降低挫败感并保持零倒计时。
+- 影响：`Museum.caught` 信号不再用于 detection 直接结算；`Police` 新增 `spotted_player(reason)` 信号；`tests/test_input_flow.gd`、`tests/smoke_test.gd`、`tests/test_monkey.gd`、`tests/screenshot.gd` 新增/更新覆盖规划、执行、接管、失败回放；视觉基线新增 `shot_planning.png` 与 `shot_failure_replay.png`。

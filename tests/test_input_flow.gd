@@ -472,6 +472,68 @@ func _test_bm_target_selection() -> void:
 	check(spawned, "P6：埃及目标实际生成")
 
 
+func _test_route_planning() -> void:
+	# 路线预演系统：Tab 进入规划模式 → 左键添加节点 → 空格执行 → 方向键接管 →
+	# 程序化进入失败回放 → 空格回退并重新规划。
+	var museum: Museum = main._museum
+	check(museum != null, "路线预演：当前处于关卡内")
+	if museum == null:
+		return
+	# 关掉守卫 AI，避免测试期间被意外发现。
+	for cop in museum.police:
+		cop.set_ai_enabled(false)
+	await _frames(2)
+
+	await _tap(KEY_TAB)
+	check(museum.planning_mode, "Tab 进入规划模式")
+	check(not museum.police[0].ai_enabled, "规划模式下守卫 AI 冻结")
+
+	var click_pos := museum.player.global_position + Vector2(32, 0)
+	await _click(click_pos)
+	check(museum.planned_points.size() == 1, "左键点击添加规划节点")
+	check(museum.planned_points[0].distance_to(click_pos) < 8.0, "节点落在点击位置附近")
+
+	await _tap(KEY_TAB)
+	check(not museum.planning_mode, "再按 Tab 退出规划模式")
+	check(museum.police[0].ai_enabled, "退出规划模式后守卫 AI 恢复")
+	# 再次冻结，避免下次进入规划模式前的短暂窗口内被守卫发现。
+	for cop in museum.police:
+		cop.set_ai_enabled(false)
+
+	await _tap(KEY_TAB)
+	await _click(click_pos)
+	var start_pos := museum.player.global_position
+	await _tap(KEY_SPACE)
+	check(museum.executing_plan, "空格执行规划路线")
+	# 等玩家确实开始沿路径移动（headless 下物理帧可能不稳定，多等几帧）。
+	var moved := false
+	for i in 30:
+		await _frames(1)
+		if museum.player.global_position.distance_to(start_pos) > 2.0:
+			moved = true
+			break
+	check(moved, "执行后玩家沿路径移动")
+
+	await _key(KEY_D, true)
+	await _frames(4)
+	await _key(KEY_D, false)
+	await _frames(4)
+	check(not museum.executing_plan, "按方向键接管并中断执行")
+	check(not museum.player.auto_moving, "接管后玩家不再自动移动")
+
+	# 失败回放入口不易用输入稳定触发，这里直接调用后验证 E/空格可回退重规划。
+	museum.enter_failure_replay(null, "输入流测试")
+	await _frames(2)
+	check(museum.failure_replay, "进入失败回放态")
+	check(museum.failure_reason == "输入流测试", "失败原因被记录")
+
+	await _tap(KEY_SPACE)
+	await _frames(2)
+	check(not museum.failure_replay, "空格回退清除失败回放")
+	check(museum.planning_mode, "回退后自动进入规划模式")
+	check(museum.planned_points.is_empty(), "回退后清空规划节点")
+
+
 func _test_leave_scene_clean() -> void:
 	# 收尾：不应残留任何界面或暂停状态
 	check(not _any_overlay_open(), "结束时没有残留覆盖层")
@@ -506,6 +568,7 @@ func _ready() -> void:
 	await _test_cross_keys()
 	await _test_card_over_phone()
 	await _test_hud_button_while_bag()
+	await _test_route_planning()
 	await _test_leave_scene_clean()
 	await _test_relic_closeup()
 	await _test_statements_from_title()

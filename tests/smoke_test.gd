@@ -90,7 +90,16 @@ func _test_bust_flow() -> void:
 	museum.player.global_position = cop.global_position
 	await get_tree().physics_frame
 	await get_tree().physics_frame
-	check(busted["value"], "touching a cop busts the run")
+	check(not busted["value"], "detection now enters failure replay instead of immediate caught")
+	check(museum.failure_replay, "touching a cop enters failure replay")
+	check(museum.failure_reason == "保安近身抓获", "failure reason is reported")
+
+	# Rewind should clear failure replay and enter planning mode.
+	museum._rewind_and_replan()
+	await get_tree().process_frame
+	check(not museum.failure_replay, "rewind clears failure replay")
+	check(museum.planning_mode, "rewind enters planning mode")
+	check(museum.planned_points.is_empty(), "rewind clears planned points")
 
 	museum.end_game()
 	museum.queue_free()

@@ -170,6 +170,23 @@ func _check_invariants(step: int) -> void:
 				_fail(step, "玩家进入实心格 %s：tile='%s'（%s）" % [Vector2i(tx, ty), ch, pos])
 				return
 
+	# 5) 路线预演系统状态一致性
+	if m != null:
+		if m.planned_points.size() > m.MAX_PLAN_POINTS:
+			_fail(step, "规划节点数超过上限：%d > %d" % [m.planned_points.size(), m.MAX_PLAN_POINTS])
+			return
+		if m.planning_mode and m.player != null and m.player.controls_enabled:
+			_fail(step, "规划模式下玩家控制未冻结")
+			return
+		if m.failure_replay and m.player != null and m.player.controls_enabled:
+			_fail(step, "失败回放中玩家控制未冻结")
+			return
+		if m.executing_plan and m.player != null and not m.player.auto_moving and m.player.controls_enabled:
+			# 执行模式中被玩家接管后 auto_moving 会停，但 controls_enabled 为 true；
+			# 仅当 controls_enabled 为 false 时还停在执行态才报异常。
+			_fail(step, "执行模式玩家控制被异常冻结")
+			return
+
 
 func _live_museum() -> Museum:
 	var m := main._museum

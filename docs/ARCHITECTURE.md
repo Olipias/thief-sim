@@ -30,11 +30,10 @@ Autoload
 | 文件 | 职责 | 关键点 |
 | --- | --- | --- |
 | `src/main.gd` | 场景流程编排、暂停控制、任务简报 | 手机/背包开关带 0.2s 冷却（`toggle_allowed()`），防关闭后同帧被重开； 世界加到 `Screen`；HUD/对话/背包的信号在这里接线；`start_mission(level_id)` 设定关卡并显示对应简报 |
-| `src/actors/player.gd` | 玩家移动（走/跑）、拾取、道具、噪音、脚步 | 信号 `used_item` / `made_noise`；分组 `player`；`controls_enabled` 冻结操控；场景内 `Camera2D`（zoom 2×，即一屏 20×11 格）+ 玩家微光 `Aura` |
-| `src/actors/police.gd` | 警察 AI：巡逻 → 调查 → 追击 → 逮捕 | 状态机 `State{PATROL,INVESTIGATE,CHASE}`；`in_cone()` 纯函数（可单测）；视野射线仅被墙阻挡（mask=1）；**视物与逮捕要求与玩家同房间**（`can_see_player()` + `museum.room_index_at`，门洞可走但不隔房索敌）；`blind()` 烟雾致盲（同时熄灭手电）；`alert_level()` 0/1/2；头顶警觉进度条（`_spot_timer / _spot_delay()`）；`investigate(pos, seconds, stop_distance)` 可让循声搜索停在远处；`set_ai_enabled()` 供演出/截图暂停感知 |
-| `src/world/museum.gd` | 关卡构建与全部关卡规则 | `level_id` → 地图/目标/器灵台词按关卡解析（`target_item_id()`）；读 JSON 建碰撞/灯光/角色；房间相机；小地图数据；幽灵事件；烟雾弹；噪音与哀嚎按房间分流；出口锁；**大英博物馆六展厅主题**（`BM_THEMES` + `_room_of_tile` + `_draw_bm_tile()`）+ **纯视觉装饰层**（`BM_DECOR` + `_build_bm_decor()`，不新增碰撞）+ **装饰动效与 Room 3 光影**（`_animate_bm_decor()`、`BMDust`/`BMZunReflection`/`BMGlassGlint`）；**视觉/碰撞一致性**（`is_cell_blocked()` + `BM_SOLID_DECOR`，T/a/p 展台与大件装饰有实体） |
+| `src/actors/player.gd` | 玩家移动（走/跑/蹲）、拾取、道具、噪音、脚步、自动执行 | 信号 `used_item` / `made_noise`；分组 `player`；`controls_enabled` 冻结操控；`crouching` 蹲下（移速 ×0.65、无跑步噪音）；`auto_moving` 自动沿路径点移动；场景内 `Camera2D`（zoom 2×，即一屏 20×11 格）+ 玩家微光 `Aura` |
+| `src/actors/police.gd` | 警察 AI：巡逻 → 调查 → 追击 → 逮捕 | 状态机 `State{PATROL,INVESTIGATE,CHASE}`；`in_cone()` 纯函数（可单测）；视野射线仅被墙阻挡（mask=1）；**视物与逮捕要求与玩家同房间**（`can_see_player()` + `museum.room_index_at`，门洞可走但不隔房索敌）；`blind()` 烟雾致盲（同时熄灭手电）；`alert_level()` 0/1/2；头顶警觉进度条（`_spot_timer / _spot_delay()`）；`investigate(pos, seconds, stop_distance)` 可让循声搜索停在远处；`set_ai_enabled()` 供演出/截图暂停感知；`spotted_player(reason)` 信号供 `Museum` 进入失败回放 |
+| `src/world/museum.gd` | 关卡构建与全部关卡规则 | `level_id` → 地图/目标按关卡解析（`target_item_id()`）；读 JSON 建碰撞/灯光/角色；房间相机；小地图数据；烟雾弹；噪音按房间分流；出口锁；**路线预演系统**（`planning_mode`/`executing_plan`/`failure_replay`；规划节点、自动执行、失败红色高亮回放、回退重规划）；**大英博物馆六展厅主题**（`BM_THEMES` + `_room_of_tile` + `_draw_bm_tile()`）+ **纯视觉装饰层**（`BM_DECOR` + `_build_bm_decor()`，不新增碰撞）+ **装饰动效与 Room 3 光影**（`_animate_bm_decor()`、`BMDust`/`BMZunReflection`/`BMGlassGlint`）；**视觉/碰撞一致性**（`is_cell_blocked()` + `BM_SOLID_DECOR`，T/a/p 展台与大件装饰有实体） |
 | `src/world/artifact.gd` | 场景中的可拾取文物 | 贴图约定 `artifact_<id>.png`（16×16 图标）；若存在 `relic_<id>_strip.png` 则显示 3D 渲染转台动画（12 帧 × 24×28，常量在脚本内）；拾取成功/失败信号 |
-| `src/world/ghost.gd` | 幽灵：尾随 + 周期哀嚎 + 寿命渐隐 | `wailed(position)` 由 museum 转给附近警察；哀嚎扩散波纹；`calm(seconds)` 安抚（交谈后 8s 不哀嚎） |
 | `src/world/smoke_puff.gd` | 烟雾视觉（纯表现） | 不承载规则 |
 | `src/ui/hub.gd` | 据点：商店购买 + 开始任务 | `ROWS` 决定货架顺序，须与 `Game.UPGRADES` 一致（有测试） |
 | `src/ui/hud.gd` | HUD 全部显示 | 监听 `Game` 三信号；`bind_level()` 绑小地图；`toast()` 提示 |
@@ -144,6 +143,7 @@ Autoload
 7. 存档只增字段且带默认值；UI 文案中文；640×360 布局假设。
 8. 背包放置判定单点实现（`Game.bag_can_place`）——UI 不得复制一套碰撞逻辑。
 9. **UI 覆盖层契约**（由 `tests/test_input_flow.tscn` 守卫）：有覆盖层打开 ⇔ `get_tree().paused`；B/P/ESC 关闭且**逐层返回**（卡片叠层先收卡片、再关手机）；覆盖层根节点必须 `process_mode=3`（ALWAYS，暂停中才能响应按键）；关闭后的短冷却（0.2s）防止同一按键"刚关又开"。新增/修改覆盖层必须在输入流自检补用例——**只调 `open()/close()` 的测试测不到按键路由 bug**。互动特写层（`RelicCloseup`）同属覆盖层：E 拾取 / Esc 离开。
+10. **路线预演状态契约**（由 `tests/test_monkey.gd` 与输入流守卫）：`planning_mode`/`failure_replay` 开启时玩家控制冻结且所有守卫 AI 冻结；`executing_plan` 期间 `Player.auto_moving` 为 true 直至玩家接管或抵达终点；规划节点数永远不超过 `MAX_PLAN_POINTS`；蹲下（`crouch` action）只在非规划/非执行/非回放态生效。
 
 ## 6. 改造配方（Recipes）
 

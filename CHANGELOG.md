@@ -5,6 +5,26 @@
 
 ---
 
+## [v0.20.1] - 2026-11-14
+
+### 新增（路线预演系统 P1：规划—执行—失败回放）
+- **蹲下潜行**：`Player` 新增 `crouching` 状态，`C` / `Ctrl` 按住蹲下，移速降低 35%（`CROUCH_SPEED_MULTIPLIER`），跑步噪音完全消除。
+- **规划模式**：`Museum` 新增 `planning_mode`，按 `Tab` / `R` 切换；鼠标左键在可行走地面添加路径节点（最多 5 个），右键删除最后一个；节点旁显示 ETA、警戒/监控预测标签；规划模式下守卫 AI 冻结，便于观察。
+- **执行模式**：规划节点 ≥1 时按 `Space` 自动沿路径移动；玩家按方向键或 `E` 立即接管。
+- **失败回放**：被保安或监控发现时不再直接 Game Over，而是进入 `failure_replay`：红色高亮连线标出发现源 → 玩家，顶部显示失败原因，玩家按 `E` / `Space` 回退到本房间起点并自动进入规划模式。
+- **输入映射**：`project.godot` 新增 `plan_toggle`、`plan_execute`、`crouch` 三个 action。
+- **保安目击信号**：`Police` 新增 `spotted_player(reason)` 信号，`Museum` 统一通过 `_on_player_detected` 进入失败回放。
+
+### 修改
+- `Museum._on_police_caught()` 改为触发失败回放（`保安近身抓获`），保留 `caught` 信号用于实际结算流程兼容。
+- `tests/screenshot.gd` 移除旧 `shot_result.png`，新增 `shot_planning.png` 与 `shot_failure_replay.png` 两张基线。
+
+### 测试
+- `tests/test_input_flow.gd`：**153** 项（新增路线预演 Tab/点击/执行/接管/失败回退真实输入流）。
+- `tests/smoke_test.gd`：**155** 项（更新被捕流程为失败回放 + 回退重规划断言）。
+- `tests/test_monkey.gd`：新增路线预演状态不变量（节点数上限、规划/回放时玩家控制冻结、执行模式异常冻结检测）。
+- `tools/verify.sh --fast` **13 项全绿**；`--visual` **17 项全绿**，30 张视觉基线（含 2 张新增规划/失败回放）。
+
 ## [v0.20.0] - 2026-11-14
 
 ### 新增（Batch 1：P2 开场 / P3 推理板 / P5 恶魔分支 / P6-A 三目标注册）
