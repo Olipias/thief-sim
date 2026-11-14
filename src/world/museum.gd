@@ -8,8 +8,6 @@ signal toast(text: String)
 signal prompt_changed(text: String)
 signal alert_changed(level: int)
 signal dialogue_requested(lines: Array)
-## 文物志对谈请求（item_id 与要播放的段序号；由 main 交给 DialogueTree）。
-signal lore_requested(item_id: String, stage: int)
 ## 请求进入互动特写层（2.5D）
 signal closeup_requested(item_id: String)
 ## 剧情单卡/短句请求（BM Room 3 标签、留言等；由 main 用 DialogueTree 播放）。
@@ -27,12 +25,6 @@ const WALKABLE := ".~TapXP123456789"
 const NIGHT_TINT := Color(0.33, 0.37, 0.55)
 const NIGHT_TINT_BM := Color(0.46, 0.50, 0.66)  ## 大英博物馆：冷夜但保留展厅可读性
 const ARTIFACT_POOL: Array[String] = ["vase", "gem", "scroll", "ingot", "jade"]
-## 任务目标被拾取后，其"器灵"的台词（按关卡目标文物 id 取）。
-const GHOST_LINES := {
-	"mask": "把……面具……放……回去……",
-	"ram_zun": "千年了……我听见另一只羊，隔着海……带我们……回家……",
-}
-
 ## BM Room 3 剧情触发器：馆方标签与观众留言。
 ## 贴左右墙边，避免与双羊尊展台（T≈(152,296)）的交互半径重叠导致无法拾取。
 const BM_LABEL_POS := Vector2(40, 296)
@@ -213,7 +205,6 @@ const PLAYER_SCENE := preload("res://src/actors/player.tscn")
 const POLICE_SCENE := preload("res://src/actors/police.tscn")
 const ARTIFACT_SCENE := preload("res://src/world/artifact.tscn")
 const SMOKE_SCENE := preload("res://src/world/smoke_puff.tscn")
-const GHOST_SCENE := preload("res://src/world/ghost.tscn")
 
 var tiles: Array = []
 var patrols: Dictionary = {}
@@ -229,11 +220,7 @@ var _ended := false
 var _last_prompt := ""
 var _talk_cooldown := 0.0
 var _noise_warned := false
-var _wail_warned := false
 var _patrol_hint_shown := false
-var _ghost_spawned := false
-var ghost: Ghost = null
-var ghost_delay := 3.5
 var current_room := -1
 var visited_rooms := {}
 var target_room := -1
@@ -253,9 +240,6 @@ var _story_triggers: Array[Area2D] = []
 var _story_trigger_read: Dictionary = {}
 ## 上一次响应的剧情触发器；离开其范围后才允许再次按 E 重读（防止 _finish_story_tree 反复打开）。
 var _last_story_trigger: Area2D = null
-## 大英博物馆：出口前自动播放双羊 stage 3 的状态。
-var _pending_zun_stage := -1
-var _zun_stage3_triggered := false
 
 
 func _ready() -> void:
@@ -302,6 +286,9 @@ func _map_path() -> String:
 
 
 func target_item_id() -> String:
+	# 优先使用 Game 当前任务目标（支持大英博物馆动态切换目标）。
+	if Game.current_level_id == level_id:
+		return Game.mission_target_id
 	var info: Dictionary = Game.LEVELS.get(level_id, {})
 	return String(info.get("target", "mask"))
 
@@ -628,9 +615,7 @@ func _process(delta: float) -> void:
 			toast.emit("前面有守卫在巡逻——先看清手电光锥的方向，再贴着边走。")
 	var prompt := ""
 	var nearest_trigger := _nearest_story_trigger()
-	if _ghost_near():
-		prompt = "按 E 与器灵交谈"
-	elif nearest_trigger != null:
+	if nearest_trigger != null:
 		var data: Dictionary = nearest_trigger.get_meta("story_data", {})
 		prompt = "按 E 阅读：%s" % data.get("prompt", "")
 	else:
@@ -639,12 +624,6 @@ func _process(delta: float) -> void:
 	if prompt != _last_prompt:
 		_last_prompt = prompt
 		prompt_changed.emit(prompt)
-	if _ghost_near() and Input.is_action_just_pressed("interact") and _talk_cooldown <= 0.0:
-		_talk_cooldown = TALK_COOLDOWN
-		# 器灵对谈由 museum 发起，但玩家轮询同样会读这颗 E：把玩家交互冷却一并拉起，
-		# 防止对谈关闭的同一帧玩家 _try_interact 又触发旁边的剧情/文物交互。
-		player.start_interact_cooldown()
-		_talk_to_ghost()
 
 
 func _room_has_police(idx: int) -> bool:
@@ -693,15 +672,6 @@ func _on_story_trigger_exited(body: Node2D, trigger: Area2D) -> void:
 		_last_story_trigger = null
 
 
-func _ghost_near() -> bool:
-	return (
-		ghost != null
-		and is_instance_valid(ghost)
-		and player != null
-		and player.global_position.distance_to(ghost.global_position) < 36.0
-	)
-
-
 func end_game() -> void:
 	_ended = true
 	if player != null:
@@ -725,7 +695,6 @@ func _on_artifact_picked(item_id: String) -> void:
 	var story := Game.item_story(item_id)
 	if item_id == target_item_id():
 		toast.emit("拿到任务目标：%s！\n快从出口撤离。" % name)
-		_start_haunting()
 	elif story != "":
 		toast.emit("%s 已放入背包（+%d 金币）\n%s" % [name, Game.item_value(item_id), story])
 	else:
@@ -746,84 +715,6 @@ func drop_artifact(item_id: String, at: Vector2) -> void:
 		toast.emit("你把任务目标「%s」丢在了地上——出口重新上锁了。" % Game.item_name(item_id), 4.0)
 	else:
 		toast.emit("你把 %s 丢在了地上。" % Game.item_name(item_id))
-
-
-## The target artifact is haunted: after a short delay a ghost appears and
-## wails, luring patrols to the player's position.
-func _start_haunting() -> void:
-	if _ghost_spawned or _ended:
-		return
-	_ghost_spawned = true
-	var timer := Timer.new()
-	timer.name = "GhostTimer"
-	timer.wait_time = ghost_delay
-	timer.one_shot = true
-	add_child(timer)
-	timer.timeout.connect(_spawn_ghost)
-	timer.start()
-
-
-func _spawn_ghost() -> void:
-	if _ended or player == null:
-		return
-	# 有文物志的文物：走对谈（第一段），否则退回单句台词
-	var target := target_item_id()
-	if Lore.has_lore(target) and Game.lore_stage_of(target) == 0:
-		lore_requested.emit(target, 0)
-	else:
-		dialogue_requested.emit([
-			{"speaker": "？？？", "text": String(GHOST_LINES.get(target, "……"))},
-		])
-	ghost = GHOST_SCENE.instantiate() as Ghost
-	ghost.position = player.global_position + Vector2(-10, 8)
-	ghost.wailed.connect(_on_ghost_wailed)
-	add_child(ghost)
-	Audio.play("ghost", -7.0)
-	# 若双羊已信任玩家，本局不再哀嚎（面具逻辑不受影响）。
-	if level_id == "british_museum" and Game.story_flag("zun_trusted"):
-		ghost.calm(999999.0)
-	# 不在器灵出现时弹提示：此时通常正开着对谈/台词，提示会压住选项；
-	# "它会引来警察 + 按 E 可以安抚"在哀嚎真正引警时用 toast 说明。
-
-
-## 与器灵交谈：播放下一段文物志（讲完则提示）。
-func _talk_to_ghost() -> void:
-	if _ended:
-		return
-	var target := target_item_id()
-	var stage := Game.lore_stage_of(target)
-	var spoke := false
-	if Lore.has_lore(target) and stage < Lore.stage_count(target):
-		lore_requested.emit(target, stage)
-		spoke = true
-	if ghost != null and is_instance_valid(ghost):
-		# 交谈的机械回报：器灵被安抚，短时间内不再哀嚎（也就不会引来警察）。
-		ghost.calm(8.0)
-		if spoke:
-			toast.emit("器灵安静了下来——短时间内不会再哀嚎。", 3.0)
-		else:
-			toast.emit("器灵沉默着，但安静了下来——短时间内不会再哀嚎。", 3.5)
-
-
-func _on_ghost_wailed(pos: Vector2) -> void:
-	if _ended:
-		return
-	# 双羊信任玩家后，右羊不再哀嚎引警（面具逻辑不受影响）。
-	if level_id == "british_museum" and Game.story_flag("zun_trusted"):
-		return
-	Audio.play("ghost", -13.0, randf_range(0.92, 1.06))
-	var src_room := room_index_at(pos)
-	var lured := 0
-	for cop in police:
-		if room_index_at(cop.global_position) != src_room:
-			continue
-		if cop.global_position.distance_to(pos) <= 96.0:
-			# 循声搜索：停在两格半外张望，而不是直接踩到玩家身上
-			if cop.investigate(pos, Police.INVESTIGATE_TIME, 40.0):
-				lured += 1
-	if lured > 0 and not _wail_warned:
-		_wail_warned = true
-		toast.emit("器灵的哀嚎引来了警察！\n快离开原地，或按 E 让器灵安静下来。", 4.5)
 
 
 func _on_pickup_blocked(item_id: String) -> void:
@@ -875,10 +766,6 @@ func _on_exit_body_entered(body: Node2D) -> void:
 		Audio.play("denied", -8.0)
 		toast.emit("出口还锁着：必须带上任务目标才能撤离。")
 		return
-	# 大英博物馆：撤离前自动播双羊最后一段（若还没播完），播完才撤离。
-	if level_id == "british_museum" and _should_trigger_zun_stage3():
-		_trigger_zun_stage3()
-		return
 	_end_escape()
 
 
@@ -886,39 +773,6 @@ func _end_escape() -> void:
 	_ended = true
 	Audio.play("escape", -5.0)
 	escaped.emit()
-
-
-## 是否需要在出口前自动补播双羊文物志。
-func _should_trigger_zun_stage3() -> bool:
-	if _zun_stage3_triggered:
-		return false
-	if not Lore.has_lore("ram_zun"):
-		return false
-	var stage := Game.lore_stage_of("ram_zun")
-	return stage < Lore.stage_count("ram_zun")
-
-
-func _trigger_zun_stage3() -> void:
-	_zun_stage3_triggered = true
-	var stage := Game.lore_stage_of("ram_zun")
-	_pending_zun_stage = stage
-	lore_requested.emit("ram_zun", stage)
-
-
-## 文物志对谈结束后的回调（main.gd 在 advance_lore_stage 后调用）。
-func on_lore_finished(item_id: String) -> void:
-	if item_id != "ram_zun":
-		return
-	# 双羊最后一段播完后，标记信任并停止本局哀嚎。
-	if Game.lore_stage_of("ram_zun") >= Lore.stage_count("ram_zun"):
-		Game.set_story_flag("zun_trusted")
-		if ghost != null and is_instance_valid(ghost):
-			ghost.calm(999999.0)
-	# 若这是出口前的兜底触发，播完继续撤离流程。
-	if _pending_zun_stage >= 0:
-		_pending_zun_stage = -1
-		if not _ended and Game.mission_complete:
-			_end_escape()
 
 
 func _on_police_caught() -> void:

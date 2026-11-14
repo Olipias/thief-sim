@@ -22,6 +22,7 @@ signal card_requested(item_id: String, card_id: String)
 @onready var archive_card: PanelContainer = $Root/Panel/Margin/VBox/TaskPage/Body/Info/ArchiveCard
 @onready var archive_label: Label = $Root/Panel/Margin/VBox/TaskPage/Body/Info/ArchiveCard/Archive
 @onready var notes_label: Label = $Root/Panel/Margin/VBox/TaskPage/Body/Info/Notes
+@onready var footer_label: Label = $Root/Panel/Margin/VBox/Footer
 
 var _item_ids: Array[String] = []
 var _hub_mode := false
@@ -46,6 +47,7 @@ func open(hub_mode := false) -> void:
 		return
 	_hub_mode = hub_mode
 	tab_archive.visible = not _hub_mode
+	footer_label.text = "任务 · P / B / ESC 关闭" if _hub_mode else "任务 / 档案 · P / B / ESC 关闭"
 	_fill_task()
 	_fill_archive()
 	visible = true
@@ -71,8 +73,11 @@ func _fill_task() -> void:
 	var info := Game.level_info()
 	var target_id := Game.mission_target_id
 	target_label.text = Game.item_name(target_id)
+	var location := Game.level_name()
+	if Game.current_level_id == "british_museum":
+		location += "·%s" % Game.bm_hall_name(target_id)
 	meta_label.text = "行动地点：%s\n委托人：老猫 · 报酬：%d 金币" % [
-		Game.level_name(),
+		location,
 		int(info.get("reward", 0)),
 	]
 	story_label.text = Game.item_story(target_id)

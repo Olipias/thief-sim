@@ -11,10 +11,10 @@ const IMAGE_SIZE := 144.0  # 48×48 特写按 3× 展示
 
 @onready var image: TextureRect = $ImageWrap/Image
 @onready var markers: Control = $ImageWrap/Markers
+@onready var placeholder_label: Label = $ImageWrap/PlaceholderLabel
 @onready var title_label: Label = $Info/Title
 @onready var progress_label: Label = $Info/Progress
 @onready var fact_label: Label = $Info/Fact
-@onready var ghost_label: Label = $Info/Ghost
 @onready var cards_box: VBoxContainer = $Info/Cards
 @onready var cards_label: Label = $Info/CardsLabel
 
@@ -33,6 +33,7 @@ func set_item(item_id: String) -> void:
 	else:
 		var icon := "res://assets/sprites/artifact_%s.png" % item_id
 		image.texture = load(icon) if ResourceLoader.exists(icon) else null
+	placeholder_label.visible = Lore.is_placeholder_closeup(item_id)
 	_build_markers()
 	_build_cards()
 	_select_hotspot(-1)
@@ -74,16 +75,13 @@ func _select_hotspot(index: int) -> void:
 	if total == 0:
 		progress_label.text = "暂无细节标记"
 		fact_label.text = "这件文物还没有可勘查的细节标记。"
-		ghost_label.text = ""
 		return
 	if index < 0 or index >= total:
 		fact_label.text = "点击「?」标记，端详文物的细节。"
-		ghost_label.text = ""
 		return
 	var hotspot: Dictionary = _hotspots[index]
 	Game.mark_hotspot(_item_id, index)
 	fact_label.text = "【档案】%s" % String(hotspot.get("fact", ""))
-	ghost_label.text = "【器灵】%s" % String(hotspot.get("ghost", ""))
 	_refresh_markers()
 	# 更新进度（发现数可能刚刚 +1）
 	found = 0

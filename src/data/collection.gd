@@ -5,11 +5,13 @@ extends RefCounted
 ## 条目只放“真实文物”（Game.ARCHIVE 里的条目），图片复用端详页的 2.5D 特写；
 ## 解锁状态来自 Game.is_archived()（行动中接触过 / 老档已推进过器灵对谈）。
 
-const IDS: Array[String] = ["mask", "ram_zun"]
+const IDS: Array[String] = ["mask", "ram_zun", "egypt_stela", "greek_relief"]
 
 const LOCKED_HINTS := {
 	"mask": "在「城西博物馆」的行动中带走它，这一页就会亮起来。",
 	"ram_zun": "在「大英博物馆·中国馆」的行动中带走它，这一页就会亮起来。",
+	"egypt_stela": "在「大英博物馆·埃及馆」的行动中带走它，这一页就会亮起来。",
+	"greek_relief": "在「大英博物馆·希腊馆」的行动中带走它，这一页就会亮起来。",
 }
 
 const FIELD_LABELS := {

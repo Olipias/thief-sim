@@ -31,7 +31,8 @@ LOG = "/tmp/agentchattr_relay.log"
 HEART = "/tmp/agentchattr_relay.heartbeat"
 TARGETS = json.load(open(os.path.join(ROOT, "tools", ".relay_targets.json")))
 POLL = 6
-MENTION_RE = re.compile(r"@(art|code|test|opencode-a)\b|@all\b", re.I)
+MENTION_RE = re.compile(r"(?<![`\w])@(art|code|test|opencode-a|all)\b", re.I)
+CODE_SPAN_RE = re.compile(r"```.*?```|`[^`\n]*`", re.S)
 
 
 def log(msg):
@@ -77,8 +78,12 @@ def main(once=False):
             new.sort(key=lambda m: int(m["id"]))
             for m in new:
                 mid, sender, text = m["id"], m.get("sender") or "", m.get("text") or ""
-                hits = set(x.lower() for x in MENTION_RE.findall(text))
-                hits.discard("all")
+                clean_text = CODE_SPAN_RE.sub(" ", text)
+                hits = set(x.lower() for x in MENTION_RE.findall(clean_text))
+                if "all" in hits:
+                    hits = set(k.lower() for k in TARGETS)
+                else:
+                    hits.discard("")
                 for name, sid in TARGETS.items():
                     if name == sender or name.lower() not in hits:
                         continue

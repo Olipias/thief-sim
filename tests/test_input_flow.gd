@@ -211,28 +211,6 @@ func _test_card_over_phone() -> void:
 	_check_pause_contract("ESC 卡片用例清理后")
 
 
-func _test_lore_over_museum() -> void:
-	# 关卡内触发器灵对谈（等效于靠近文物按 E）：期间 B/P 不应叠开界面
-	await _wait(0.3)
-	main._museum.lore_requested.emit("mask", 0)
-	await _frames(3)
-	check(main.dialogue_tree.is_active(), "器灵对谈已开始")
-	_check_pause_contract("对谈开始时")
-
-	await _tap(KEY_B)
-	check(not main.backpack.is_open(), "对谈中 B 不应打开背包")
-	await _tap(KEY_P)
-	check(not main.phone.is_open(), "对谈中 P 不应打开手机")
-
-	# 用真实按键走完对谈（E 推进 / 确认选项）
-	var guard := 0
-	while main.dialogue_tree.is_active() and guard < 80:
-		await _tap(KEY_E)
-		guard += 1
-	check(not main.dialogue_tree.is_active(), "器灵对谈可用 E 走完并关闭（%d 步内）" % guard)
-	_check_pause_contract("对谈结束后")
-
-
 func _test_hud_button_while_bag() -> void:
 	# 背包打开时，用鼠标点 HUD 的手机按钮：不应出现"手机叠背包"
 	await _wait(0.3)
@@ -322,8 +300,56 @@ func _test_title_collection() -> void:
 	check(not main.collection.is_open(), "ESC 关闭收集册")
 
 
+func _test_new_game_opening() -> void:
+	# P2-A：新游戏先播恶魔契约，结束后进据点；未完成教学关不播 P-01。
+	Game.reset_progress()
+	main.show_title()
+	await _frames(2)
+	main._on_new_game()
+	await _frames(3)
+	check(main.dialogue_tree.is_active(), "P2-A：新游戏先播恶魔契约")
+	if main.dialogue_tree.is_active():
+		await _finish_story_tree()
+	check(Game.story_flag("saw_p00"), "P2-A：saw_p00 落档")
+	check(main._hub != null, "P2-A：契约结束后进入据点")
+	check(not main.dialogue_tree.is_active(), "P2-A：契约结束后不残留对谈")
+	check(not Game.story_flag("saw_p01"), "P2-A：未完成教学关不播 P-01")
+
+
+func _test_tutorial_direct_hub() -> void:
+	# P2-B：城西教学关成功撤离 → 不弹独立 ResultScreen，直接进安全屋并播 P-01。
+	Game.reset_progress()
+	Game.set_story_flag("saw_p00")
+	main.show_menu()
+	await _frames(3)
+	main.start_mission("museum")
+	await _frames(4)
+	while main.dialogue.is_active():
+		main.dialogue.advance()
+		await _frames(1)
+	var museum: Museum = main._museum
+	check(museum != null, "P2-B：城西教学关已进入")
+	if museum == null:
+		return
+	Game.try_pickup("mask")
+	check(Game.mission_complete, "P2-B：目标入包")
+	museum.escaped.emit()
+	await _wait(1.2)
+	var result_screen := false
+	for child in main.ui_layer.get_children():
+		if child is ResultScreen:
+			result_screen = true
+	check(not result_screen, "P2-B：城西成功撤离不弹独立结算页")
+	check(main._hub != null, "P2-B：直接进入安全屋")
+	check(main.dialogue_tree.is_active(), "P2-B：进安全屋播 P-01")
+	if main.dialogue_tree.is_active():
+		await _finish_story_tree()
+	check(Game.story_flag("saw_p01"), "P2-B：P-01 落档")
+
+
 func _test_sell_tab() -> void:
 	# 据点「销赃」页：真实点击标签 → 逐件卖出 → 全部出手
+	Game.reset_progress()
 	Game.loot_stash = [] as Array[String]
 	var items: Array[String] = ["vase", "gem"]
 	Game.loot_stash = items
@@ -379,11 +405,12 @@ func _test_hub_phone() -> void:
 
 
 func _test_hub_stories() -> void:
-	# P-01：新游戏首次进据点。
+	# P-01：城西教学关完成后首次回据点。
 	Game.reset_progress()
+	Game.set_story_flag("completed_museum")
 	main.show_menu()
 	await _frames(2)
-	check(main.dialogue_tree.is_active(), "P-01：新游戏首次进据点播放剧情")
+	check(main.dialogue_tree.is_active(), "P-01：教学关后首次回据点播放剧情")
 	if main.dialogue_tree.is_active():
 		await _finish_story_tree()
 	check(Game.story_flag("saw_p01"), "P-01：saw_p01 落档")
@@ -402,11 +429,13 @@ func _test_hub_stories() -> void:
 	check(Game.story_flag("saw_h01"), "H-01：saw_h01 落档")
 	check(not main.dialogue_tree.is_active(), "H-01：剧情结束后关闭")
 
-	# H-02：大英任务开始前。
+	# H-02：大英任务开始前（先跳过 H-01，只测 H-02）。
 	Game.reset_progress()
 	Game.set_story_flag("saw_p01")
+	Game.set_story_flag("saw_h01")
 	main.show_menu()
 	await _frames(3)
+	# start_mission 会在内部 await 剧情对谈；不 await 它，才能在本测试里继续按键推进剧情。
 	main.start_mission("british_museum")
 	await _frames(2)
 	check(main.dialogue_tree.is_active(), "H-02：大英任务前播放两个地址")
@@ -416,6 +445,31 @@ func _test_hub_stories() -> void:
 	# H-02 结束后应继续进入 briefing/关卡。
 	await _frames(4)
 	check(main.dialogue.is_active() or main._museum != null, "H-02：剧情结束后进入 briefing")
+
+
+func _test_bm_target_selection() -> void:
+	# P6：推理板解锁后选埃及/希腊目标，Museum 必须按所选目标生成与判定。
+	Game.reset_progress()
+	for flag in ["saw_p00", "saw_p01", "saw_h01", "saw_h02", "chain_egypt_stela_done"]:
+		Game.set_story_flag(flag)
+	main.show_menu()
+	await _frames(3)
+	check(Game.set_bm_target("egypt_stela"), "P6：解锁后可切换埃及目标")
+	main.start_mission("british_museum")
+	await _frames(4)
+	while main.dialogue.is_active():
+		main.dialogue.advance()
+		await _frames(1)
+	var museum: Museum = main._museum
+	check(museum != null, "P6：大英关卡已进入")
+	if museum == null:
+		return
+	check(museum.target_item_id() == "egypt_stela", "P6：Museum.target_item_id 跟随所选目标（实际 %s）" % museum.target_item_id())
+	var spawned := false
+	for child in museum.get_children():
+		if child is Artifact and child.item_id == "egypt_stela":
+			spawned = true
+	check(spawned, "P6：埃及目标实际生成")
 
 
 func _test_leave_scene_clean() -> void:
@@ -451,16 +505,18 @@ func _ready() -> void:
 	await _test_basic_toggles()
 	await _test_cross_keys()
 	await _test_card_over_phone()
-	await _test_lore_over_museum()
 	await _test_hud_button_while_bag()
 	await _test_leave_scene_clean()
 	await _test_relic_closeup()
 	await _test_statements_from_title()
 	await _test_title_collection()
+	await _test_new_game_opening()
+	await _test_tutorial_direct_hub()
 	await _test_sell_tab()
 	await _test_phone_archive_footer()
 	await _test_hub_phone()
 	await _test_hub_stories()
+	await _test_bm_target_selection()
 	await _test_bm_story_interactions()
 
 	# 停止音频并给音频服务端一点真实时间释放播放引用（否则退出时报假泄漏）
@@ -519,12 +575,13 @@ func _enter_british_museum() -> Museum:
 		main.dialogue.advance()
 		await _frames(1)
 	Game.reset_progress()
-	# BM 剧情交互测试只测关卡内行为，跳过据点入场剧情 P-01 与大英任务前 H-02。
+	# BM 剧情交互测试只测关卡内行为，跳过据点入场剧情 P-01、H-01 与大英任务前 H-02。
 	Game.set_story_flag("saw_p01")
+	Game.set_story_flag("saw_h01")
 	Game.set_story_flag("saw_h02")
 	main.show_menu()
 	await _frames(3)
-	main.start_mission("british_museum")
+	await main.start_mission("british_museum")
 	await _frames(4)
 	while main.dialogue.is_active():
 		main.dialogue.advance()
@@ -697,28 +754,3 @@ func _test_bm_story_interactions() -> void:
 	check(not Game.story_flag("read_label") and not Game.story_flag("read_note"), "都不读：flag 保持 false")
 	check(not main.dialogue_tree.is_active(), "都不读：没有自动弹出对谈")
 
-	# F. 幽灵在场时的提示优先级：剧情物应优先于"与器灵交谈"（否则提示与 E 行为相反）
-	var zun: Artifact = null
-	for child in museum.get_children():
-		if child is Artifact and child.item_id == "ram_zun":
-			zun = child
-	if zun != null:
-		Game.lore_stage["ram_zun"] = 3  # 跳过双羊对谈，只留幽灵跟随
-		museum.ghost_delay = 0.1
-		zun.try_pickup()
-		await _frames(2)
-		while main.dialogue.is_active():
-			main.dialogue.advance()
-			await _frames(1)
-		await _wait(0.5)
-		_set_player_at(museum, LABEL_STAND)
-		# 把器灵挪到玩家身边，确保 _ghost_near() 为真（否则测不到优先级冲突）
-		if museum.ghost != null and is_instance_valid(museum.ghost):
-			museum.ghost.global_position = museum.player.global_position + Vector2(8, 0)
-		await _wait_for_prompt("馆方标签")
-		check(
-			main.hud.prompt_label.text.contains("馆方标签"),
-			"幽灵在场时：标签提示应优先显示「按 E 阅读」（当前：%s）" % main.hud.prompt_label.text
-		)
-	else:
-		check(false, "BM 剧情：找不到双羊尊，无法验证幽灵提示优先级")

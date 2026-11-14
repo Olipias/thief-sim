@@ -25,9 +25,6 @@ func _ready() -> void:
 	await _test_smoke_bomb()
 	await _test_noise_alerts()
 	await _test_dialogue_box()
-	await _test_ghost()
-	await _test_ghost_calm()
-	await _test_haunting()
 	await _test_room_camera()
 	await _test_british_museum_level()
 	await _test_bag_screen()
@@ -38,7 +35,7 @@ func _ready() -> void:
 	await _test_tutorial_balance()
 	await _test_dialogue_tree()
 	await _test_inspect_page()
-	await _test_ghost_talk()
+	await _test_inspect_placeholder()
 	await _test_backpack_drop()
 	await _test_drop_artifact()
 	await _test_minimap()
@@ -185,84 +182,6 @@ func _test_dialogue_box() -> void:
 	check(done["value"], "dialogue finishes after the last line")
 	check(not box.is_active(), "dialogue box hides after finishing")
 	box.queue_free()
-	await get_tree().process_frame
-
-
-func _test_ghost() -> void:
-	var ghost := load("res://src/world/ghost.tscn").instantiate() as Ghost
-	ghost.wail_interval = 0.05
-	ghost.lifetime = 0.3
-	var wails := [0]
-	ghost.wailed.connect(func(_pos: Vector2) -> void: wails[0] += 1)
-	add_child(ghost)
-	check(ghost.is_active(), "ghost is active when spawned")
-	await get_tree().create_timer(0.25).timeout
-	check(wails[0] >= 2, "ghost wails repeatedly")
-	await get_tree().create_timer(0.15).timeout
-	check(not ghost.is_active(), "ghost fades out after its lifetime")
-	ghost.queue_free()
-	await get_tree().process_frame
-
-
-func _test_ghost_calm() -> void:
-	var ghost := load("res://src/world/ghost.tscn").instantiate() as Ghost
-	ghost.wail_interval = 0.05
-	ghost.lifetime = 5.0
-	var wails := [0]
-	ghost.wailed.connect(func(_pos: Vector2) -> void: wails[0] += 1)
-	add_child(ghost)
-	await get_tree().create_timer(0.15).timeout
-	check(wails[0] >= 1, "ghost wails before being calmed")
-	ghost.calm(0.8)
-	var after_calm: int = wails[0]
-	await get_tree().create_timer(0.3).timeout
-	check(wails[0] == after_calm, "calmed ghost stays quiet")
-	await get_tree().create_timer(0.7).timeout
-	check(wails[0] > after_calm, "ghost wails again once the calm window ends")
-	ghost.queue_free()
-	await get_tree().process_frame
-
-
-func _test_haunting() -> void:
-	Game.reset_run()
-	var museum := await _make_museum()
-	museum.ghost_delay = 0.05
-	var cop: Police = museum.police[1]
-	cop.patrol_points = []
-	cop.global_position = Vector2(10 * 16 + 8, 6 * 16 + 8)
-	museum.player.global_position = Vector2(10 * 16 + 8, 8 * 16 + 8)
-
-	var mask: Artifact = null
-	for child in museum.get_children():
-		if child is Artifact and child.item_id == "mask":
-			mask = child
-	check(mask != null, "target exists for haunting")
-	check(mask.try_pickup(), "target picked up for haunting")
-	await get_tree().create_timer(0.2).timeout
-
-	var ghost: Ghost = null
-	for child in museum.get_children():
-		if child is Ghost:
-			ghost = child
-	check(ghost != null, "haunting spawns a ghost after the target is taken")
-	var toasts: Array[String] = []
-	museum.toast.connect(func(text: String, _duration: float) -> void: toasts.append(text))
-	if ghost != null:
-		check(cop.state != Police.State.CHASE, "cop is calm before the wail")
-		ghost.wailed.emit(ghost.global_position)
-		await get_tree().physics_frame
-		check(cop.state == Police.State.INVESTIGATE, "ghost wail lures a nearby cop")
-		check(cop._investigate_stop >= 30.0, "lured cop searches from a distance")
-		var warned := false
-		for text in toasts:
-			if "引来了警察" in text:
-				warned = true
-		check(warned, "wail that lures a cop warns the player")
-		museum._talk_to_ghost()
-		check(ghost.wail_cooldown() >= 7.5, "talking to the ghost calms it")
-
-	museum.end_game()
-	museum.queue_free()
 	await get_tree().process_frame
 
 
@@ -497,7 +416,7 @@ func _test_collection_screen() -> void:
 	await get_tree().process_frame
 	check(screen.is_open(), "collection screen opens")
 	check(screen.list_box.get_child_count() == Collection.IDS.size(), "one list row per archive entry")
-	check(screen.progress_label.text.contains("1 / 2"), "collection progress counts archived items")
+	check(screen.progress_label.text.contains("1 / %d" % Collection.IDS.size()), "collection progress counts archived items")
 	screen._select("mask")
 	check(screen.name_label.text == Game.item_name("mask"), "archived entry shows its name")
 	check(not screen.locked_label.visible, "archived entry hides the locked hint")
@@ -507,6 +426,12 @@ func _test_collection_screen() -> void:
 	check(screen.name_label.text.contains("？"), "locked entry hides its name")
 	check(screen.locked_label.visible, "locked entry shows how to unlock it")
 	check(screen.lock_icon.visible, "locked entry shows the placeholder icon")
+	# 占位图披露：埃及/希腊目标即使已归档，也要显示占位图标注。
+	Game.archive_seen["egypt_stela"] = true
+	screen._build()
+	screen._select("egypt_stela")
+	check(screen.placeholder_label.visible, "egypt_stela shows placeholder disclosure")
+	Game.archive_seen.erase("egypt_stela")
 	screen.close()
 	check(not screen.is_open(), "collection screen closes")
 	screen.queue_free()
@@ -515,11 +440,21 @@ func _test_collection_screen() -> void:
 
 
 func _test_hub_levels() -> void:
+	# 解锁 ram_zun 目标，使大英博物馆关卡出现可点击的卡片。
+	Game.set_story_flag("chain_ram_zun_done")
 	var hub := load("res://src/ui/hub.tscn").instantiate() as Hub
 	add_child(hub)
 	await get_tree().process_frame
 	check(hub.levels_box.get_child_count() == Game.LEVELS.size(), "hub builds one card per level")
 	check(hub.levels_box.visible and not hub.shop_box.visible, "level tab is the default")
+
+	var bm_card: PanelContainer = hub.levels_box.get_child(1)
+	var bm_has_hall := false
+	for child in _find_labels(bm_card):
+		if "中国馆" in child.text:
+			bm_has_hall = true
+			break
+	check(bm_has_hall, "hub bm card shows 中国馆 for ram_zun")
 
 	var started := {"id": ""}
 	hub.start_requested.connect(func(level_id: String) -> void: started["id"] = level_id)
@@ -548,9 +483,12 @@ func _test_mission_phone() -> void:
 	check(phone.is_open(), "phone opens")
 	check(phone.target_label.text == "商代双羊尊", "phone shows the mission target name")
 	check(phone.relic.has_turntable(), "phone shows the 3D turntable of the target")
-	check("大英博物馆" in phone.meta_label.text, "phone shows the mission location")
+	check("大英博物馆" in phone.meta_label.text and "中国馆" in phone.meta_label.text, "phone shows the mission location with 中国馆")
 	check(not phone.archive_label.text.is_empty(), "phone shows the archive card")
 	check("1936" in phone.archive_label.text, "archive card shows the documented acquisition")
+	Game.set_bm_target("egypt_stela")
+	phone._fill_task()
+	check("埃及馆" in phone.meta_label.text, "phone updates location to 埃及馆 when target switches")
 	phone._show_tab("archive")
 	await get_tree().process_frame
 	check(phone.archive_page.visible and not phone.task_page.visible, "archive tab switches pages")
@@ -566,6 +504,21 @@ func _test_mission_phone() -> void:
 	phone.queue_free()
 	await get_tree().process_frame
 	Game.set_level("museum")
+
+
+func _test_inspect_placeholder() -> void:
+	var inspect := load("res://src/ui/inspect_page.tscn").instantiate() as InspectPage
+	add_child(inspect)
+	await get_tree().process_frame
+	inspect.set_item("ram_zun")
+	check(not inspect.placeholder_label.visible, "ram_zun closeup is not a placeholder")
+	inspect.set_item("egypt_stela")
+	check(inspect.placeholder_label.visible, "egypt_stela closeup shows placeholder disclosure")
+	check(inspect.placeholder_label.text == "占位图，待史料重绘", "placeholder text matches")
+	inspect.set_item("greek_relief")
+	check(inspect.placeholder_label.visible, "greek_relief closeup shows placeholder disclosure")
+	inspect.queue_free()
+	await get_tree().process_frame
 
 
 func _test_tutorial_balance() -> void:
@@ -644,7 +597,6 @@ func _test_inspect_page() -> void:
 	page._select_hotspot(0)
 	check(page.fact_label.text != before, "selecting a hotspot shows its fact")
 	check(page.fact_label.text.contains("档案"), "fact is labelled as an archive entry")
-	check(page.ghost_label.text.contains("器灵"), "ghost line is labelled as fiction")
 	check(Game.hotspot_found("mask", 0), "hotspot discovery is recorded")
 	check(page.cards_box.get_child_count() == Lore.cards("mask").size(), "cards are listed")
 
@@ -659,38 +611,6 @@ func _test_inspect_page() -> void:
 	check(page.cards_box.get_child_count() == Lore.cards("ram_zun").size(), "zun cards are listed")
 	check(page.progress_label.text.contains("0 / %d" % zun_hotspots), "zun hotspot counter is data-driven")
 	page.queue_free()
-	await get_tree().process_frame
-
-
-func _test_ghost_talk() -> void:
-	Game.reset_progress()
-	var museum := await _make_museum()
-	var requested := {"item": "", "stage": -1}
-	museum.lore_requested.connect(func(item_id: String, stage: int) -> void:
-		requested["item"] = item_id
-		requested["stage"] = stage
-	)
-	museum.ghost_delay = 0.05
-	var mask: Artifact = null
-	for child in museum.get_children():
-		if child is Artifact and child.item_id == "mask":
-			mask = child
-	mask.try_pickup()
-	await get_tree().create_timer(0.2).timeout
-	check(museum.ghost != null, "ghost spawns for the mask")
-	check(requested["item"] == "mask" and requested["stage"] == 0, "ghost spawn requests lore stage 0")
-
-	Game.advance_lore_stage("mask")
-	museum._talk_to_ghost()
-	check(requested["stage"] == 1, "talking again plays the next lore stage")
-
-	for i in 5:
-		Game.advance_lore_stage("mask")
-	museum._talk_to_ghost()
-	check(requested["stage"] == 1, "no further stage after the script ends")
-
-	museum.end_game()
-	museum.queue_free()
 	await get_tree().process_frame
 
 
@@ -737,3 +657,12 @@ func _test_escape_flow() -> void:
 	museum.end_game()
 	museum.queue_free()
 	await get_tree().process_frame
+
+
+func _find_labels(node: Node) -> Array[Label]:
+	var out: Array[Label] = []
+	if node is Label:
+		out.append(node)
+	for child in node.get_children():
+		out.append_array(_find_labels(child))
+	return out

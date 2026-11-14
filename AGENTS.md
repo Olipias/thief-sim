@@ -42,7 +42,7 @@ tools/verify.sh --visual                # 全量 + 截图视觉回归（画面�
 ~/.local/bin/godot --headless res://tests/test_scenes.tscn       # 场景实例化（src/*.tscn）
 ~/.local/bin/godot --headless res://tests/test_monkey.tscn       # 随机操作不变量（MONKEY_STEPS / MONKEY_SEED 可调）
 ~/.local/bin/godot --headless res://tests/smoke_test.tscn        # 场景集成冒烟测试
-~/.local/bin/godot --audio-driver Dummy res://tests/screenshot.tscn  # 截图 → /tmp/shot_*.png
+~/.local/bin/godot --audio-driver Dummy --windowed --position -32000,-32000 res://tests/screenshot.tscn  # 屏外静默截图（不弹窗/不抢焦点）→ /tmp/shot_*.png
 
 # 资源生成（改素材/地图必须走这里，见硬性规则 2）
 python3 tools/gen_museum_map.py            # 重新生成 src/levels/museum_map.json

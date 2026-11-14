@@ -4,6 +4,9 @@ extends Node
 ##   godot --audio-driver Dummy res://tests/screenshot.tscn
 
 func _ready() -> void:
+	# 后台静默运行：不抢用户桌面焦点、放到屏幕可视区外，且绝不调用 Input.warp_mouse 抢占系统鼠标
+	DisplayServer.window_set_flag(DisplayServer.WINDOW_FLAG_NO_FOCUS, true)
+	DisplayServer.window_set_position(Vector2i(-32000, -32000))
 	# 截图流程隔离存档，避免覆盖玩家真实进度（也让截图更可复现）
 	Game.save_path = "/tmp/thief_sim_screenshot_save.json"
 	# 截图要确定性：先清进度，再写入固定状态（避免继承上一次运行/玩家存档）
@@ -14,10 +17,9 @@ func _ready() -> void:
 	Game.archive_seen = {"mask": true, "ram_zun": true}
 	# 截图流程只关注 UI 与关卡画面，跳过据点剧情，避免 show_menu/start_mission 被剧情阻塞。
 	Game.set_story_flag("saw_p01")
+	Game.set_story_flag("saw_h01")
 	Game.set_story_flag("saw_h02")
 	Game.save_game()
-	# 鼠标悬停会给按钮加 hover 样式；把指针移到角落，保证 UI 截图可复现
-	Input.warp_mouse(Vector2(2, 2))
 	var main := load("res://src/main.tscn").instantiate() as Main
 	add_child(main)
 	await _wait(0.8)
@@ -58,7 +60,6 @@ func _ready() -> void:
 	if museum == null or museum.player == null:
 		get_tree().quit()
 		return
-	museum.ghost_delay = 60.0
 	for cop in museum.police:
 		cop.set_ai_enabled(false)
 
@@ -100,35 +101,12 @@ func _ready() -> void:
 		if child is Artifact and child.item_id == "mask":
 			mask = child
 	if mask != null:
-		museum.ghost_delay = 1.6  # 让 room3 截图先拍到，再触发器灵对谈
 		museum.player.global_position = mask.global_position + Vector2(0, 28)
 		mask.try_pickup()
 		await _wait(0.8)
 		_skip_dialogue(main)
 		await _wait(0.3)
 		await _shot("/tmp/shot_room3.png")
-
-	# 文物志：器灵对谈（选项 → 展签卡）
-	await _wait(0.9)
-	if main.dialogue_tree.is_active():
-		await _shot("/tmp/shot_lore_dialogue.png")
-		main.dialogue_tree.advance()
-		await _wait(0.2)
-		main.dialogue_tree.advance()
-		await _wait(0.2)
-		if not main.dialogue_tree._choice_buttons.is_empty():
-			main.dialogue_tree._choice_buttons[0].grab_focus()
-		await _shot("/tmp/shot_lore_choices.png", true)
-		if not main.dialogue_tree._choice_buttons.is_empty():
-			main.dialogue_tree._choice_buttons[0].pressed.emit()
-			await _wait(0.2)
-			main.dialogue_tree.advance()
-			await _wait(0.2)
-			await _shot("/tmp/shot_lore_card.png")
-		while main.dialogue_tree.is_active():
-			main.dialogue_tree.advance()
-			await _wait(0.05)
-		await _wait(0.2)
 
 	# 手机档案页：端详（热点 + 展签卡）
 	main.open_phone()
@@ -156,7 +134,7 @@ func _ready() -> void:
 	await _wait(2.0)
 	await _shot("/tmp/shot_result.png")
 
-	# 大英博物馆·中国馆：目标「商代双羊尊」与器灵
+	# 大英博物馆·中国馆：目标「商代双羊尊」
 	main.show_menu()
 	await _wait(0.3)
 	main.start_mission("british_museum")
@@ -169,7 +147,6 @@ func _ready() -> void:
 	if bm != null and bm.player != null:
 		for bm_cop in bm.police:
 			bm_cop.set_ai_enabled(false)
-		bm.ghost_delay = 0.3
 		# 六展厅主题巡检（Room 0..5）
 		var bm_spots := {
 			0: Vector2(8 * 16 + 8, 8 * 16 + 8),
@@ -206,9 +183,6 @@ func _ready() -> void:
 			zun.try_pickup()
 			await _wait(0.8)
 			_skip_dialogue(main)
-			_skip_dialogue_tree(main)  # S-02：双羊拾取后会自动弹器灵对谈，截图前要先走完
-			await _wait(0.4)
-			await _shot("/tmp/shot_bm_ghost.png")
 			# 背包里的双羊尊 32×32 图标（bm_zun_32.png）
 			main.open_backpack()
 			await _wait(0.4)
@@ -270,7 +244,7 @@ func _skip_dialogue(main: Main) -> void:
 		main.dialogue.advance()
 
 
-## 器灵对谈/展签卡：一路确认选项直到结束（截图流程用；真实玩家由按键驱动）。
+## 剧情对谈/展签卡：一路确认选项直到结束（截图流程用；真实玩家由按键驱动）。
 func _skip_dialogue_tree(main: Main) -> void:
 	var guard := 0
 	while main.dialogue_tree.is_active() and guard < 200:
@@ -296,11 +270,10 @@ func _wait(seconds: float) -> void:
 
 
 func _shot(path: String, keep_focus := false) -> void:
-	# 截图要可复现：默认清掉键盘焦点并把鼠标移出交互区（按钮 focus/hover 会随操作历史漂移）；
+	# 截图要可复现：默认清掉键盘焦点（绝不调用 Input.warp_mouse 抢占系统鼠标）；
 	# 选项类截图需要"当前选中"焦点框，调用时 keep_focus=true（并显式 grab_focus）。
 	if not keep_focus:
 		get_viewport().gui_release_focus()
-	Input.warp_mouse(Vector2(2, 2))
 	await RenderingServer.frame_post_draw
 	var img := get_viewport().get_texture().get_image()
 	img.save_png(path)

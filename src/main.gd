@@ -109,17 +109,6 @@ func _on_phone_closed() -> void:
 	_bag_cooldown = 0.2
 
 
-## 文物志对谈（呈现层 A）：播放指定段落，结束时推进进度。
-func _on_lore_requested(item_id: String, stage: int) -> void:
-	var stages := Lore.stages(item_id)
-	if stage < 0 or stage >= stages.size():
-		return
-	dialogue_tree.play(stages[stage], Lore.cards(item_id), func() -> void: _on_lore_finished(item_id))
-	hud.clear_toast()
-	hud.set_compact(true)
-	get_tree().paused = true
-
-
 ## 剧情单卡/短句：用 DialogueTree 占位，escapable=true 允许 P/ESC 直接关闭。
 func _on_story_requested(lines: Array, cards: Dictionary, on_finished: Callable) -> void:
 	var wrapped := func() -> void:
@@ -137,14 +126,6 @@ func _on_story_requested(lines: Array, cards: Dictionary, on_finished: Callable)
 		dialogue_tree.finished.connect(_on_dt_finished, CONNECT_ONE_SHOT)
 	hud.set_compact(true)
 	get_tree().paused = true
-
-
-func _on_lore_finished(item_id: String) -> void:
-	Game.advance_lore_stage(item_id)
-	if _museum != null and is_instance_valid(_museum):
-		_museum.on_lore_finished(item_id)
-	get_tree().paused = false
-	hud.set_compact(false)
 
 
 ## 互动特写层（2.5D）：靠近有特写图的文物按 E 打开。
@@ -234,6 +215,8 @@ func show_title() -> void:
 
 func _on_new_game() -> void:
 	Game.start_new_game()
+	if not Game.story_flag("saw_p00"):
+		await _play_hub_story("p00_devil_contract", "saw_p00")
 	show_menu()
 
 
@@ -265,8 +248,9 @@ func show_menu() -> void:
 	hub.start_requested.connect(start_mission)
 	hub.quit_requested.connect(show_title)
 	ui_layer.add_child(hub)
-	# 据点剧情：P-01 首次进入；H-01 第一次任务结算后回据点。
-	if not Game.story_flag("saw_p01"):
+	# 据点剧情：P-01 在城西教学关完成后首次回据点触发；
+	# H-01 在首次任务结算后回据点触发。
+	if Game.story_flag("completed_museum") and not Game.story_flag("saw_p01"):
 		await _play_hub_story("p01_door_in_rain", "saw_p01")
 	elif Game.story_flag("completed_museum") and not Game.story_flag("saw_h01"):
 		await _play_hub_story("h01_label_lesson", "saw_h01")
@@ -292,9 +276,14 @@ func start_mission(level_id := "museum") -> void:
 	_busy = true
 	if dialogue_tree.is_active():
 		dialogue_tree.close()
-	# H-02：大英任务前，洗衣店后门阿岚递地址。
-	if level_id == "british_museum" and not Game.story_flag("saw_h02"):
-		await _play_hub_story("h02_two_addresses", "saw_h02")
+	# H-01/H-02：大英任务前，若因旧档或跳过未看过 H-01，先补播标签课；
+	# 再看 H-02（阿岚递地址），保证剧情顺序。
+	if level_id == "british_museum":
+		if not Game.story_flag("saw_h01"):
+			await _play_hub_story("h01_label_lesson", "saw_h01")
+		if not Game.story_flag("saw_h02"):
+			await _play_hub_story("h02_two_addresses", "saw_h02")
+		Game.save_checkpoint("pre_heist")
 	Game.set_level(level_id)
 	Game.reset_run()
 	_clear_screen()
@@ -308,7 +297,6 @@ func start_mission(level_id := "museum") -> void:
 	museum.prompt_changed.connect(hud.set_prompt)
 	museum.alert_changed.connect(hud.set_alert)
 	museum.dialogue_requested.connect(_show_dialogue)
-	museum.lore_requested.connect(_on_lore_requested)
 	museum.story_requested.connect(_on_story_requested)
 	museum.closeup_requested.connect(open_relic_closeup)
 	screen.add_child(museum)
@@ -360,8 +348,45 @@ func _finish(museum: Museum, success: bool) -> void:
 	_clear_ui()
 	hud.unbind_level()
 	hud.hide_hud()
+	# P2-A/B：城西教学关成功撤离后，跳过独立 ResultScreen，直接回安全屋触发 P-01。
+	if success and museum.level_id == "museum":
+		show_menu()
+		_busy = false
+	elif success and museum.level_id == "british_museum":
+		Game.save_checkpoint("pre_choice")
+		await _play_devil_demand()
+		_busy = false
+	else:
+		var result := RESULT_SCREEN.instantiate() as ResultScreen
+		result.continue_requested.connect(show_menu)
+		ui_layer.add_child(result)
+		result.setup(summary)
+		_busy = false
+
+
+## 大英博物馆成功撤离后：播放恶魔催交剧情，然后进入结局页。
+func _play_devil_demand() -> void:
+	get_tree().paused = true
+	hud.set_compact(true)
+	dialogue_tree.play(
+		Story.script("p05_devil_demand"),
+		Story.cards("p05_devil_demand"),
+		Callable(),
+		false
+	)
+	await dialogue_tree.finished
+	get_tree().paused = false
+	hud.set_compact(false)
+	var ending_id := String(Game.story_flags.get("ending_id", ""))
 	var result := RESULT_SCREEN.instantiate() as ResultScreen
-	result.continue_requested.connect(show_menu)
+	result.continue_requested.connect(_on_ending_continue)
 	ui_layer.add_child(result)
-	result.setup(summary)
-	_busy = false
+	result.setup({
+		"ending_id": ending_id,
+		"money_total": Game.money,
+	})
+
+
+func _on_ending_continue() -> void:
+	Game.load_checkpoint("pre_choice")
+	show_menu()

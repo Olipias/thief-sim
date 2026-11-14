@@ -215,7 +215,8 @@ func _ready() -> void:
 			and not main._busy
 			and main._museum != null
 		):
-			main._on_lore_requested("mask", 0)  # 器灵对谈（对话树）；之后交给随机按键处理
+			# 随机打开一次手机覆盖层，验证暂停/输入路由不崩。
+			main.open_phone()
 			_lore_injected = true
 			await _frames(2)
 		# 保证覆盖到两个关卡：换关（先回菜单，清干净再开局）

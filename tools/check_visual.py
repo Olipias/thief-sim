@@ -36,11 +36,10 @@ TOLERANCE = 8  # 单通道差异容忍（0-255）：吸收无损压缩/渲染抖
 DEFAULT_THRESHOLD = 0.02  # 2% 像素不同即失败
 
 # 动画/光照类截图：两次运行本身就有差异，放宽阈值，只拦"大幅变样"。
-# （实测：alert ~10%，smoke ~1.6%，bm_ghost ~1.0%）
+# （实测：alert ~10%，smoke ~1.6%）
 OVERRIDES = {
     "shot_alert.png": 0.20,
     "shot_smoke.png": 0.06,
-    "shot_bm_ghost.png": 0.06,
 }
 
 

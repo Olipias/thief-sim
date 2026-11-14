@@ -67,6 +67,17 @@ func _step() -> void:
 		_index += 1
 		_step()
 		return
+	if entry.has("set_flag"):
+		var flag_key := String(entry["set_flag"])
+		var flag_value: Variant = entry.get("value", true)
+		if flag_value is bool:
+			Game.set_story_flag(flag_key, flag_value)
+		else:
+			Game.story_flags[flag_key] = flag_value
+			Game.save_game()
+		_index += 1
+		_step()
+		return
 	if entry.has("goto"):
 		_index = int(_labels.get(String(entry["goto"]), _script.size()))
 		_step()

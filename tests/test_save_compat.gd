@@ -200,7 +200,7 @@ func _test_dirty_stash() -> void:
 	gs2.free()
 
 
-## 收集册字段：老档缺失 → 空；老档有器灵进度 → 兼容解锁；脏条目过滤。
+## 收集册字段：老档缺失 → 空；老档有端详进度 → 兼容解锁；脏条目过滤。
 func _test_dirty_archive() -> void:
 	var legacy := _write_save("legacy_no_archive.json", '{"money": 10}')
 	var gs = _new_game(legacy)
@@ -212,7 +212,7 @@ func _test_dirty_archive() -> void:
 	var lore_only := _write_save("lore_only_archive.json", '{"lore_stage": {"mask": 1}}')
 	var gs2 = _new_game(lore_only)
 	gs2.load_game()
-	check(gs2.is_archived("mask"), "老档的器灵进度可兼容解锁档案")
+	check(gs2.is_archived("mask"), "老档的端详进度可兼容解锁档案")
 	gs2.free()
 
 	var dirty := _write_save("dirty_archive.json", '{"archive_seen": {"mask": true, "nope": true, "vase": false, "gem": "yes", "5": true}}')
@@ -250,13 +250,13 @@ func _test_dirty_story_flags() -> void:
 	# 键值脏：合法 bool 与 ending_id 字符串保留，数字/数组等非法值丢弃
 	var dirty_values := _write_save(
 		"dirty_flags_values.json",
-		'{"story_flags": {"read_label": true, "zun_trusted": 5, "ending_id": "return", "junk": {"x": 1}}}'
+		'{"story_flags": {"read_label": true, "saw_p01": 5, "ending_id": "return", "junk": {"x": 1}}}'
 	)
 	var gs4 = _new_game(dirty_values)
 	gs4.load_game()
 	check(gs4.story_flag("read_label"), "脏旗标：合法布尔值保留")
 	check(String(gs4.story_flags.get("ending_id", "")) == "return", "脏旗标：ending_id 字符串保留")
-	check(not gs4.story_flag("zun_trusted"), "脏旗标：非布尔值丢弃（读取为 false）")
+	check(not gs4.story_flag("saw_p01"), "脏旗标：非布尔值丢弃（读取为 false）")
 	check(gs4.story_flags.size() == 2, "脏旗标：非法键值对被过滤（%d）" % gs4.story_flags.size())
 	gs4.free()
 
@@ -280,7 +280,7 @@ func _test_current_round_trip() -> void:
 	writer.lore_stage = {"mask": 2}
 	writer.lore_found = {"mask": [0, 2]}
 	writer.archive_seen = {"mask": true, "ram_zun": true}
-	writer.story_flags = {"read_label": true, "read_note": true, "honest_to_mask": true, "zun_trusted": true, "ending_id": "return"}
+	writer.story_flags = {"read_label": true, "read_note": true, "honest_to_mask": true, "ending_id": "return"}
 	writer.save_game()
 	writer.free()
 
@@ -296,7 +296,7 @@ func _test_current_round_trip() -> void:
 	check(reader.hotspot_found("mask", 2), "完整档：lore_found")
 	check(reader.archive_seen.size() == 2 and reader.is_archived("ram_zun"), "完整档：archive_seen")
 	check(reader.story_flag("read_label") and reader.story_flag("read_note"), "完整档：story_flags 布尔旗标（标签/留言）")
-	check(reader.story_flag("honest_to_mask") and reader.story_flag("zun_trusted"), "完整档：story_flags 布尔旗标（面具/双羊）")
+	check(reader.story_flag("honest_to_mask"), "完整档：story_flags 布尔旗标（面具）")
 	check(String(reader.story_flags.get("ending_id", "")) == "return", "完整档：ending_id 字符串")
 	reader.free()
 	DirAccess.remove_absolute(path)

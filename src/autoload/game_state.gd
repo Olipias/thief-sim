@@ -19,11 +19,18 @@ const LEVELS := {
 		"reward": 200,
 	},
 	"british_museum": {
-		"name": "大英博物馆·中国馆",
+		"name": "大英博物馆",
 		"map": "res://src/levels/british_museum.json",
 		"target": "ram_zun",
 		"reward": 400,
 	},
+}
+
+## 大英博物馆各目标对应的展厅名（P6）。
+const BM_HALL_NAMES := {
+	"ram_zun": "中国馆",
+	"egypt_stela": "埃及馆",
+	"greek_relief": "希腊馆",
 }
 
 ## Grid size (in cells) per backpack upgrade level.
@@ -45,6 +52,8 @@ const SHAPES := {
 	"scroll": [Vector2i(0, 0), Vector2i(0, 1)],
 	"jade": [Vector2i(0, 0), Vector2i(0, 1), Vector2i(0, 2)],
 	"ram_zun": [Vector2i(0, 0), Vector2i(1, 0), Vector2i(0, 1)],
+	"egypt_stela": [Vector2i(0, 0), Vector2i(1, 0)],
+	"greek_relief": [Vector2i(0, 0), Vector2i(0, 1)],
 }
 
 const CATALOG := {
@@ -59,6 +68,18 @@ const CATALOG := {
 		"value": 0,
 		"is_target": true,
 		"story": "商代晚期青铜酒器（约前1200–1050年），相传出自湖南，存世仅两件。双羊相背共负一尊，羊角盘曲，是南方青铜器独有的写实与浪漫。另一件如今在东京，这一件自1936年起站在大英博物馆的展柜里。",
+	},
+	"egypt_stela": {
+		"name": "书吏彩绘墓碑",
+		"value": 0,
+		"is_target": true,
+		"story": "新王国第19王朝石灰岩彩绘祠堂形墓碑（约前1250年），出自底比斯代尔麦地那工匠村。1823年经英国驻埃及总领事Henry Salt之手售予大英博物馆，编号EA191。碑主为王陵石匠Qaha，边缘留有楔槽。",
+	},
+	"greek_relief": {
+		"name": "帕特农骑手浮雕",
+		"value": 0,
+		"is_target": true,
+		"story": "古典时期潘泰列克大理石浮雕（约前447–432年），原属雅典卫城帕特农神庙北翼浮雕带。1801–1805年由额尔金伯爵团队拆运，1816年英国议会购入，编号1816,0610.28。",
 	},
 	"vase": {
 		"name": "青瓷花瓶",
@@ -108,6 +129,20 @@ const ARCHIVE := {
 		"provenance": "1936 年，它随一位英国收藏家的旧藏进入大英博物馆。",
 		"legend": "传说它 1860 年就离开了故土——档案里找不到那一页。",
 	},
+	"egypt_stela": {
+		"era": "新王国第 19 王朝（约前 1250 年）",
+		"origin": "底比斯（代尔麦地那工匠村）",
+		"collection": "大英博物馆 · EA191",
+		"provenance": "19 世纪初经英国驻埃及总领事 Henry Salt 收集，1823 年售予大英博物馆。",
+		"legend": "碑主为王陵石匠 Qaha；展柜正面布设红外幕帘，背面检修槽可绕开。",
+	},
+	"greek_relief": {
+		"era": "古典时期（约前 447–432 年）",
+		"origin": "雅典卫城帕特农神庙北翼浮雕带",
+		"collection": "大英博物馆 · 1816,0610.28",
+		"provenance": "1801–1805 年由额尔金伯爵团队拆运，1816 年英国议会购入交大英博物馆。",
+		"legend": "希腊政府与国际学者长期质疑当年奥斯曼许可文书的原件存否与权限范围。",
+	},
 }
 
 const UPGRADES := {
@@ -143,7 +178,7 @@ var lore_stage: Dictionary = {}
 var lore_found: Dictionary = {}
 
 ## 剧情旗标：一次性剧情节点（读标签/留言、面具诚实、双羊信任、结局路由）的持久化。
-## 键名约定：read_label / read_note / honest_to_mask / zun_trusted / ending_id（字符串）。
+## 键名约定：read_label / read_note / honest_to_mask / ending_id（字符串）。
 ## 只增字段进存档：老档缺该键默认为空（读写见 _restore_story_flags）。
 var story_flags: Dictionary = {}
 
@@ -160,6 +195,12 @@ var mission_complete := false
 ## 当前关卡与本次任务目标（由 set_level 设定；任务判定实时对照它）。
 var current_level_id := "museum"
 var mission_target_id := "mask"
+
+## 大英博物馆目标选择（P6）：在 Hub 推理板解锁后切换。
+var bm_selected_target := "ram_zun"
+
+## 目标解锁模式（GDD v2）：false = 单条推理链完成即解锁对应目标；true = 三条链全完成才可选。
+var unlock_all_chains_required := false
 
 var save_path := DEFAULT_SAVE_PATH
 var _persistent := false
@@ -312,6 +353,9 @@ func set_level(level_id: String) -> void:
 		return
 	current_level_id = level_id
 	mission_target_id = String((LEVELS[level_id] as Dictionary)["target"])
+	# 大英博物馆目标由推理板动态选择，不由 LEVELS 静态表决定。
+	if level_id == "british_museum":
+		mission_target_id = bm_selected_target
 	_recompute_mission()
 
 
@@ -333,6 +377,12 @@ func level_info() -> Dictionary:
 
 func level_name() -> String:
 	return String(level_info().get("name", current_level_id))
+
+
+## 大英博物馆当前/指定目标对应的展厅名（P6）。
+func bm_hall_name(target_id: String = "") -> String:
+	var id := target_id if target_id != "" else bm_selected_target
+	return String(BM_HALL_NAMES.get(id, "中国馆"))
 
 
 func level_map_path() -> String:
@@ -586,6 +636,7 @@ func save_game() -> void:
 		"story_flags": story_flags,
 		"loot_stash": loot_stash,
 		"archive_seen": archive_seen,
+		"bm_selected_target": bm_selected_target,
 	})
 	# 原子写：先写 .tmp 再改名覆盖。写到一半崩溃时主档保持上一次的完整状态，
 	# 不会出现"半截 JSON → 读档失败 → 玩家进度归零"。
@@ -649,6 +700,7 @@ func load_game() -> void:
 	_restore_story_flags(data.get("story_flags", {}))
 	_restore_stash(data.get("loot_stash", []))
 	_restore_archive(data.get("archive_seen", {}))
+	bm_selected_target = str(data.get("bm_selected_target", "ram_zun"))
 	money_changed.emit()
 	items_changed.emit()
 	backpack_changed.emit()
@@ -748,13 +800,159 @@ func set_story_flag(key: String, value: bool = true) -> void:
 	save_game()
 
 
-## 隐藏结局 E-03「第三只羊」解锁条件：
-## 读过馆方标签、读过观众留言、双羊尊三段对谈全部完成、面具对谈中选择诚实。
-func hidden_ending_unlocked() -> bool:
-	var zun_complete := story_flag("zun_trusted") \
-		or lore_stage_of("ram_zun") >= Lore.stage_count("ram_zun")
-	return story_flag("read_label") and story_flag("read_note") \
-		and zun_complete and story_flag("honest_to_mask")
+## --- 推理链与线索（P3 / P6）------------------------------------------------
+
+func has_clue(clue_id: String) -> bool:
+	return story_flag("clue_" + clue_id)
+
+
+## 记录线索已收集；不存在的 clue_id 返回 false。
+func collect_clue(clue_id: String) -> bool:
+	var exists := false
+	for cid in EvidenceData.chain_ids():
+		var chain: Dictionary = EvidenceData.chain(cid)
+		if (chain.get("clues", {}) as Dictionary).has(clue_id):
+			exists = true
+			break
+	if not exists:
+		return false
+	if has_clue(clue_id):
+		return true
+	set_story_flag("clue_" + clue_id)
+	return true
+
+
+func clues_for_chain(chain_id: String) -> Array[Dictionary]:
+	var chain: Dictionary = EvidenceData.chain(chain_id)
+	var out: Array[Dictionary] = []
+	var clues: Dictionary = chain.get("clues", {})
+	for clue_id in clues:
+		var copy: Dictionary = clues[clue_id].duplicate()
+		copy["collected"] = has_clue(clue_id)
+		out.append(copy)
+	return out
+
+
+## 在两条线索卡之间画线；只记录合法端点。
+func make_link(from_id: String, to_id: String) -> bool:
+	var valid := false
+	for cid in EvidenceData.chain_ids():
+		var chain: Dictionary = EvidenceData.chain(cid)
+		var clues: Dictionary = chain.get("clues", {})
+		if clues.has(from_id) and clues.has(to_id):
+			valid = true
+			break
+	if not valid:
+		return false
+	set_story_flag("link_" + from_id + "_" + to_id)
+	return true
+
+
+func has_link(from_id: String, to_id: String) -> bool:
+	return story_flag("link_" + from_id + "_" + to_id)
+
+
+## 验证某条链：3 张线索卡均已收集，且 required_links 两两连线完成。
+## 验证通过即写入 chain flag（见 EvidenceData.flag_unlocked）。
+func verify_chain(chain_id: String) -> bool:
+	if chain_unlocked(chain_id):
+		return true
+	var chain: Dictionary = EvidenceData.chain(chain_id)
+	var clues: Dictionary = chain.get("clues", {})
+	for clue_id in clues:
+		if not has_clue(clue_id):
+			return false
+	var links: Array = chain.get("required_links", [])
+	for link in links:
+		if not (link is Array) or link.size() != 2:
+			return false
+		if not has_link(String(link[0]), String(link[1])):
+			return false
+	var flag := String(chain.get("flag_unlocked", "chain_%s_done" % chain_id))
+	set_story_flag(flag)
+	return true
+
+
+func chain_unlocked(chain_id: String) -> bool:
+	var chain: Dictionary = EvidenceData.chain(chain_id)
+	return story_flag(String(chain.get("flag_unlocked", "chain_%s_done" % chain_id)))
+
+
+## 当前已解锁的 BM 目标 ID 列表（受 unlock_all_chains_required 开关影响）。
+func unlocked_targets() -> Array[String]:
+	var ids := EvidenceData.chain_ids()
+	var done: Array[String] = []
+	for cid in ids:
+		if chain_unlocked(cid):
+			done.append(cid)
+	if unlock_all_chains_required:
+		if done.size() == ids.size():
+			return done
+		return [] as Array[String]
+	return done
+
+
+## 切换大英博物馆本次要拿的目标。
+func set_bm_target(target_id: String) -> bool:
+	if not CATALOG.has(target_id) or not item_is_target(target_id):
+		return false
+	bm_selected_target = target_id
+	set_level("british_museum")
+	save_game()
+	return true
+
+
+## --- 检查点（P5）-------------------------------------------------------------
+
+const CHECKPOINT_PREFIX := "user://checkpoint_"
+
+func checkpoint_path(name: String) -> String:
+	return CHECKPOINT_PREFIX + name + ".json"
+
+
+func save_checkpoint(name: String) -> void:
+	var file := FileAccess.open(checkpoint_path(name), FileAccess.WRITE)
+	if file == null:
+		return
+	file.store_string(JSON.stringify({
+		"story_flags": story_flags,
+		"lore_stage": lore_stage,
+		"lore_found": lore_found,
+		"archive_seen": archive_seen,
+		"money": money,
+		"backpack_level": backpack_level,
+		"has_sneakers": has_sneakers,
+		"smoke_count": smoke_count,
+		"loot_stash": loot_stash,
+		"bm_selected_target": bm_selected_target,
+	}))
+	file.close()
+
+
+func load_checkpoint(name: String) -> bool:
+	var path := checkpoint_path(name)
+	if not FileAccess.file_exists(path):
+		return false
+	var file := FileAccess.open(path, FileAccess.READ)
+	if file == null:
+		return false
+	var data: Variant = JSON.parse_string(file.get_as_text())
+	if typeof(data) != TYPE_DICTIONARY:
+		return false
+	_restore_story_flags(data.get("story_flags", {}))
+	# 结局选择需要能重选，因此回溯时擦除上一次的 ending_id。
+	story_flags.erase("ending_id")
+	_restore_lore(data.get("lore_stage", {}), data.get("lore_found", {}))
+	_restore_archive(data.get("archive_seen", {}))
+	_restore_stash(data.get("loot_stash", []))
+	money = maxi(0, _as_int(data.get("money", 0)))
+	backpack_level = clampi(_as_int(data.get("backpack_level", 0)), 0, BAG_SIZES.size() - 1)
+	has_sneakers = _as_bool(data.get("has_sneakers", false))
+	smoke_count = maxi(0, _as_int(data.get("smoke_count", 0)))
+	bm_selected_target = str(data.get("bm_selected_target", "ram_zun"))
+	reset_run()
+	save_game()
+	return true
 
 
 ## Re-places saved items, dropping/fixing any that no longer fit.
@@ -793,4 +991,5 @@ func reset_progress() -> void:
 	loot_stash.clear()
 	archive_seen.clear()
 	story_flags.clear()
+	bm_selected_target = "ram_zun"
 	reset_run()

@@ -5,6 +5,33 @@
 
 ---
 
+## [v0.20.0] - 2026-11-14
+
+### 新增（Batch 1：P2 开场 / P3 推理板 / P5 恶魔分支 / P6-A 三目标注册）
+- **P2-A/B/C**：新游戏先播 `p00_devil_contract` 并落档 `saw_p00`；城西教学关成功撤离后跳过独立 `ResultScreen`，直连安全屋触发 P-01；`start_mission("british_museum")` 内先补 H-01 再播 H-02，保证旧档剧情顺序；据点手机页脚按 hub/level 模式切换文案。
+- **P3 安全屋推理板**：Hub 新增「推理」标签，支持电脑·档案库 / 浏览器 / 邮件 / 手机·密信四来源收集线索；单条链集齐 3 卡并完成 `required_links` 两两连线后解锁对应大英博物馆目标；`Game` 新增 `collect_clue` / `make_link` / `verify_chain` / `unlocked_targets` / `set_bm_target` API 与 `unlock_all_chains_required` 开关。
+- **P5 恶魔催交与检查点**：大英博物馆成功撤离后先播 `p05_devil_demand` 两阶段分支（直接上交 / 拒交发火 → 顺从 / 归还建档 / 背叛交易），写入 `ending_id`；结局页提供「从检查点重返安全屋」按钮；新增 `save_checkpoint` / `load_checkpoint`（`pre_heist` / `pre_choice`），回溯保留已解锁推理链并清空当次携带物与结局选择。
+- **P6-A 三目标注册**：`Game.CATALOG` / `ARCHIVE` / `SHAPES`、`Collection.IDS`、`Lore.CLOSEUPS` 注册 `egypt_stela`（EA191）与 `greek_relief`（1816,0610.28）；`Hub` 任务卡按 `unlocked_targets()` 动态生成；`Museum.target_item_id()` 改为跟随 `Game.mission_target_id`，确保埃及/希腊目标实际生成与结算。
+
+### 修改（GDD v2 口径对齐：彻底移除幽灵/器灵系统）
+- 按 GDD v2 新口径，**完全移除**博物馆内的幽灵生成、尾随哀嚎、按 E 安抚与器灵台词：
+  - `Museum` 删除 `GHOST_LINES`、`GHOST_SCENE`、`_start_haunting`、`_spawn_ghost`、`_talk_to_ghost`、`_on_ghost_wailed`、`_ghost_near`、出口前双羊 stage 3 触发与 `zun_trusted` 相关逻辑。
+  - `Main` 删除 `_on_lore_requested` / `_on_lore_finished` 与 `lore_requested` 信号连接；保留 `DialogueTree` 用于剧情单卡/短句/展签卡。
+  - `InspectPage` 移除 `ghost_label` 与「【器灵】」台词展示，只保留「【档案】」史实端详。
+  - `Game` 删除 `hidden_ending_unlocked()` 与 `zun_trusted` 相关判定。
+- 更新 `tests/test_story.gd`、`tests/test_story_flow.gd`、`tests/test_save_compat.gd`、`tests/test_content.gd`、`tests/smoke_test.gd`、`tests/test_input_flow.gd`、`tests/test_monkey.gd`、`tests/screenshot.gd`，删除幽灵/器灵/隐藏结局相关用例。
+- 视觉基线从 33 张精简到 29 张（移除 `shot_bm_ghost.png`、`shot_lore_*.png`），`tools/check_visual.py` 同步移除 `shot_bm_ghost.png` 阈值覆盖。
+- `DialogueTree._step()` 支持 `{"set_flag": ..., "value": ...}` 条目，用于 `p05_devil_demand` 结局路由与 `saw_p05` 落档。
+- `ResultScreen.setup()` 新增 `ending_id` 模式，显示对应结局卡文案与「从检查点重返安全屋」按钮。
+- `tests/screenshot.gd` 跳过 H-01，避免 `start_mission("british_museum")` 因剧情异步阻塞截图流程。
+
+### 测试
+- `tests/test_input_flow.gd`：**144** 项（新增 P2-A/B 开场直连、P6 埃及/希腊目标选择与生成）。
+- `tests/test_logic.gd`：**2536** 项（新增线索收集、连线、链解锁、目标切换、检查点保存/加载/回溯清除 `ending_id`）。
+- `tests/test_content.gd`：**651** 项（动态 BM 目标引用规则）。
+- `tests/smoke_test.gd`：**162** 项（Collection 4 条目、Hub 解锁后生成 BM 卡片）。
+- `tools/verify.sh --fast` **13 项全绿**；`--visual` **17 项全绿**，33 张视觉基线按新 Hub/销赃界面更新并人眼确认。
+
 ## [v0.19.8] - 2026-11-14
 
 ### 新增（GDD v2 P0：设计 / 史料 / 数据地基，plan）

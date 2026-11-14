@@ -93,7 +93,12 @@ if [ "$FAST" -eq 0 ]; then
 	step "冒烟测试（场景集成）" "$GODOT" --headless res://tests/smoke_test.tscn
 fi
 if [ "$VISUAL" -eq 1 ]; then
-	step "截图（视觉回归素材）" "$GODOT" --audio-driver Dummy res://tests/screenshot.tscn
+	# 后台静默截图：优先使用 xvfb-run 虚拟帧缓冲（完全不弹窗）；若无 xvfb 则放到屏幕外 (-32000,-32000) 避免抢焦点打扰用户桌面
+	if command -v xvfb-run >/dev/null 2>&1; then
+		step "截图（视觉回归素材 · 后台虚拟显示）" xvfb-run -a "$GODOT" --audio-driver Dummy res://tests/screenshot.tscn
+	else
+		step "截图（视觉回归素材 · 屏外静默）" "$GODOT" --audio-driver Dummy --windowed --position -32000,-32000 res://tests/screenshot.tscn
+	fi
 	step "视觉回归（对比 tests/visual_baseline）" python3 tools/check_visual.py
 fi
 

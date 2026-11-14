@@ -149,3 +149,27 @@
 - 决定：标题页博物馆入口的入口改为「文物档案」收集册（真实文物的档案字段、器灵/端详进度、已归档/未归档状态）；商店取消标题快捷入口，保留在据点的顶部标签。行动中第一次拾取文物即写入 `Game.archive_seen`（进存档，被抓也保留），收集册据此解锁；老档按器灵进度兼容解锁面具。
 - 原因：标题页的商店快捷入口把“开局前”与“局间补给”混在一起；收集册才是标题页真正需要的长期目标，也把历史文物这一核心支柱放到玩家每天都会看到的入口上。
 - 影响：拾取会触发一次存档写入；收集册是标题页子页面（不暂停）。双羊尊的既有存档无法反推“曾经拿过”，需再拿一次才会归档（老档兼容只覆盖有器灵进度记录的面具）。
+
+## D-023 大英博物馆目标由推理板动态解锁（P3 / P6）
+- 状态：已生效（v0.19.9）
+- 决定：`Game.LEVELS["british_museum"]` 的 `target` 只作为默认值；实际目标由 `Game.bm_selected_target` 决定，`Game.set_level("british_museum")` 将 `mission_target_id` 设为该值。Hub 的「任务」标签按 `Game.unlocked_targets()` 动态生成卡片（未解锁时显示占位提示）。`unlocked_targets()` 受 `Game.unlock_all_chains_required` 开关控制：开发切片模式下单链完成即解锁对应目标；正式模式下三链全部完成才可选。
+- 原因：GDD v2 要求一次行动只拿一件目标，中国/埃及/希腊共用同一张大英博物馆地图；静态 LEVELS 表无法表达「同一关卡多目标择一」。
+- 影响：`Museum.target_item_id()` 优先读取 `Game.mission_target_id`；关卡内目标物、出口判定、结算奖励都随所选目标变化；测试需覆盖目标切换后的实际生成。
+
+## D-024 线索收集与连线验证规则（P3）
+- 状态：已生效（v0.19.9）
+- 决定：每条证据链的 3 张线索卡通过 `Game.collect_clue(id)` 写入 `story_flags["clue_<id>"]`；两两连线通过 `Game.make_link(from, to)` 写入 `story_flags["link_<from>_<to>"]`；`Game.verify_chain(chain_id)` 检查 3 卡全收集 + `required_links` 全部连线后，写入 `story_flags["chain_<id>_done"]`。Hub 推理板在「验证连线」按钮中自动补全本链所需连线。
+- 原因：需要显式记录玩家已收集的线索与已确认的关联，避免自动解锁造成推理感缺失；同时不让 UI 直接写 chain flag，保持 `Game` 作为规则单点。
+- 影响：新增/修改证据链只需改 `src/data/evidence.gd`；验证逻辑自动适配；旧档缺少线索/连线 flag 时默认未解锁（向后兼容）。
+
+## D-025 恶魔催交与检查点回溯（P5）
+- 状态：已生效（v0.19.9）
+- 决定：大英博物馆成功撤离后，不再进入旧 `ResultScreen`，而是保存 `pre_choice` 检查点并播放 `p05_devil_demand`；玩家选择后进入结局页，提供「从检查点重返安全屋」按钮。检查点文件 `user://checkpoint_<name>.json` 仅保存推理链、线索、已解锁目标、金钱/升级等持久进度，加载时清除 `ending_id` 与当次携带物。
+- 原因：GDD v2 要求玩家在结局后可保留已解锁推理链去体验另两条目标线与分支，而不需要重看开场与教学；存档只增字段，`ending_id` 清除防止无法重选。
+- 影响：`Main._finish()` 对 BM 成功路径走 `_play_devil_demand()`；`ResultScreen` 新增 `ending_id` 模式；测试需覆盖 checkpoint 保存/加载与 `ending_id` 清除。
+
+## D-026 彻底移除幽灵/器灵系统（GDD v2 口径对齐）
+- 状态：已生效（v0.20.0）
+- 决定：按 GDD v2 新口径，完全删除博物馆内的幽灵生成、尾随哀嚎、按 E 安抚与器灵台词。`Museum` 不再在目标入包后生成 `Ghost`，不再触发文物志对谈，`InspectPage` 只展示「【档案】」史实端详、不再展示「【器灵】」演绎台词；`Game` 删除 `hidden_ending_unlocked()` 与 `zun_trusted` 判定。
+- 原因：GDD v2 明确「去掉全部倒计时设定」与「彻底删除文物幽灵/器灵设定」，文物的历史与「怨恨风味」改由安全屋电脑检索（档案库/浏览器/邮件）与博物馆现场展签/留言/维护记录呈现。
+- 影响：所有依赖 `Ghost`、`lore_requested`、`_talk_to_ghost`、隐藏结局的测试用例与视觉基线需同步删除；`DialogueTree` 继续保留，用于轻量剧情单卡/短句/展签卡播放。

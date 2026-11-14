@@ -77,6 +77,13 @@ func _test_catalog() -> void:
 		check(target_ids.has(target), "LEVELS[%s] 目标 %s 标记 is_target" % [level_id, target])
 		check(String(info.get("map", "")).ends_with(".json"), "LEVELS[%s] 地图为 JSON" % level_id)
 		target_ids.erase(target)
+	# 大英博物馆三目标（ram_zun / egypt_stela / greek_relief）通过推理板动态解锁，
+	# 不全部静态列在 LEVELS 中。
+	for chain_id in EvidenceData.chain_ids():
+		var chain: Dictionary = EvidenceData.chain(chain_id)
+		var dynamic_target := String(chain.get("target_id", ""))
+		if target_ids.has(dynamic_target):
+			target_ids.erase(dynamic_target)
 	check(target_ids.is_empty(), "每件任务目标都被某个关卡引用（未引用：%s）" % [target_ids.keys()])
 
 
@@ -324,7 +331,7 @@ func _test_lore() -> void:
 		for hotspot in hotspots:
 			var pos: Vector2 = hotspot.get("pos", Vector2(-1, -1))
 			check(pos.x >= 0.0 and pos.x <= 1.0 and pos.y >= 0.0 and pos.y <= 1.0, "热点坐标在 0..1（%s）" % pos)
-			for key in ["label", "fact", "ghost"]:
+			for key in ["label", "fact"]:
 				check(String(hotspot.get(key, "")) != "", "热点含 %s" % key)
 
 		var stages: Array = entry.get("stages", [])

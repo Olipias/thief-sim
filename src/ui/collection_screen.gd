@@ -13,6 +13,7 @@ const FIELD_ORDER: Array[String] = ["era", "origin", "collection", "provenance",
 @onready var progress_label: Label = $Root/Panel/Margin/VBox/Header/Progress
 @onready var list_box: VBoxContainer = $Root/Panel/Margin/VBox/Body/ListScroll/List
 @onready var image: TextureRect = $Root/Panel/Margin/VBox/Body/Detail/TopRow/ImageFrame/Image
+@onready var placeholder_label: Label = $Root/Panel/Margin/VBox/Body/Detail/TopRow/ImageFrame/PlaceholderLabel
 @onready var lock_icon: Label = $Root/Panel/Margin/VBox/Body/Detail/TopRow/ImageFrame/LockIcon
 @onready var name_label: Label = $Root/Panel/Margin/VBox/Body/Detail/TopRow/Head/Name
 @onready var status_label: Label = $Root/Panel/Margin/VBox/Body/Detail/TopRow/Head/Status
@@ -86,11 +87,13 @@ func _select(item_id: String) -> void:
 	if unlocked:
 		status_label.text = "已归档"
 		image.texture = _load_image(String(entry["image"]))
+		placeholder_label.visible = Lore.is_placeholder_closeup(item_id)
 		_build_fields(entry["archive"])
 		fields_box.visible = true
 		locked_label.visible = false
 		lore_label.text = _lore_progress(item_id)
 	else:
+		placeholder_label.visible = false
 		status_label.text = "未归档"
 		image.texture = null
 		_build_fields({})
