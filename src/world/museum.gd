@@ -477,26 +477,23 @@ func _add_story_trigger(group: String, pos: Vector2, prompt: String, cards: Dict
 func _label_lines() -> Array:
 	return [
 		{"card": "zun_label"},
-		{"speaker": "右羊", "text": "买。他记得买的那一天。"},
-		{"speaker": "左羊", "text": "他不记得做我的那一天。"},
-		{"speaker": "", "text": "标签上的字很小。你凑近时，玻璃里映出两张脸。一张是你的，一张不是。"},
+		{"speaker": "", "text": "你读完馆方说明，把目光移向玻璃展柜。标签上的字很小：1936,1118.1。"},
+		{"speaker": "", "text": "档案里只写到这一年：它随一位英国收藏家的旧藏进入大英博物馆。再往前，纸页是空的。"},
 	]
 
 
 func _note_lines() -> Array:
 	return [
 		{"card": "zun_note"},
-		{"speaker": "右羊", "text": "火。他们总说火。"},
-		{"speaker": "左羊", "text": "我不记得火。我记得范土是湿的。"},
-		{"speaker": "右羊", "text": "你记得的太早了。早得没人信。"},
-		{"speaker": "", "text": "留言的墨水是新的。"},
+		{"speaker": "", "text": "观众留言只有一句话：1860，圆明园。别忘了。"},
+		{"speaker": "", "text": "墨水是新的，但年份是旧的。"},
 	]
 
 
 func _both_read_lines() -> Array:
 	return [
-		{"speaker": "左羊", "text": "两件事。一件有编号。一件有火。"},
-		{"speaker": "右羊", "text": "你信哪个？"},
+		{"speaker": "", "text": "你看着展签上的 1936 编号，又看着围栏上的 1860 留言。"},
+		{"speaker": "", "text": "一个写着入藏与购买；一个写着掠夺与大火。哪一个是你写进调查笔记的依据？"},
 		{
 			"choices": [
 				{"text": "编号。它有日期。", "goto": "num"},
@@ -506,23 +503,19 @@ func _both_read_lines() -> Array:
 			]
 		},
 		{"label": "num"},
-		{"speaker": "左羊", "text": "那你信的是买它的人。"},
-		{"speaker": "右羊", "text": "至少他没说谎。"},
+		{"speaker": "", "text": "你选择相信编号。它有日期、有交易记录、有大英博物馆的馆藏档案。"},
 		{"goto": "end"},
 		{"label": "fire"},
-		{"speaker": "右羊", "text": "恨不用证据。"},
-		{"speaker": "左羊", "text": "可它也不是记忆。"},
+		{"speaker": "", "text": "你选择相信火。1860 年的圆明园，是许多人记忆中无法被编号抹去的伤口。"},
 		{"goto": "end"},
 		{"label": "none"},
-		{"speaker": "左羊", "text": "对。都不够。"},
-		{"speaker": "右羊", "text": "那你为什么还站着？"},
+		{"speaker": "", "text": "你觉得两者都不够。编号不解释来源，留言也不算证据。"},
 		{"goto": "end"},
 		{"label": "both"},
-		{"speaker": "左羊", "text": "这是读书人的说法。"},
-		{"speaker": "右羊", "text": "这是活人的说法。"},
+		{"speaker": "", "text": "你把两者都写进笔记：编号是事实，火是记忆；真相也许就在它们之间的空白里。"},
 		{"goto": "end"},
 		{"label": "end"},
-		{"speaker": "左羊", "text": "走吧。灯要灭了。"},
+		{"speaker": "", "text": "你合上笔记本。展厅的灯还亮着，但时间不多。"},
 	]
 
 

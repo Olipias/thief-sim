@@ -355,9 +355,13 @@ func _refresh_reasoning() -> void:
 func _make_clue_row(clue: Dictionary) -> PanelContainer:
 	var panel := PanelContainer.new()
 	_style_panel(panel)
+	var vbox := VBoxContainer.new()
+	vbox.add_theme_constant_override("separation", 4)
+	panel.add_child(vbox)
+
 	var row := HBoxContainer.new()
 	row.add_theme_constant_override("separation", 8)
-	panel.add_child(row)
+	vbox.add_child(row)
 
 	var collected := Game.has_clue(String(clue.get("id", "")))
 	var title := Label.new()
@@ -384,6 +388,14 @@ func _make_clue_row(clue: Dictionary) -> PanelContainer:
 			_build_level_cards()
 		)
 		row.add_child(btn)
+
+	var body := Label.new()
+	body.text = String(clue.get("body", "")) if collected else "收集后查看详情"
+	body.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	body.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	body.add_theme_font_size_override("font_size", 9)
+	body.add_theme_color_override("font_color", Color("b8c4d4") if collected else Color("5a6270"))
+	vbox.add_child(body)
 
 	return panel
 
