@@ -5,6 +5,24 @@
 
 ---
 
+## [v0.20.3] - 2026-11-14
+
+### 修改（路线预演坐标 / UI 层级 / 安全回退点）
+- **鼠标点击使用世界坐标**：`Museum._unhandled_input()` 中添加路径节点时改用 `get_global_mouse_position()`，修复相机 `zoom=2` 且跟随玩家时节点落在屏幕坐标处的 P0 问题。
+- **安全回退点**：新增 `_room_entry_pos`，玩家出生与每次跨入新房间时记录当前位置；`_rewind_and_replan()` 回退到该安全点，不再回退到可能卡在展柜/墙里的房间几何中心。
+- **失败原因横幅移至 HUD**：新增 `Museum.failure_banner_changed` 信号与 `Hud.set_failure_banner()`，失败回放的原因文本在屏幕空间显示；`Museum._draw_failure_replay()` 只保留半透明暗屏与红色高亮连线。
+- **节点预测标签优化**：移除世界空间的规划模式提示文字（改由 HUD 底部提示呈现）；节点标签改用半透明深色底板，ETA 改为「距离最近守卫预计到达时间（`守卫 ~Xs` / `安全`）」，并保留监控警告。
+
+### 修改（展签卡解锁与零器灵残留）
+- **展签卡拾取/归档后直接可读**：`InspectPage._build_cards()` 移除 `lore_stage` 解锁逻辑，背包或归档中的文物所有展签卡均可点击阅读。
+- **收集册文案去器灵**：`CollectionScreen._lore_progress()` 删除「器灵对谈」进度，仅保留「端详热点」进度。
+- **清理 `lore.gd` / `audio.gd` 器灵残留**：删除所有 `ghost` 字段与器灵对谈 `stages` 剧本，移除 `ghost.wav` 音效注册；`DialogueTree` 与 `Game.lore_stage` 等 API 为存档兼容继续保留但不再写入新进度。
+
+### 测试
+- 更新 `tests/test_story.gd`：移除 `Lore.stage_count` 断言，增加热点无 `ghost` 字段检查。
+- 更新 `tests/smoke_test.gd`：音效池数量从 10 调整为 9。
+- `tools/verify.sh --fast` 13 项 / `--visual` 30 张基线全绿（视觉基线因 HUD/标签改动已更新并人眼确认）。
+
 ## [v0.20.2] - 2026-11-14
 
 ### 修改（GDD v2 / READMEnew.md 对齐收口）

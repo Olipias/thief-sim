@@ -3,7 +3,7 @@ extends RefCounted
 ## 文物档案收集册：标题页的长期收藏。
 ##
 ## 条目只放“真实文物”（Game.ARCHIVE 里的条目），图片复用端详页的 2.5D 特写；
-## 解锁状态来自 Game.is_archived()（行动中接触过 / 老档已推进过器灵对谈）。
+## 解锁状态来自 Game.is_archived()（行动中接触过 / 老档已推进过文物档案进度）。
 
 const IDS: Array[String] = ["mask", "ram_zun", "egypt_stela", "greek_relief"]
 

@@ -181,9 +181,9 @@ func _check_invariants(step: int) -> void:
 		if m.failure_replay and m.player != null and m.player.controls_enabled:
 			_fail(step, "失败回放中玩家控制未冻结")
 			return
-		if m.executing_plan and m.player != null and not m.player.auto_moving and m.player.controls_enabled:
-			# 执行模式中被玩家接管后 auto_moving 会停，但 controls_enabled 为 true；
-			# 仅当 controls_enabled 为 false 时还停在执行态才报异常。
+		if m.executing_plan and m.player != null and not m.player.auto_moving and not m.player.controls_enabled:
+			# 执行模式中被玩家接管后 auto_moving 会停，controls_enabled 应为 true；
+			# 若 controls_enabled 为 false 却仍然停在执行态，说明控制被异常冻结。
 			_fail(step, "执行模式玩家控制被异常冻结")
 			return
 

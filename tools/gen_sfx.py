@@ -80,22 +80,6 @@ def pad(track, dur):
     return track + [0.0] * (target - len(track))
 
 
-def ghost_wail(dur=1.3):
-    out = []
-    phase = 0.0
-    noise_y = 0.0
-    random.seed(7)
-    for i in range(int(SR * dur)):
-        t = i / SR
-        vib = 5.0 * math.sin(2.0 * math.pi * 5.5 * t)
-        freq = 180.0 + 40.0 * math.sin(2.0 * math.pi * 0.7 * t) + vib
-        phase += 2.0 * math.pi * freq / SR
-        noise_y += 0.08 * (random.uniform(-1.0, 1.0) - noise_y)
-        swell = math.sin(math.pi * t / dur)
-        out.append((math.sin(phase) * 0.35 + noise_y * 0.15) * swell)
-    return out
-
-
 SOUNDS = {
     "step": lambda: mix(noise(0.07, vol=0.5, cutoff=0.12, release=0.05), tone(110, 0.07, "sine", 0.25)),
     "pickup": lambda: sweep(660, 990, 0.12, "square", 0.3),
@@ -108,13 +92,23 @@ SOUNDS = {
     + pad(tone(659, 0.1, "square", 0.3), 0.11)
     + pad(tone(784, 0.1, "square", 0.3), 0.11)
     + tone(1047, 0.28, "square", 0.32, release=0.2),
-    "ghost": ghost_wail,
     "blip": lambda: tone(1250, 0.035, "square", 0.16, attack=0.002, release=0.02),
 }
 
 
 def main():
     os.makedirs(OUT, exist_ok=True)
+    # 清理已移除的音效文件及其 .import 元数据，避免残留孤儿资源。
+    for f in os.listdir(OUT):
+        path = os.path.join(OUT, f)
+        if f.endswith(".import"):
+            base = f[:-7]
+            if base not in SOUNDS:
+                os.remove(path)
+        elif f.endswith(".wav"):
+            base = f[:-4]
+            if base not in SOUNDS:
+                os.remove(path)
     random.seed(42)
     for name, gen in SOUNDS.items():
         samples = gen()

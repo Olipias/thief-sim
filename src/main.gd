@@ -296,6 +296,7 @@ func start_mission(level_id := "museum") -> void:
 	museum.toast.connect(hud.toast)
 	museum.prompt_changed.connect(hud.set_prompt)
 	museum.alert_changed.connect(hud.set_alert)
+	museum.failure_banner_changed.connect(hud.set_failure_banner)
 	museum.dialogue_requested.connect(_show_dialogue)
 	museum.story_requested.connect(_on_story_requested)
 	museum.closeup_requested.connect(open_relic_closeup)

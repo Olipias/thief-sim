@@ -67,8 +67,7 @@ func _test_story_flags_unknown(Game) -> void:
 
 
 func _test_ram_zun_lore(Game) -> void:
-	check(Lore.has_lore("ram_zun"), "双羊尊：存在文物志")
-	check(Lore.stage_count("ram_zun") == 3, "双羊尊：3 段展签叙事（%d）" % Lore.stage_count("ram_zun"))
+	check(Lore.has_lore("ram_zun"), "双羊尊：存在文物档案")
 	var cards: Dictionary = Lore.cards("ram_zun")
 	check(cards.size() == 3, "双羊尊：3 张展签卡（%d）" % cards.size())
 	for key in ["zun_1", "zun_2", "zun_3"]:
@@ -78,5 +77,6 @@ func _test_ram_zun_lore(Game) -> void:
 	for i in range(hotspots.size()):
 		var h: Dictionary = hotspots[i]
 		check(h.has("pos") and h.has("label") and h.has("fact"), "双羊尊热点 %d：含坐标/标签/史实" % i)
+		check(not h.has("ghost"), "双羊尊热点 %d：无器灵/幽灵残留" % i)
 		var pos: Vector2 = h["pos"]
 		check(pos.x >= 0.0 and pos.x <= 1.0 and pos.y >= 0.0 and pos.y <= 1.0, "双羊尊热点 %d：坐标归一化" % i)

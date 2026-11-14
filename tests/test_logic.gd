@@ -281,18 +281,13 @@ func _test_lore_progress() -> void:
 	gs._persistent = true
 
 	check(lore_script.has_lore("mask"), "mask has a lore entry")
-	check(lore_script.stage_count("mask") >= 2, "mask lore has several stages")
-	check(gs.lore_stage_of("mask") == 0, "lore starts at stage 0")
+	check(lore_script.cards("mask").size() >= 2, "mask has several dossier cards")
+	check(lore_script.hotspots("mask").size() >= 2, "mask has several inspect hotspots")
+	check(gs.lore_stage_of("mask") == 0, "lore stage starts at 0")
 	check(not gs.hotspot_found("mask", 0), "hotspot starts undiscovered")
 
 	gs.advance_lore_stage("mask")
-	check(gs.lore_stage_of("mask") == 1, "lore stage advances")
-	for i in 10:
-		gs.advance_lore_stage("mask")
-	check(
-		gs.lore_stage_of("mask") == lore_script.stage_count("mask"),
-		"lore stage caps at the script length",
-	)
+	check(gs.lore_stage_of("mask") == 0, "lore stage stays at 0 when no stages remain")
 
 	gs.mark_hotspot("mask", 1)
 	gs.mark_hotspot("mask", 1)
@@ -302,10 +297,6 @@ func _test_lore_progress() -> void:
 	var reader = load("res://src/autoload/game_state.gd").new()
 	reader.save_path = save_path
 	reader.load_game()
-	check(
-		reader.lore_stage_of("mask") == lore_script.stage_count("mask"),
-		"lore stage survives the save",
-	)
 	check(reader.hotspot_found("mask", 1), "hotspots survive the save")
 	gs.free()
 	reader.free()

@@ -488,10 +488,12 @@ func _test_route_planning() -> void:
 	check(museum.planning_mode, "Tab 进入规划模式")
 	check(not museum.police[0].ai_enabled, "规划模式下守卫 AI 冻结")
 
-	var click_pos := museum.player.global_position + Vector2(32, 0)
-	await _click(click_pos)
+	var click_world := museum.player.global_position + Vector2(32, 0)
+	# 真实玩家看到的是相机缩放后的屏幕坐标（zoom=2）；用 canvas transform 反推屏幕位置。
+	var click_screen: Vector2 = museum.get_viewport().get_canvas_transform() * click_world
+	await _click(click_screen)
 	check(museum.planned_points.size() == 1, "左键点击添加规划节点")
-	check(museum.planned_points[0].distance_to(click_pos) < 8.0, "节点落在点击位置附近")
+	check(museum.planned_points[0].distance_to(click_world) < 8.0, "节点落在点击位置附近（世界坐标）")
 
 	await _tap(KEY_TAB)
 	check(not museum.planning_mode, "再按 Tab 退出规划模式")
@@ -501,7 +503,7 @@ func _test_route_planning() -> void:
 		cop.set_ai_enabled(false)
 
 	await _tap(KEY_TAB)
-	await _click(click_pos)
+	await _click(click_screen)
 	var start_pos := museum.player.global_position
 	await _tap(KEY_SPACE)
 	check(museum.executing_plan, "空格执行规划路线")
@@ -580,6 +582,7 @@ func _ready() -> void:
 	await _test_hub_phone()
 	await _test_hub_stories()
 	await _test_bm_target_selection()
+	await _test_archive_cards_readable()
 	await _test_bm_story_interactions()
 
 	# 停止音频并给音频服务端一点真实时间释放播放引用（否则退出时报假泄漏）
@@ -713,6 +716,26 @@ func _wait_for_prompt(substring: String) -> void:
 			return
 		await _frames(1)
 		guard += 1
+
+
+func _test_archive_cards_readable() -> void:
+	# 幽灵移除后，展签卡不应再依赖 lore_stage 锁死；拾取/归档后应全部可读。
+	Game.reset_progress()
+	Game.try_pickup("ram_zun")
+	var page: InspectPage = load("res://src/ui/inspect_page.tscn").instantiate()
+	add_child(page)
+	await _frames(2)
+	page.set_item("ram_zun")
+	await _frames(2)
+	var enabled := 0
+	for child in page.cards_box.get_children():
+		if child is Button:
+			if not child.disabled:
+				enabled += 1
+			check(not String(child.text).contains("未解锁"), "展签卡不显示未解锁：%s" % child.text)
+	check(enabled == 3, "双羊尊 3 张展签卡全部可读（实际 %d）" % enabled)
+	page.queue_free()
+	await _frames(2)
 
 
 func _test_bm_story_interactions() -> void:

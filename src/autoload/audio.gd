@@ -12,7 +12,6 @@ const SFX := {
 	"caught": "res://assets/sfx/caught.wav",
 	"smoke": "res://assets/sfx/smoke.wav",
 	"escape": "res://assets/sfx/escape.wav",
-	"ghost": "res://assets/sfx/ghost.wav",
 	"blip": "res://assets/sfx/blip.wav",
 }
 const POOL_SIZE := 10

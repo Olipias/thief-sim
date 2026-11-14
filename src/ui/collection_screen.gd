@@ -104,17 +104,14 @@ func _select(item_id: String) -> void:
 
 
 func _lore_progress(item_id: String) -> String:
-	var stages := Lore.stage_count(item_id)
-	if stages <= 0:
-		return ""
 	var hotspots: Array = Lore.hotspots(item_id)
+	if hotspots.is_empty():
+		return ""
 	var found := 0
 	for i in hotspots.size():
 		if Game.hotspot_found(item_id, i):
 			found += 1
-	return "器灵对谈 %d / %d · 端详热点 %d / %d" % [
-		Game.lore_stage_of(item_id), stages, found, hotspots.size(),
-	]
+	return "端详热点 %d / %d" % [found, hotspots.size()]
 
 
 func _build_fields(archive: Dictionary) -> void:

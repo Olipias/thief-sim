@@ -19,7 +19,7 @@ func _ready() -> void:
 	Game.reset_progress()
 	Game.lore_stage.clear()
 	Game.lore_found.clear()
-	check(Audio._streams.size() == 10, "audio streams loaded")
+	check(Audio._streams.size() == 9, "audio streams loaded")
 	Audio.play("pickup")
 	await _test_bust_flow()
 	await _test_smoke_bomb()

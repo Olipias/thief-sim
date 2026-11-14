@@ -13,6 +13,7 @@ signal phone_requested
 @onready var prompt_label: Label = $Root/PromptLabel
 @onready var toast_label: Label = $Root/ToastLabel
 @onready var alert_label: Label = $Root/AlertLabel
+@onready var failure_label: Label = $Root/FailureLabel
 
 var _toast_seq := 0
 
@@ -27,6 +28,7 @@ func _ready() -> void:
 	refresh_items()
 	set_alert(0)
 	set_prompt("")
+	set_failure_banner("")
 
 
 func show_hud() -> void:
@@ -85,6 +87,15 @@ func set_alert(level: int) -> void:
 	elif level == 1:
 		alert_label.text = "？附近有警察警觉了…"
 		alert_label.add_theme_color_override("font_color", Color("ffd75e"))
+
+
+func set_failure_banner(reason: String) -> void:
+	if reason.is_empty():
+		failure_label.visible = false
+		failure_label.text = ""
+	else:
+		failure_label.text = "【预演失败】%s\n按 E / 空格 回退并重新规划" % reason
+		failure_label.visible = true
 
 
 ## Hide the bottom status rows, e.g. while a dialogue box is open.

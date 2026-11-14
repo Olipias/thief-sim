@@ -7,6 +7,7 @@ signal caught
 signal toast(text: String)
 signal prompt_changed(text: String)
 signal alert_changed(level: int)
+signal failure_banner_changed(reason: String)
 signal dialogue_requested(lines: Array)
 ## 请求进入互动特写层（2.5D）
 signal closeup_requested(item_id: String)
@@ -252,6 +253,7 @@ var failure_line_end: Vector2 = Vector2.ZERO
 var _failure_replay_timer := 0.0
 var _mouse_left_was_pressed := false
 var _mouse_right_was_pressed := false
+var _room_entry_pos: Vector2 = Vector2.ZERO
 
 ## BM Room 3 的剧情触发器（馆方标签 / 观众留言）。
 var _story_triggers: Array[Area2D] = []
@@ -413,6 +415,7 @@ func _spawn_player(pos: Vector2) -> void:
 	player.inspect_requested.connect(func(item_id: String) -> void: closeup_requested.emit(item_id))
 	player.story_trigger_requested.connect(_on_story_trigger_requested)
 	add_child(player)
+	_room_entry_pos = pos
 
 
 func _spawn_artifact(item_id: String, pos: Vector2) -> void:
@@ -611,6 +614,13 @@ func _cell_center(x: int, y: int) -> Vector2:
 	return Vector2(x * TILE + TILE * 0.5, y * TILE + TILE * 0.5)
 
 
+func _physics_process(_delta: float) -> void:
+	# 自动路线：在物理帧尾立即推进到下一节点，避免 process 顺序导致
+	# 执行态与 auto_moving 不同步的瞬态被 monkey 不变量抓到。
+	if executing_plan and player != null and not player.auto_moving:
+		_advance_plan_step()
+
+
 func _process(delta: float) -> void:
 	_bm_time += delta
 	_animate_bm_decor()
@@ -625,6 +635,7 @@ func _process(delta: float) -> void:
 	if idx != -1 and idx != current_room:
 		current_room = idx
 		visited_rooms[idx] = true
+		_room_entry_pos = player.global_position
 		_apply_camera_limits(rooms[idx])
 		if not _patrol_hint_shown and _room_has_police(idx):
 			_patrol_hint_shown = true
@@ -697,7 +708,7 @@ func _unhandled_input(event: InputEvent) -> void:
 	if player == null or _ended or not planning_mode:
 		return
 	if event is InputEventMouseButton and event.pressed:
-		var pos: Vector2 = event.position
+		var pos: Vector2 = get_viewport().get_canvas_transform().affine_inverse() * event.position
 		if event.button_index == MOUSE_BUTTON_LEFT:
 			if planned_points.size() < MAX_PLAN_POINTS and _is_walkable_world(pos):
 				_add_plan_point(pos)
@@ -809,6 +820,7 @@ func enter_failure_replay(detector: Node2D, reason: String) -> void:
 		cop.set_ai_enabled(false)
 		cop.velocity = Vector2.ZERO
 	prompt_changed.emit("按 E / 空格 重新规划")
+	failure_banner_changed.emit(failure_reason)
 	queue_redraw()
 
 
@@ -827,25 +839,24 @@ func _rewind_and_replan() -> void:
 	planned_points.clear()
 	plan_point_index = 0
 	if player != null:
-		# 回退到本房间起点（或当前位置，保证安全）
-		var room_idx := room_index_at(player.global_position)
-		if room_idx >= 0 and room_idx < rooms.size():
-			var r: Rect2 = rooms[room_idx]
-			player.global_position = r.position + Vector2(r.size.x * 0.5, r.size.y * 0.5)
+		player.global_position = _room_entry_pos
 		player.controls_enabled = false
 		player.velocity = Vector2.ZERO
 	for cop in police:
 		cop.set_ai_enabled(true)
 		cop._enter_patrol()
 	toggle_planning_mode(true)
+	failure_banner_changed.emit("")
 
 
-func _estimate_eta_to_point(point: Vector2) -> float:
-	if player == null:
-		return 0.0
-	var dist := player.global_position.distance_to(point)
-	var speed := Player.WALK_SPEED * Player.CROUCH_SPEED_MULTIPLIER
-	return dist / speed if speed > 0.0 else 0.0
+func _estimate_guard_eta_to_point(point: Vector2) -> float:
+	var nearest := INF
+	for cop in police:
+		if is_instance_valid(cop):
+			nearest = mini(nearest, cop.global_position.distance_to(point))
+	if nearest == INF:
+		return -1.0
+	return nearest / Police.PATROL_SPEED
 
 
 func _nearest_police_distance_to(point: Vector2) -> float:
@@ -1248,21 +1259,14 @@ func _draw_planning_overlay() -> void:
 		var p := planned_points[i]
 		draw_circle(p, PLAN_POINT_RADIUS, Color(0.35, 0.78, 0.92, 0.9))
 		draw_arc(p, PLAN_POINT_RADIUS + 2.0, 0.0, TAU, 12, Color(0.15, 0.35, 0.45, 0.6), 1.0)
-		var eta := _estimate_eta_to_point(p)
-		var label := "%.1fs" % eta
-		var dist_to_guard := _nearest_police_distance_to(p)
-		if dist_to_guard < 72.0:
-			label += " · 警戒"
+		var eta := _estimate_guard_eta_to_point(p)
+		var label := "安全" if eta < 0.0 else "守卫 ~%.1fs" % eta
 		if _is_in_camera_vision(p):
 			label += " · 监控"
-		draw_string(font, p + Vector2(6, -8), label, HORIZONTAL_ALIGNMENT_LEFT, -1, 9, Color(0.75, 0.88, 0.95, 0.9))
-
-	# 规划模式提示
-	if planning_mode:
-		var hint := "规划模式：左键添加节点（%d/%d）· 右键删除 · 空格执行 · Tab/R 退出" % [planned_points.size(), MAX_PLAN_POINTS]
-		draw_string(font, Vector2(8, 16), hint, HORIZONTAL_ALIGNMENT_LEFT, -1, 10, Color(0.95, 0.92, 0.75, 0.95))
-	elif executing_plan:
-		draw_string(font, Vector2(8, 16), "执行路线中……按方向键或 E 接管", HORIZONTAL_ALIGNMENT_LEFT, -1, 10, Color(0.95, 0.92, 0.75, 0.95))
+		var text_size: Vector2 = font.get_string_size(label, HORIZONTAL_ALIGNMENT_LEFT, -1, 9)
+		var backing := Rect2(p + Vector2(4, -20), text_size + Vector2(4, 4))
+		draw_rect(backing, Color(0.05, 0.06, 0.08, 0.72), true)
+		draw_string(font, p + Vector2(6, -8), label, HORIZONTAL_ALIGNMENT_LEFT, -1, 9, Color(0.85, 0.92, 0.98, 0.95))
 
 
 func _is_in_camera_vision(point: Vector2) -> bool:
@@ -1278,19 +1282,14 @@ func _is_in_camera_vision(point: Vector2) -> bool:
 func _draw_failure_replay() -> void:
 	if not failure_replay:
 		return
-	var font := ThemeDB.fallback_font
 	# 半透明暗屏
 	draw_rect(Rect2(Vector2.ZERO, Vector2(tiles[0].length() * TILE, tiles.size() * TILE)), Color(0.05, 0.0, 0.0, 0.45), true)
-	# 红色高亮连线：发现源 → 玩家
+	# 红色高亮连线：发现源 → 玩家（留在世界空间，由相机跟随）
 	if failure_detector != null and is_instance_valid(failure_detector):
 		draw_line(failure_detector.global_position, failure_line_end, Color(1.0, 0.15, 0.15, 0.92), 2.0)
 		draw_circle(failure_detector.global_position, 6.0, Color(1.0, 0.15, 0.15, 0.7))
 	elif failure_line_start != failure_line_end:
 		draw_line(failure_line_start, failure_line_end, Color(1.0, 0.15, 0.15, 0.92), 2.0)
-	# 顶部红色原因说明
-	var msg := "【预演失败】%s" % failure_reason
-	draw_string(font, Vector2(8, 16), msg, HORIZONTAL_ALIGNMENT_LEFT, -1, 11, Color(1.0, 0.25, 0.25, 0.95))
-	draw_string(font, Vector2(8, 32), "按 E / 空格 回退到房间起点并重新规划", HORIZONTAL_ALIGNMENT_LEFT, -1, 10, Color(0.95, 0.85, 0.85, 0.9))
 
 
 func _animate_bm_decor() -> void:

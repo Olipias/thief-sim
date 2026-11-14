@@ -1,9 +1,9 @@
 class_name InspectPage
 extends Control
-## 端详页（文物志的"呈现层 B"）：文物特写 + 可点热点 + 史实/器灵短句 + 展签卡。
+## 端详页（文物档案的"呈现层 B"）：文物特写 + 可点热点 + 史实展签卡。
 ##
 ## 热点数据来自 src/data/lore.gd（归一化坐标）；发现进度存 Game.lore_found（进存档）。
-## 展签卡通过信号交给 main 用 DialogueTree 展示（史实与演绎始终视觉分离）。
+## 展签卡通过信号交给 main 用 DialogueTree 展示。
 
 signal card_requested(item_id: String, card_id: String)
 
@@ -91,24 +91,17 @@ func _select_hotspot(index: int) -> void:
 	progress_label.text = "已发现 %d / %d" % [found, total]
 
 
-## 展签卡列表：第 i 张卡在文物志推进到第 i+1 段后解锁。
+## 展签卡列表：随身/归档文物全部直接可读。
 func _build_cards() -> void:
 	for child in cards_box.get_children():
 		child.queue_free()
 	var cards := Lore.cards(_item_id)
 	cards_label.visible = not cards.is_empty()
-	var unlocked := Game.lore_stage_of(_item_id)
-	var index := 0
 	for card_id in cards:
 		var card: Dictionary = cards[card_id]
 		var button := Button.new()
 		button.text = String(card.get("title", card_id))
 		button.focus_mode = Control.FOCUS_NONE
 		button.custom_minimum_size = Vector2(0, 22)
-		if index < unlocked:
-			button.pressed.connect(func() -> void: card_requested.emit(_item_id, String(card_id)))
-		else:
-			button.disabled = true
-			button.text += "（未解锁）"
+		button.pressed.connect(func() -> void: card_requested.emit(_item_id, String(card_id)))
 		cards_box.add_child(button)
-		index += 1

@@ -29,6 +29,7 @@ func _ready() -> void:
 	_test_lore()
 	_test_collection()
 	_test_statements()
+	_test_no_ghost_residual()
 	if _failures > 0:
 		print("FAILED %d / %d checks" % [_failures, _checks])
 		get_tree().quit(1)
@@ -334,28 +335,8 @@ func _test_lore() -> void:
 			for key in ["label", "fact"]:
 				check(String(hotspot.get(key, "")) != "", "热点含 %s" % key)
 
-		var stages: Array = entry.get("stages", [])
-		check(stages.size() >= 2, "文物志[%s] 至少 2 段" % item_id)
-		for stage_index in stages.size():
-			var stage: Array = stages[stage_index]
-			var labels := {}
-			for entry_item in stage:
-				if entry_item.has("label"):
-					labels[String(entry_item["label"])] = true
-			for entry_item in stage:
-				var keys: Array = entry_item.keys()
-				var known := false
-				for key in ["speaker", "text", "card", "choices", "label", "goto"]:
-					if keys.has(key):
-						known = true
-				check(known, "第 %d 段条目字段合法（%s）" % [stage_index, keys])
-				if entry_item.has("card"):
-					check(cards.has(String(entry_item["card"])), "第 %d 段引用的卡片存在（%s）" % [stage_index, entry_item["card"]])
-				if entry_item.has("goto"):
-					check(labels.has(String(entry_item["goto"])), "第 %d 段跳转目标存在（%s）" % [stage_index, entry_item["goto"]])
-				for choice in entry_item.get("choices", []):
-					check(String(choice.get("text", "")) != "", "选项有文本")
-					check(labels.has(String(choice.get("goto", ""))), "选项跳转目标存在（%s）" % choice.get("goto", ""))
+		# 器灵对谈剧本已在 GDD v2 中移除，保留 entry 数据结构仅含展签卡与热点。
+		check(not entry.has("stages"), "文物志[%s] 不再含器灵对谈 stages" % item_id)
 
 
 	# 独立特写表（没有文物志剧本的文物也能在档案页看到细节图）
@@ -377,6 +358,19 @@ func _test_collection() -> void:
 
 
 ## 声明页：所有正式声明集中在 src/data/statements.gd，必须覆盖真实文物与虚构说明。
+## GDD v2 硬约束：全库不再出现左羊/右羊/器灵对谈/ghost 音效残留。
+func _test_no_ghost_residual() -> void:
+	var lore_src := FileAccess.get_file_as_string("res://src/data/lore.gd")
+	check(not lore_src.contains("左羊") and not lore_src.contains("右羊"), "lore.gd 无左羊/右羊残留")
+	check(not lore_src.contains("\"ghost\""), "lore.gd 无 ghost 字段残留")
+	var audio_src := FileAccess.get_file_as_string("res://src/autoload/audio.gd")
+	check(not audio_src.contains("ghost"), "audio.gd 无 ghost 音效注册")
+	var collection_src := FileAccess.get_file_as_string("res://src/ui/collection_screen.gd")
+	check(not collection_src.contains("器灵"), "collection_screen.gd 无「器灵」文案")
+	var museum_src := FileAccess.get_file_as_string("res://src/world/museum.gd")
+	check(not museum_src.contains("左羊") and not museum_src.contains("右羊"), "museum.gd 无左羊/右羊台词")
+
+
 func _test_statements() -> void:
 	var sections: Array = _consts("res://src/data/statements.gd").get("SECTIONS", [])
 	check(not sections.is_empty(), "声明页至少有一条")
