@@ -30,7 +30,9 @@ const LEVELS := {
 const BM_HALL_NAMES := {
 	"ram_zun": "中国馆",
 	"egypt_stela": "埃及馆",
+	"egypt_heart_scarab": "埃及馆",
 	"greek_relief": "希腊馆",
+	"akrotiri_askos": "希腊馆",
 }
 
 ## Grid size (in cells) per backpack upgrade level.
@@ -45,6 +47,8 @@ const BAG_SIZES: Array[Vector2i] = [
 
 ## Footprints in cell offsets.  Rotation is 90° clockwise steps at runtime.
 const SHAPES := {
+	"egypt_heart_scarab": [Vector2i(0, 0), Vector2i(1, 0)],
+	"akrotiri_askos": [Vector2i(0, 0), Vector2i(0, 1)],
 	"mask": [Vector2i(0, 0), Vector2i(1, 0)],
 	"vase": [Vector2i(0, 0)],
 	"gem": [Vector2i(0, 0)],
@@ -57,6 +61,14 @@ const SHAPES := {
 }
 
 const CATALOG := {
+	"egypt_heart_scarab": {
+		"name": "心形圣甲虫", "value": 0, "is_target": true,
+		"story": "埃及晚期深绿色石材护符，约前664–332年，长6.1厘米。大都会艺术博物馆编号10.130.1650，Helen Miller Gould于1910年捐赠。游戏借展与追索人物均为虚构。",
+	},
+	"akrotiri_askos": {
+		"name": "阿克罗蒂里彩绘注壶", "value": 0, "is_target": true,
+		"story": "约前1650–1615年的陶制注壶，发现于阿克罗蒂里西屋。UNESCO失窃文物虚拟博物馆编号VM-GR-25-012，由希腊提交；公开条目未交代失窃经过及现藏地。游戏展出地点为虚构。",
+	},
 	"mask": {
 		"name": "青铜人面具",
 		"value": 0,
@@ -72,13 +84,13 @@ const CATALOG := {
 	"egypt_stela": {
 		"name": "书吏彩绘墓碑",
 		"value": 0,
-		"is_target": true,
+		"is_target": false,
 		"story": "新王国第19王朝石灰岩彩绘祠堂形墓碑（约前1250年），出自底比斯代尔麦地那工匠村。1823年经英国驻埃及总领事Henry Salt之手售予大英博物馆，编号EA191。碑主为王陵石匠Qaha，边缘留有楔槽。",
 	},
 	"greek_relief": {
 		"name": "帕特农骑手浮雕",
 		"value": 0,
-		"is_target": true,
+		"is_target": false,
 		"story": "古典时期潘泰列克大理石浮雕（约前447–432年），原属雅典卫城帕特农神庙北翼浮雕带。1801–1805年由额尔金伯爵团队拆运，1816年英国议会购入，编号1816,0610.28。",
 	},
 	"vase": {
@@ -115,6 +127,18 @@ const CATALOG := {
 
 ## 文物档案（真实文物必填；与 docs/SOURCES.md 一一对应）。
 const ARCHIVE := {
+	"egypt_heart_scarab": {
+		"era": "埃及晚期（约前664–332年）", "origin": "埃及",
+		"collection": "大都会艺术博物馆 · 10.130.1650",
+		"provenance": "Helen Miller Gould于1910年捐赠，早期流转尚未详述。",
+		"legend": "本件正式追索未核实；游戏标记有争议 / 追索中仅指虚构委托，不能代指现实请求。",
+	},
+	"akrotiri_askos": {
+		"era": "晚期基克拉泽斯一期（约前1650–1615年）", "origin": "阿克罗蒂里西屋",
+		"collection": "现藏地未公开确认 · UNESCO VM-GR-25-012",
+		"provenance": "UNESCO失窃文物虚拟博物馆收录，由希腊提交；未详述失窃经过。",
+		"legend": "归属议题有争议 / 追索中；游戏展出、维护与中间人均属虚构。",
+	},
 	"mask": {
 		"era": "商代晚期（约前 13—前 11 世纪）",
 		"origin": "汉中城固、洋县一带",
@@ -419,6 +443,8 @@ func item_is_target(item_id: String) -> bool:
 
 ## Auto-places the item into the grid (tries both rotations).
 func try_pickup(item_id: String) -> bool:
+	if current_level_id == "british_museum" and (not bag_items.is_empty() or item_id != mission_target_id):
+		return false
 	var fit := bag_auto_fit(item_id)
 	if fit["x"] < 0:
 		return false
@@ -700,7 +726,7 @@ func load_game() -> void:
 	_restore_story_flags(data.get("story_flags", {}))
 	_restore_stash(data.get("loot_stash", []))
 	_restore_archive(data.get("archive_seen", {}))
-	bm_selected_target = str(data.get("bm_selected_target", "ram_zun"))
+	bm_selected_target = _migrate_selected_target(str(data.get("bm_selected_target", "ram_zun")))
 	money_changed.emit()
 	items_changed.emit()
 	backpack_changed.emit()
@@ -835,18 +861,14 @@ func clues_for_chain(chain_id: String) -> Array[Dictionary]:
 
 ## 在两条线索卡之间画线；只记录合法端点。
 func make_link(from_id: String, to_id: String) -> bool:
-	var valid := false
-	for cid in EvidenceData.chain_ids():
-		var chain: Dictionary = EvidenceData.chain(cid)
-		var clues: Dictionary = chain.get("clues", {})
-		if clues.has(from_id) and clues.has(to_id):
-			valid = true
-			break
-	if not valid:
+	if not has_clue(from_id) or not has_clue(to_id):
 		return false
-	set_story_flag("link_" + from_id + "_" + to_id)
-	return true
-
+	for cid in EvidenceData.chain_ids():
+		for link in EvidenceData.chain(cid).get("required_links", []):
+			if (link[0] == from_id and link[1] == to_id) or (link[1] == from_id and link[0] == to_id):
+				set_story_flag("link_" + String(link[0]) + "_" + String(link[1]))
+				return true
+	return false
 
 func has_link(from_id: String, to_id: String) -> bool:
 	return story_flag("link_" + from_id + "_" + to_id)
@@ -855,6 +877,8 @@ func has_link(from_id: String, to_id: String) -> bool:
 ## 验证某条链：3 张线索卡均已收集，且 required_links 两两连线完成。
 ## 验证通过即写入 chain flag（见 EvidenceData.flag_unlocked）。
 func verify_chain(chain_id: String) -> bool:
+	if not EvidenceData.chain_ids().has(chain_id):
+		return false
 	if chain_unlocked(chain_id):
 		return true
 	var chain: Dictionary = EvidenceData.chain(chain_id)
@@ -949,7 +973,7 @@ func load_checkpoint(name: String) -> bool:
 	backpack_level = clampi(_as_int(data.get("backpack_level", 0)), 0, BAG_SIZES.size() - 1)
 	has_sneakers = _as_bool(data.get("has_sneakers", false))
 	smoke_count = maxi(0, _as_int(data.get("smoke_count", 0)))
-	bm_selected_target = str(data.get("bm_selected_target", "ram_zun"))
+	bm_selected_target = _migrate_selected_target(str(data.get("bm_selected_target", "ram_zun")))
 	reset_run()
 	save_game()
 	return true
@@ -993,3 +1017,8 @@ func reset_progress() -> void:
 	story_flags.clear()
 	bm_selected_target = "ram_zun"
 	reset_run()
+
+
+## 目标更换只迁移行动选择；旧背包/收藏/线索保持原来的文物语义。
+func _migrate_selected_target(id: String) -> String:
+	return {"egypt_stela": "egypt_heart_scarab", "greek_relief": "akrotiri_askos"}.get(id, id) if id in ["egypt_stela", "greek_relief", "ram_zun", "egypt_heart_scarab", "akrotiri_askos"] else "ram_zun"

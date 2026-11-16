@@ -33,6 +33,8 @@ func _initialize() -> void:
 	_test_dirty_stash()
 	_test_dirty_archive()
 	_test_dirty_story_flags()
+	_test_relic_selection_migration()
+	_test_investigation_flags()
 	_test_current_round_trip()
 
 	if _failures > 0:
@@ -300,3 +302,33 @@ func _test_current_round_trip() -> void:
 	check(String(reader.story_flags.get("ending_id", "")) == "return", "完整档：ending_id 字符串")
 	reader.free()
 	DirAccess.remove_absolute(path)
+
+
+func _test_investigation_flags() -> void:
+	var path := _write_save("investigation_legacy.json", '{}')
+	var gs = _new_game(path)
+	gs._persistent = true
+	gs.load_game()
+	check(not gs.story_flag("contact_恶魔"), "旧档缺联系人记录默认未接听")
+	check(not gs.story_flag("mail_contact_ram_zun"), "旧档缺邮件记录默认未回复")
+	gs.set_story_flag("contact_恶魔")
+	gs.set_story_flag("mail_contact_ram_zun")
+	gs.load_game()
+	check(gs.story_flag("contact_恶魔") and gs.story_flag("mail_contact_ram_zun"), "来电与邮件存档往返")
+	gs.free()
+	path = _write_save("investigation_dirty.json", '{"story_flags":{"contact_恶魔":[],"mail_contact_ram_zun":{}}}')
+	gs = _new_game(path)
+	gs.load_game()
+	check(not gs.story_flag("contact_恶魔") and not gs.story_flag("mail_contact_ram_zun"), "脏联系人与邮件记录安全忽略")
+	gs.free()
+
+
+func _test_relic_selection_migration() -> void:
+	for pair in [["egypt_stela", "egypt_heart_scarab"], ["greek_relief", "akrotiri_askos"]]:
+		var path := _write_save("relic_migration.json", JSON.stringify({"bm_selected_target": pair[0], "archive_seen": {pair[0]: true}}))
+		var gs = _new_game(path)
+		gs.load_game()
+		check(gs.bm_selected_target == pair[1], "旧行动选择迁移到资源包新目标")
+		check(gs.archive_seen.has(pair[0]) and not gs.archive_seen.has(pair[1]), "旧收藏不伪造成新文物发现")
+		check(not gs.chain_unlocked(pair[1]), "新文物需要重新完成调查链")
+		gs.free()

@@ -14,6 +14,8 @@ ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 REQUIRED = [
     "AGENTS.md",
     "README.md",
+    "ASSETS.md",
+    "TEST.md",
     "CHANGELOG.md",
     "docs/ARCHITECTURE.md",
     "docs/ROADMAP.md",
@@ -22,7 +24,7 @@ REQUIRED = [
     "tools/verify.sh",
 ]
 
-DOC_PATHS = ["AGENTS.md", "README.md", "CHANGELOG.md", "docs", ".opencode/skills", ".opencode/commands"]
+DOC_PATHS = ["ASSETS.md", "TEST.md", "AGENTS.md", "README.md", "CHANGELOG.md", "docs", ".opencode/skills", ".opencode/commands"]
 
 LINK_RE = re.compile(r"\[[^\]]*\]\(([^)\s]+)\)")
 VERSION_RE = re.compile(r"^## \[(v\d+\.\d+\.\d+)\] - (\d{4}-\d{2}-\d{2})\s*$", re.M)

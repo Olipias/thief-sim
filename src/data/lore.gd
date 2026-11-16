@@ -14,12 +14,12 @@ const CLOSEUPS := {
 	# 双羊尊没有对话剧本，但档案/端详页可以直接用 2.5D 特写大图（由混元 3D 渲染）
 	"ram_zun": "res://assets/sprites/relic_ram_zun_closeup.png",
 	# 埃及/希腊目标当前为占位图，待史料重绘（见 docs/art_direction/EVIDENCE_ART.md）。
-	"egypt_stela": "res://assets/sprites/egypt_stela_closeup.png",
-	"greek_relief": "res://assets/sprites/greek_relief_closeup.png",
+	"egypt_heart_scarab": "res://assets/sprites/relic_egypt_heart_scarab_closeup.png",
+	"akrotiri_askos": "res://assets/sprites/relic_akrotiri_askos_closeup.png",
 }
 
 ## 哪些特写图是占位图（需在展示处加显式披露）。
-const PLACEHOLDER_CLOSEUPS: Array[String] = ["egypt_stela", "greek_relief"]
+const PLACEHOLDER_CLOSEUPS: Array[String] = ["egypt_heart_scarab", "akrotiri_askos"]
 
 const ENTRIES := {
 	"mask": {

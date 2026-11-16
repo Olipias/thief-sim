@@ -179,7 +179,7 @@ func _process_patrol(delta: float) -> void:
 		velocity = Vector2.ZERO
 		if _wait_timer <= 0.0:
 			_patrol_index = (_patrol_index + 1) % patrol_points.size()
-			_wait_timer = WAYPOINT_WAIT
+			_wait_timer = WAYPOINT_WAIT + randf_range(0.0, 0.6)
 		return
 	velocity = to_target.normalized() * PATROL_SPEED
 	_facing = velocity.normalized()

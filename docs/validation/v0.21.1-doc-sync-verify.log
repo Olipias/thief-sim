@@ -1,0 +1,115 @@
+
+==> 文档自检（链接 / CHANGELOG 格式）
+check_docs OK（链接 47 条可达；CHANGELOG 48 个版本条目）
+
+==> 关卡数据自检（生成物与脚本同步）
+check_level OK（2 个关卡：生成物与脚本同步）
+
+==> 资源导入（新增/改动贴图与音效）
+Godot Engine v4.7.2.stable.official.ed1daf0bf - https://godotengine.org
+
+[   0% ] [90m[1mfirst_scan_filesystem[22m | Started Project initialization (5 steps)[39m[0m
+[   0% ] [90m[1mfirst_scan_filesystem[22m | Scanning file structure...[39m[0m
+[  16% ] [90m[1mfirst_scan_filesystem[22m | Loading global class names...[39m[0m
+[  33% ] [90m[1mfirst_scan_filesystem[22m | Verifying GDExtensions...[39m[0m
+[  50% ] [90m[1mfirst_scan_filesystem[22m | Creating autoload scripts...[39m[0m
+[  66% ] [90m[1mfirst_scan_filesystem[22m | Initializing plugins...[39m[0m
+[  83% ] [90m[1mfirst_scan_filesystem[22m | Starting file scan...[39m[0m
+[92m[ DONE ][39m [1mfirst_scan_filesystem[22m
+[0m
+[   0% ] [90m[1mloading_editor_layout[22m | Started Loading editor (5 steps)[39m[0m
+[   0% ] [90m[1mloading_editor_layout[22m | Loading editor layout...[39m[0m
+[  16% ] [90m[1mloading_editor_layout[22m | Loading docks...[39m[0m
+[  33% ] [90m[1mloading_editor_layout[22m | Reopening scenes...[39m[0m
+[  50% ] [90m[1mloading_editor_layout[22m | Loading central editor layout...[39m[0m
+[  66% ] [90m[1mloading_editor_layout[22m | Loading plugin window layout...[39m[0m
+[  83% ] [90m[1mloading_editor_layout[22m | Editor layout ready.[39m[0m
+[92m[ DONE ][39m [1mloading_editor_layout[22m
+[0m
+
+==> GDScript 编译检查（src + tests）
+Godot Engine v4.7.2.stable.official.ed1daf0bf - https://godotengine.org
+
+ALL 41 SCRIPTS COMPILE
+
+==> 逻辑单测
+Godot Engine v4.7.2.stable.official.ed1daf0bf - https://godotengine.org
+
+ALL 2545 CHECKS PASSED
+
+==> 内容一致性测试
+Godot Engine v4.7.2.stable.official.ed1daf0bf - https://godotengine.org
+
+ALL 555 CHECKS PASSED
+
+==> 输入流自检（真实按键驱动 UI 覆盖层）
+Godot Engine v4.7.2.stable.official.ed1daf0bf - https://godotengine.org
+
+ALL 169 CHECKS PASSED
+
+==> 存档兼容自检（老档 / 脏档 / 未来档）
+Godot Engine v4.7.2.stable.official.ed1daf0bf - https://godotengine.org
+
+ERROR: Parse JSON failed. Error at line 0: Expected key
+   at: parse_string (core/io/json.cpp:629)
+   GDScript backtrace (most recent call first):
+       [0] _read_save_dict (res://src/autoload/game_state.gd:645)
+       [1] load_game (res://src/autoload/game_state.gd:716)
+       [2] _test_corrupt_json (res://tests/test_save_compat.gd:95)
+       [3] _initialize (res://tests/test_save_compat.gd:28)
+ALL 98 CHECKS PASSED
+
+==> 玩家进度自检（结算 / 仓库 / 收集册 / 存档健壮性）
+Godot Engine v4.7.2.stable.official.ed1daf0bf - https://godotengine.org
+
+ERROR: Parse JSON failed. Error at line 0: Expected ']'
+   at: parse_string (core/io/json.cpp:629)
+   GDScript backtrace (most recent call first):
+       [0] _read_save_dict (res://src/autoload/game_state.gd:645)
+       [1] has_save (res://src/autoload/game_state.gd:389)
+       [2] _test_save_robustness (res://tests/test_progression.gd:204)
+       [3] _initialize (res://tests/test_progression.gd:31)
+ERROR: Parse JSON failed. Error at line 0: Expected ']'
+   at: parse_string (core/io/json.cpp:629)
+   GDScript backtrace (most recent call first):
+       [0] _read_save_dict (res://src/autoload/game_state.gd:645)
+       [1] load_game (res://src/autoload/game_state.gd:716)
+       [2] _reload (res://tests/test_progression.gd:67)
+       [3] _test_save_robustness (res://tests/test_progression.gd:205)
+       [4] _initialize (res://tests/test_progression.gd:31)
+ALL 48 CHECKS PASSED
+
+==> 剧情自检（story_flags / 双羊尊文物志）
+Godot Engine v4.7.2.stable.official.ed1daf0bf - https://godotengine.org
+
+ALL 30 CHECKS PASSED
+
+==> 剧情验收（独立：隐藏条件 / 双羊全分支播放）
+Godot Engine v4.7.2.stable.official.ed1daf0bf - https://godotengine.org
+
+ALL 30 CHECKS PASSED
+
+==> 推理数据自检（三链 / 线索数据边界 / 恶魔分支）
+Godot Engine v4.7.2.stable.official.ed1daf0bf - https://godotengine.org
+
+ALL 144 CHECKS PASSED
+
+==> 场景实例化自检（src/*.tscn）
+Godot Engine v4.7.2.stable.official.ed1daf0bf - https://godotengine.org
+
+ALL 146 SCENES OK
+
+==> 随机操作自检（monkey，规则不变量）
+Godot Engine v4.7.2.stable.official.ed1daf0bf - https://godotengine.org
+
+覆盖统计：背包 47 步 / 手机 55 步 / 对话框 260 步 / 对话树 13 步 / 开局 2 次
+ALL 600 步随机操作通过（seed=20261020）
+
+==> 冒烟测试（场景集成）
+Godot Engine v4.7.2.stable.official.ed1daf0bf - https://godotengine.org
+
+FAIL - guard unsticks from a solid decoration
+FAILED 1 / 155 checks
+
+❌ 失败 1 项（通过 14 项）：
+   - 冒烟测试（场景集成）

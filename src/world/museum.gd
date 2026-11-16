@@ -238,12 +238,14 @@ var bm_solid_decor_count := 0
 ## 路线预演系统（P1）：规划节点、自动执行、失败回放。
 var planning_mode := false
 var executing_plan := false
+var _drag_plan_index := -1
 var planned_points: Array[Vector2] = []
 var plan_point_index := 0
 const MAX_PLAN_POINTS := 5
 const PLAN_POINT_RADIUS := 5.0
 const CAMERA_VISION_RANGE := 112.0
 const CAMERA_VISION_HALF_ANGLE := deg_to_rad(42.0)
+const FAILURE_REPLAY_FREEZE := 0.6
 
 var failure_replay := false
 var failure_reason := ""
@@ -251,6 +253,7 @@ var failure_detector: Node2D = null
 var failure_line_start: Vector2 = Vector2.ZERO
 var failure_line_end: Vector2 = Vector2.ZERO
 var _failure_replay_timer := 0.0
+var _failure_overlay: Node2D = null
 var _mouse_left_was_pressed := false
 var _mouse_right_was_pressed := false
 var _room_entry_pos: Vector2 = Vector2.ZERO
@@ -270,6 +273,8 @@ func _ready() -> void:
 	_build_level()
 	_build_bm_decor()
 	_build_bm_atmosphere()
+	add_to_group("active_heist")
+	_build_failure_overlay()
 
 
 func _load_map() -> void:
@@ -328,9 +333,17 @@ func _build_level() -> void:
 				"P":
 					_spawn_player(pos)
 				"T":
-					_spawn_artifact(target_item_id(), pos)
+					_spawn_artifact("ram_zun" if level_id == "british_museum" else target_item_id(), pos)
 				"a":
-					_spawn_artifact(ARTIFACT_POOL[artifact_index % ARTIFACT_POOL.size()], pos)
+					if level_id == "british_museum":
+						var room_id := room_index_at(pos)
+						var local_cell := Vector2i((pos - rooms[room_id].position) / TILE)
+						if room_id == 1 and local_cell == Vector2i(9, 8):
+							_spawn_artifact("egypt_heart_scarab", pos)
+						elif room_id == 4 and local_cell == Vector2i(16, 9):
+							_spawn_artifact("akrotiri_askos", pos)
+					else:
+						_spawn_artifact(ARTIFACT_POOL[artifact_index % ARTIFACT_POOL.size()], pos)
 					artifact_index += 1
 				"X":
 					_spawn_exit(pos)
@@ -678,9 +691,11 @@ func _process_planning_input() -> void:
 	if player == null or _ended:
 		return
 
-	# 失败回放：E / Space 回退重规划
+	# 失败回放：定格期后按 E / Space 回退重规划
 	if failure_replay:
-		if Input.is_action_just_pressed("plan_execute") or Input.is_action_just_pressed("interact"):
+		if _failure_replay_timer >= FAILURE_REPLAY_FREEZE and (
+			Input.is_action_just_pressed("plan_execute") or Input.is_action_just_pressed("interact")
+		):
 			_failure_replay_timer = 0.0
 			_rewind_and_replan()
 		return
@@ -707,13 +722,28 @@ func _process_planning_input() -> void:
 func _unhandled_input(event: InputEvent) -> void:
 	if player == null or _ended or not planning_mode:
 		return
-	if event is InputEventMouseButton and event.pressed:
-		var pos: Vector2 = get_viewport().get_canvas_transform().affine_inverse() * event.position
+	var mouse_position := Vector2.ZERO
+	if event is InputEventMouseButton or event is InputEventMouseMotion:
+		mouse_position = get_viewport().get_canvas_transform().affine_inverse() * event.position
+	if event is InputEventMouseButton:
 		if event.button_index == MOUSE_BUTTON_LEFT:
-			if planned_points.size() < MAX_PLAN_POINTS and _is_walkable_world(pos):
-				_add_plan_point(pos)
-		elif event.button_index == MOUSE_BUTTON_RIGHT:
+			if event.pressed:
+				_drag_plan_index = -1
+				for i in planned_points.size():
+					if planned_points[i].distance_to(mouse_position) < 7.0:
+						_drag_plan_index = i
+						break
+				if _drag_plan_index < 0 and planned_points.size() < MAX_PLAN_POINTS and _is_walkable_world(mouse_position):
+					_add_plan_point(mouse_position)
+					_drag_plan_index = planned_points.size() - 1
+			else:
+				_drag_plan_index = -1
+		elif event.button_index == MOUSE_BUTTON_RIGHT and event.pressed:
 			_remove_last_plan_point()
+	elif event is InputEventMouseMotion and _drag_plan_index >= 0 and _drag_plan_index < planned_points.size():
+		if _is_walkable_world(mouse_position):
+			planned_points[_drag_plan_index] = mouse_position
+			queue_redraw()
 
 
 func _is_walkable_world(pos: Vector2) -> bool:
@@ -821,12 +851,17 @@ func enter_failure_replay(detector: Node2D, reason: String) -> void:
 		cop.velocity = Vector2.ZERO
 	prompt_changed.emit("按 E / 空格 重新规划")
 	failure_banner_changed.emit(failure_reason)
+	if _failure_overlay != null:
+		_failure_overlay.visible = true
+		_failure_overlay.queue_redraw()
 	queue_redraw()
 
 
 func _process_failure_replay(delta: float) -> void:
 	_failure_replay_timer += delta
-	# 失败回放定格期间玩家即可按 E / Space 回退；保留计时器供视觉/测试使用。
+	# 前 0.6s 为定格期，忽略 E / Space 误触；之后才可回退重规划。
+	if _failure_replay_timer < FAILURE_REPLAY_FREEZE:
+		return
 	if Input.is_action_just_pressed("interact") or Input.is_action_just_pressed("plan_execute"):
 		_failure_replay_timer = 0.0
 		_rewind_and_replan()
@@ -847,6 +882,9 @@ func _rewind_and_replan() -> void:
 		cop._enter_patrol()
 	toggle_planning_mode(true)
 	failure_banner_changed.emit("")
+	if _failure_overlay != null:
+		_failure_overlay.visible = false
+		_failure_overlay.queue_redraw()
 
 
 func _estimate_guard_eta_to_point(point: Vector2) -> float:
@@ -1009,7 +1047,17 @@ func _end_escape() -> void:
 	escaped.emit()
 
 
-func _on_police_spotted(reason: String, cop: Police) -> void:
+func _on_police_spotted(_reason: String, cop: Police) -> void:
+	var reason := "保安巡逻视野"
+	if is_instance_valid(cop):
+		if cop.state == Police.State.INVESTIGATE:
+			reason = "跑动噪音引来保安"
+		elif cop.state == Police.State.PATROL and not cop.patrol_points.is_empty():
+			var nearest_pt := INF
+			for pt in cop.patrol_points:
+				nearest_pt = mini(nearest_pt, cop.global_position.distance_to(pt))
+			if nearest_pt < 8.0:
+				reason = "保安提前转弯发现你"
 	_on_player_detected(cop, reason)
 
 
@@ -1242,6 +1290,19 @@ func _build_bm_atmosphere() -> void:
 	_bm_glints.append(glint)
 
 
+func _build_failure_overlay() -> void:
+	_failure_overlay = Node2D.new()
+	_failure_overlay.name = "FailureOverlay"
+	_failure_overlay.z_index = 100
+	_failure_overlay.light_mask = 0
+	var mat := CanvasItemMaterial.new()
+	mat.light_mode = CanvasItemMaterial.LIGHT_MODE_UNSHADED
+	_failure_overlay.material = mat
+	_failure_overlay.visible = false
+	_failure_overlay.draw.connect(_draw_failure_overlay)
+	add_child(_failure_overlay)
+
+
 func _draw_planning_overlay() -> void:
 	if not planning_mode and not executing_plan and planned_points.is_empty():
 		return
@@ -1263,6 +1324,7 @@ func _draw_planning_overlay() -> void:
 		var label := "安全" if eta < 0.0 else "守卫 ~%.1fs" % eta
 		if _is_in_camera_vision(p):
 			label += " · 监控"
+		label += " · 跑动有声"
 		var text_size: Vector2 = font.get_string_size(label, HORIZONTAL_ALIGNMENT_LEFT, -1, 9)
 		var backing := Rect2(p + Vector2(4, -20), text_size + Vector2(4, 4))
 		draw_rect(backing, Color(0.05, 0.06, 0.08, 0.72), true)
@@ -1282,14 +1344,19 @@ func _is_in_camera_vision(point: Vector2) -> bool:
 func _draw_failure_replay() -> void:
 	if not failure_replay:
 		return
-	# 半透明暗屏
+	# 半透明暗屏（仍由 Museum 自身绘制，受夜色/灯光统一调制）
 	draw_rect(Rect2(Vector2.ZERO, Vector2(tiles[0].length() * TILE, tiles.size() * TILE)), Color(0.05, 0.0, 0.0, 0.45), true)
-	# 红色高亮连线：发现源 → 玩家（留在世界空间，由相机跟随）
+	# 红色高亮连线由 FailureOverlay 在 z_index=100 且不受光照影响的环境下绘制
+
+
+func _draw_failure_overlay() -> void:
+	if not failure_replay:
+		return
 	if failure_detector != null and is_instance_valid(failure_detector):
-		draw_line(failure_detector.global_position, failure_line_end, Color(1.0, 0.15, 0.15, 0.92), 2.0)
-		draw_circle(failure_detector.global_position, 6.0, Color(1.0, 0.15, 0.15, 0.7))
+		_failure_overlay.draw_line(failure_detector.global_position, failure_line_end, Color(1.0, 0.15, 0.15, 0.98), 2.5)
+		_failure_overlay.draw_circle(failure_detector.global_position, 7.0, Color(1.0, 0.15, 0.15, 0.85))
 	elif failure_line_start != failure_line_end:
-		draw_line(failure_line_start, failure_line_end, Color(1.0, 0.15, 0.15, 0.92), 2.0)
+		_failure_overlay.draw_line(failure_line_start, failure_line_end, Color(1.0, 0.15, 0.15, 0.98), 2.5)
 
 
 func _animate_bm_decor() -> void:

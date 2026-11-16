@@ -436,11 +436,11 @@ func _test_collection_screen() -> void:
 	check(screen.locked_label.visible, "locked entry shows how to unlock it")
 	check(screen.lock_icon.visible, "locked entry shows the placeholder icon")
 	# 占位图披露：埃及/希腊目标即使已归档，也要显示占位图标注。
-	Game.archive_seen["egypt_stela"] = true
+	Game.archive_seen["egypt_heart_scarab"] = true
 	screen._build()
-	screen._select("egypt_stela")
-	check(screen.placeholder_label.visible, "egypt_stela shows placeholder disclosure")
-	Game.archive_seen.erase("egypt_stela")
+	screen._select("egypt_heart_scarab")
+	check(screen.placeholder_label.visible, "egypt_heart_scarab shows placeholder disclosure")
+	Game.archive_seen.erase("egypt_heart_scarab")
 	screen.close()
 	check(not screen.is_open(), "collection screen closes")
 	screen.queue_free()
@@ -495,7 +495,7 @@ func _test_mission_phone() -> void:
 	check("大英博物馆" in phone.meta_label.text and "中国馆" in phone.meta_label.text, "phone shows the mission location with 中国馆")
 	check(not phone.archive_label.text.is_empty(), "phone shows the archive card")
 	check("1936" in phone.archive_label.text, "archive card shows the documented acquisition")
-	Game.set_bm_target("egypt_stela")
+	Game.set_bm_target("egypt_heart_scarab")
 	phone._fill_task()
 	check("埃及馆" in phone.meta_label.text, "phone updates location to 埃及馆 when target switches")
 	phone._show_tab("archive")
@@ -521,11 +521,11 @@ func _test_inspect_placeholder() -> void:
 	await get_tree().process_frame
 	inspect.set_item("ram_zun")
 	check(not inspect.placeholder_label.visible, "ram_zun closeup is not a placeholder")
-	inspect.set_item("egypt_stela")
-	check(inspect.placeholder_label.visible, "egypt_stela closeup shows placeholder disclosure")
+	inspect.set_item("egypt_heart_scarab")
+	check(inspect.placeholder_label.visible, "egypt_heart_scarab closeup shows placeholder disclosure")
 	check(inspect.placeholder_label.text == "占位图，待史料重绘", "placeholder text matches")
-	inspect.set_item("greek_relief")
-	check(inspect.placeholder_label.visible, "greek_relief closeup shows placeholder disclosure")
+	inspect.set_item("akrotiri_askos")
+	check(inspect.placeholder_label.visible, "akrotiri_askos closeup shows placeholder disclosure")
 	inspect.queue_free()
 	await get_tree().process_frame
 

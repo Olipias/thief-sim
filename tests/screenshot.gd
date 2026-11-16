@@ -47,6 +47,37 @@ func _ready() -> void:
 	main.show_menu()
 	await _wait(0.6)
 	await _shot("/tmp/shot_hub.png")
+	var intro := ContractIntro.new()
+	main.ui_layer.add_child(intro)
+	intro.elapsed = 69.0
+	intro.set_process(false)
+	intro.queue_redraw()
+	await _wait(0.2)
+	await _shot("/tmp/shot_contract_intro.png")
+	intro.queue_free()
+
+	main._hub._show_tab("reason")
+	for cid in EvidenceData.chain_ids():
+		for clue in Game.clues_for_chain(cid):
+			Game.collect_clue(clue.id)
+	main._hub._on_reason_app_selected("board")
+	await _wait(0.3)
+	await _shot("/tmp/shot_evidence_board.png")
+	main.open_phone()
+	main.phone._show_tab("通讯录")
+	await _wait(0.3)
+	await _shot("/tmp/shot_contacts.png")
+	main.phone._show_tab("日历")
+	await _wait(0.3)
+	await _shot("/tmp/shot_calendar.png")
+	main.phone.close()
+	for id in ["egypt_heart_scarab", "akrotiri_askos"]:
+		main.relic_closeup.open(id, false)
+		await _wait(0.5)
+		await _shot("/tmp/shot_pack_%s.png" % id)
+		main.relic_closeup.close()
+	main._hub._show_tab("levels")
+
 
 	main.start_mission()
 	await _wait(0.6)
@@ -88,7 +119,8 @@ func _ready() -> void:
 	await _wait(0.25)
 	await _shot("/tmp/shot_smoke.png")
 
-	# 路线预演：规划模式 + 节点连线 + 预测标签
+	# 路线预演：规划模式 + 节点连线 + 预测标签（清掉 smoke toast 保持画面干净）
+	main.hud.clear_toast()
 	museum.toggle_planning_mode(true)
 	museum.planned_points = [
 		Vector2(9 * 16, 8 * 16),

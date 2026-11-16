@@ -11,14 +11,14 @@ const BRIEFINGS := {
 	"museum": [
 		{"speaker": "老猫", "text": "新人，第一单活：城西博物馆的「青铜人面具」。"},
 		{"speaker": "老猫", "text": "路线是单向的：穿过几间展厅才能到后门。目标在中央大厅的展台上。"},
-		{"speaker": "老猫", "text": "包里格子有限，拿不下的就按 B 打开背包调整摆放，腾地方。"},
+		{"speaker": "老猫", "text": "先按 C 蹲下，再按 Tab 规划路线，空格执行，方向键随时接管。"},
 		{"speaker": "老猫", "text": "巡逻的警察视野内别乱晃。跑步声会引来他们，撑不住就用烟雾弹。"},
-		{"speaker": "老猫", "text": "还有——那东西有故事。拿到手别急着走，靠近它按 E 听听。"},
+		{"speaker": "老猫", "text": "按 E 观察和拾取青铜面具，得手后去装卸出口。"},
 	],
 	"british_museum": [
-		{"speaker": "老猫", "text": "这一单不一样。目标在大英博物馆中国馆：「商代双羊尊」。"},
-		{"speaker": "老猫", "text": "它一百多年前流落出去，存世只有两件——另一件在日本。"},
-		{"speaker": "老猫", "text": "中国馆夜里守卫比城西松，但别掉以轻心；路线同样是单向的。"},
+		{"speaker": "老猫", "text": "这次三个目标共享展厅。手机里有任务，电脑里有线索。"},
+		{"speaker": "老猫", "text": "一次只拿你选定的一件。其他展品留在原处。"},
+		{"speaker": "老猫", "text": "规划时注意时间、噪音和视线；失败后可以回到房间入口重试。"},
 		{"speaker": "老猫", "text": "……这件东西，你带出来之后想怎么处理，再说。"},
 	],
 }
@@ -216,8 +216,11 @@ func show_title() -> void:
 func _on_new_game() -> void:
 	Game.start_new_game()
 	if not Game.story_flag("saw_p00"):
-		await _play_hub_story("p00_devil_contract", "saw_p00")
-	show_menu()
+		var intro := ContractIntro.new()
+		ui_layer.add_child(intro)
+		await intro.finished
+		Game.set_story_flag("saw_p00")
+	start_mission("museum")
 
 
 
@@ -245,6 +248,7 @@ func show_menu() -> void:
 	hud.hide_hud()
 	var hub := HUB.instantiate() as Hub
 	_hub = hub
+	Game.unlock_all_chains_required = true
 	hub.start_requested.connect(start_mission)
 	hub.quit_requested.connect(show_title)
 	ui_layer.add_child(hub)

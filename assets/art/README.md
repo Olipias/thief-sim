@@ -1,3 +1,5 @@
+> 2026-11-16 当前封面指定：`CPy0UzlakIPj0kfwMuVCR.png`（1376×768），用户已确认用于后续标题封面。此处仅登记；旧title_key_art引用尚未替换，后续按新标题UI方案接入。
+
 # assets/art
 
 标题界面相关美术。

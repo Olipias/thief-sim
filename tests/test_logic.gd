@@ -215,11 +215,11 @@ func _test_levels() -> void:
 	check(gs.mission_target_id == "ram_zun", "level switch updates the mission target")
 	check(gs.level_name() == "大英博物馆", "level name resolves from the registry")
 	check(gs.bm_hall_name("ram_zun") == "中国馆", "bm_hall_name maps ram_zun to 中国馆")
-	check(gs.bm_hall_name("egypt_stela") == "埃及馆", "bm_hall_name maps egypt_stela to 埃及馆")
-	check(gs.bm_hall_name("greek_relief") == "希腊馆", "bm_hall_name maps greek_relief to 希腊馆")
+	check(gs.bm_hall_name("egypt_heart_scarab") == "埃及馆", "bm_hall_name maps egypt_heart_scarab to 埃及馆")
+	check(gs.bm_hall_name("akrotiri_askos") == "希腊馆", "bm_hall_name maps akrotiri_askos to 希腊馆")
 	check(gs.mission_reward() == 400, "level reward resolves from the registry")
 
-	check(gs.try_pickup("mask"), "old target can still be picked up as ordinary loot")
+	check(not gs.try_pickup("mask"), "大英行动拒绝非选定文物")
 	check(not gs.mission_complete, "carrying another artifact does not complete the mission")
 	check(gs.try_pickup("ram_zun"), "british museum target picked up")
 	check(gs.mission_complete, "carrying the level target completes the mission")
@@ -228,7 +228,7 @@ func _test_levels() -> void:
 	check(summary["success"], "british museum run succeeds")
 	check(summary["target_name"] == "商代双羊尊", "summary names the double-ram zun")
 	check(summary["reward"] == 400, "british museum pays its own reward")
-	check(summary["stash_items"].size() == 1, "british museum loot waits in the stash")
+	check(summary["stash_items"].is_empty(), "大英行动不再产生额外杂物销赃")
 	check(gs.story_flag("completed_british_museum"), "大英成功结算记录 completed_british_museum")
 
 	gs.set_level("museum")
@@ -419,6 +419,8 @@ func _test_evidence_chains() -> void:
 	gs.reset_progress()
 	gs.unlock_all_chains_required = false
 
+	check(not gs.make_link("zun_archive", "zun_tech"), "未收集不能连线")
+	check(not gs.verify_chain("unknown"), "未知证据链不能解锁")
 	check(not gs.has_clue("zun_archive"), "初始未收集线索")
 	check(gs.collect_clue("zun_archive"), "收集线索 zun_archive")
 	check(gs.collect_clue("zun_tech"), "收集线索 zun_tech")
@@ -426,6 +428,8 @@ func _test_evidence_chains() -> void:
 	check(gs.has_clue("zun_archive"), "has_clue 返回已收集")
 	check(not gs.collect_clue("unknown_clue"), "非法线索不写入")
 
+	check(not gs.make_link("zun_archive", "zun_chat"), "同链错误关联被拒绝")
+	check(gs.make_link("zun_tech", "zun_archive"), "反向拖线标准化关系")
 	check(gs.make_link("zun_archive", "zun_tech"), "建立连线 zun_archive→zun_tech")
 	check(gs.make_link("zun_tech", "zun_chat"), "建立连线 zun_tech→zun_chat")
 	check(not gs.make_link("zun_archive", "unknown"), "非法端点不建立连线")
@@ -436,8 +440,13 @@ func _test_evidence_chains() -> void:
 	var targets: Array[String] = gs.unlocked_targets()
 	check(targets.has("ram_zun"), "单链解锁 ram_zun 目标")
 
-	check(gs.set_bm_target("egypt_stela"), "切换 BM 目标为 egypt_stela")
-	check(gs.mission_target_id == "egypt_stela", "set_bm_target 更新 mission_target_id")
+	check(gs.set_bm_target("egypt_heart_scarab"), "切换 BM 目标为 egypt_heart_scarab")
+	check(gs.mission_target_id == "egypt_heart_scarab", "set_bm_target 更新 mission_target_id")
+	check(not gs.try_pickup("ram_zun"), "大英行动不能拿未选择的目标")
+	check(gs.try_pickup("egypt_heart_scarab"), "大英行动能拿选定目标")
+	check(not gs.try_pickup("egypt_heart_scarab"), "大英行动不能重复拿第二件")
+	gs.reset_run()
+
 
 	# 检查点：保存后重置，再加载应恢复线索与解锁状态，同时清空结局选择。
 	gs.story_flags["ending_id"] = "return"
@@ -453,18 +462,18 @@ func _test_evidence_chains() -> void:
 	# 全链模式：未全部完成时返回空。
 	gs.unlock_all_chains_required = true
 	check(gs.unlocked_targets().is_empty(), "全链模式下只完成一条时无目标")
-	gs.collect_clue("egypt_archive")
-	gs.collect_clue("egypt_browser")
-	gs.collect_clue("egypt_mail")
-	gs.make_link("egypt_archive", "egypt_browser")
-	gs.make_link("egypt_browser", "egypt_mail")
-	gs.verify_chain("egypt_stela")
-	gs.collect_clue("greek_archive")
-	gs.collect_clue("greek_browser")
-	gs.collect_clue("greek_chat")
-	gs.make_link("greek_archive", "greek_browser")
-	gs.make_link("greek_browser", "greek_chat")
-	gs.verify_chain("greek_relief")
+	gs.collect_clue("scarab_archive")
+	gs.collect_clue("scarab_browser")
+	gs.collect_clue("scarab_mail")
+	gs.make_link("scarab_archive", "scarab_browser")
+	gs.make_link("scarab_browser", "scarab_mail")
+	gs.verify_chain("egypt_heart_scarab")
+	gs.collect_clue("askos_archive")
+	gs.collect_clue("askos_browser")
+	gs.collect_clue("askos_chat")
+	gs.make_link("askos_archive", "askos_browser")
+	gs.make_link("askos_browser", "askos_chat")
+	gs.verify_chain("akrotiri_askos")
 	var all: Array[String] = gs.unlocked_targets()
 	check(all.size() == 3, "全链模式完成三条后解锁全部目标")
 

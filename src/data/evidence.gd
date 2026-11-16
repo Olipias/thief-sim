@@ -1,111 +1,119 @@
 class_name EvidenceData
 extends RefCounted
-## 安全屋推理链与电脑/手机跨应用线索数据库（P3 / P6）。
-##
-## 设计约定（见 docs/GDD_V2.md）：
-##   - 无任何倒计时。
-##   - 三条推理链：ram_zun（中国·商代双羊尊）、egypt_stela（埃及·第19王朝彩绘墓碑）、greek_relief（希腊·帕特农骑手浮雕）。
-##   - 每条链包含分布在「电脑·档案库 / 电脑·浏览器 / 电脑·邮件 / 手机·聊天与通讯录」中的 3 张核心线索卡；
-##     收集 3 张卡并在推理板完成两两连线（cl_1->cl_2, cl_2->cl_3）即解锁对应展厅盗取目标。
-
+## 用户资源包三目标；安保、借展和接洽均属虚构。
 const CHAINS := {
 	"ram_zun": {
 		"title": "中国馆 · 商代双羊尊",
 		"target_id": "ram_zun",
 		"flag_unlocked": "chain_ram_zun_done",
-		"summary": "大英博物馆 Room 33 青铜礼器厅核心展品（1936,1118.1），重 10.6kg，需核清入藏展位、底座承重与夜巡换岗窗口。",
+		"summary": "对照来源、年代、材质与登记信息，分清公开史实和游戏虚构委托，再完成跨应用关联，确定本次行动的单件目标。",
 		"clues": {
 			"zun_archive": {
 				"id": "zun_archive",
 				"source_app": "pc_archive",
 				"title": "1936 尤摩弗帕勒斯入藏批次",
-				"body": "【馆藏档案】编号 1936,1118.1，商代晚期双羊尊，1936 年购自 George Eumorfopoulos 旧藏。现陈列于中国馆青铜礼器厅中央独立恒温柜。",
+				"body": "【馆藏档案】编号1936,1118.1，商代晚期双羊尊，1936年购自George Eumorfopoulos旧藏。更早的出境方式没有公开确证，不能据此断言1860年被掠。"
 			},
 			"zun_tech": {
 				"id": "zun_tech",
 				"source_app": "pc_browser",
-				"title": "双羊尊金相与承重底座报告",
-				"body": "【研究摘录】器高 45.1cm，重 10.6kg，传出自湖南（羊角分铸锁接、器身垫片）。展台采用重力感应卡扣，必须在切断侧墙配电箱后 3 秒内平稳托起。",
+				"title": "双羊尊来源断点与南方青铜传统",
+				"body": "【研究摘录】高45.1厘米、重10.6千克；传出自湖南属于产地推定，并不是有记录的出土地。收藏记录与器物研究回答的是不同问题，应对照入藏编号。"
 			},
 			"zun_chat": {
 				"id": "zun_chat",
 				"source_app": "phone_chat",
 				"title": "内线：青铜厅夜巡交接单",
-				"body": "【手机密信·老猫】青铜厅夜班只有两名保安按回字路线对穿，东侧装卸走廊的机械锁密码与 1936 入藏年份后四位一致。",
-			},
+				"body": "【虚构密信】老猫说：中国厅本周维护，东侧装卸走廊是撤离方向。1910年的捐赠单属于另一件器物；这件要核对1936年入藏的来源断点。"
+			}
 		},
 		"required_links": [
-			["zun_archive", "zun_tech"],
-			["zun_tech", "zun_chat"],
-		],
+			[
+				"zun_archive",
+				"zun_tech"
+			],
+			[
+				"zun_tech",
+				"zun_chat"
+			]
+		]
 	},
-
-	"egypt_stela": {
-		"title": "埃及馆 · 第19王朝彩绘墓碑",
-		"target_id": "egypt_stela",
-		"flag_unlocked": "chain_egypt_stela_done",
-		"summary": "大英博物馆埃及雕塑侧厅馆藏（EA191），出自底比斯代尔麦地那工匠村，需核清索尔特入藏记录、碑文工匠身份与通风廊路线。",
+	"egypt_heart_scarab": {
+		"title": "埃及馆 · 心形圣甲虫",
+		"target_id": "egypt_heart_scarab",
+		"flag_unlocked": "chain_egypt_heart_scarab_done",
+		"summary": "对照来源、年代、材质与登记信息，分清公开史实和游戏虚构委托，再完成跨应用关联，确定本次行动的单件目标。",
 		"clues": {
-			"egypt_archive": {
-				"id": "egypt_archive",
+			"scarab_archive": {
+				"id": "scarab_archive",
 				"source_app": "pc_archive",
-				"title": "1823 亨利·索尔特入藏目录",
-				"body": "【馆藏档案】编号 EA191（1823,0614.1），新王国第 19 王朝石灰岩彩绘墓碑，英国驻埃及总领事 Henry Salt 采办并售予本馆，现置西侧埃及廊。",
+				"title": "1910 古尔德捐赠与圣甲虫编号",
+				"body": "【馆藏档案】心形圣甲虫，大都会艺术博物馆编号10.130.1650，来自埃及，约前664–332年，深绿色石材，长6.1厘米。Helen Miller Gould于1910年捐赠。"
 			},
-			"egypt_browser": {
-				"id": "egypt_browser",
+			"scarab_browser": {
+				"id": "scarab_browser",
 				"source_app": "pc_browser",
-				"title": "代尔麦地那工匠墓葬考据",
-				"body": "【学术网页】碑主为王陵石匠 Qaha，碑体薄而边缘留有楔槽；展柜仅在正面布设红外幕帘，从背面检修槽可绕开光束。",
+				"title": "晚期埃及护符的尺寸与来源断点",
+				"body": "【公开馆藏】大都会条目可核对材质、尺寸与捐赠信息，未提供本件正式追索记录。不能把一般归还讨论当作本件已经被正式追索；游戏借展与追索委托均属虚构。"
 			},
-			"egypt_mail": {
-				"id": "egypt_mail",
+			"scarab_mail": {
+				"id": "scarab_mail",
 				"source_app": "pc_mail",
-				"title": "中间人邮件：西侧通风廊图纸",
-				"body": "【加密邮件】买主指名要底比斯工匠碑。西侧通道的旧通风栅栏螺丝已松动，带一把十字改锥即可从埃及廊北门直通撤离口。",
-			},
+				"title": "学者来信：核对绿色护符而非墓碑",
+				"body": "【虚构邮件】埃及裔学者：我找的是长6.1厘米的绿色护符，不是EA191墓碑。请对照1910年捐赠记录与编号。若愿意接洽，可以回复邮件，具体交易为虚构。"
+			}
 		},
 		"required_links": [
-			["egypt_archive", "egypt_browser"],
-			["egypt_browser", "egypt_mail"],
-		],
+			[
+				"scarab_archive",
+				"scarab_browser"
+			],
+			[
+				"scarab_browser",
+				"scarab_mail"
+			]
+		]
 	},
-
-	"greek_relief": {
-		"title": "希腊馆 · 帕特农骑手浮雕残块",
-		"target_id": "greek_relief",
-		"flag_unlocked": "chain_greek_relief_done",
-		"summary": "大英博物馆杜维恩展厅馆藏（1816,0610.28），原属雅典卫城帕特农神庙北翼浮雕，需核清 1816 收购卷宗、维护支架位置与外包商通道钥匙。",
+	"akrotiri_askos": {
+		"title": "希腊馆 · 阿克罗蒂里彩绘注壶",
+		"target_id": "akrotiri_askos",
+		"flag_unlocked": "chain_akrotiri_askos_done",
+		"summary": "对照来源、年代、材质与登记信息，分清公开史实和游戏虚构委托，再完成跨应用关联，确定本次行动的单件目标。",
 		"clues": {
-			"greek_archive": {
-				"id": "greek_archive",
+			"askos_archive": {
+				"id": "askos_archive",
 				"source_app": "pc_archive",
-				"title": "1816 议会收购卷宗与杜维恩图",
-				"body": "【馆藏档案】编号 1816,0610.28，帕特农神庙北翼骑手浮雕，1801–1805 年由额尔金伯爵拆运，1816 年议会购入。本周因激光清洗移至杜维恩厅南端独立维护架。",
+				"title": "阿克罗蒂里西屋注壶登记",
+				"body": "【公开登记】UNESCO失窃文物虚拟博物馆编号VM-GR-25-012，约前1650–1615年彩绘陶注壶，由希腊提交，发现于阿克罗蒂里西屋；公开条目未交代现藏地与失窃经过。"
 			},
-			"greek_browser": {
-				"id": "greek_browser",
+			"askos_browser": {
+				"id": "askos_browser",
 				"source_app": "pc_browser",
-				"title": "卫城博物馆浮雕复原对照表",
-				"body": "【公开数据库】该残块为切割减薄后的边角块（可单人装入加固背架）；维护架配有定角摄像头，每 4 秒左右摆动一次，盲区在立柱内侧。",
+				"title": "侧嘴横柄与螺旋纹样的识别",
+				"body": "【公开条目】注壶圆腹、平底、横柄，侧面有倾倒液体的壶嘴，肩部螺旋纹、腹部条纹。应把形制线索与西屋发现记录结合，不要误认为帕特农浮雕。"
 			},
-			"greek_chat": {
-				"id": "greek_chat",
+			"askos_chat": {
+				"id": "askos_chat",
 				"source_app": "phone_chat",
-				"title": "外包维修工的聊天记录",
-				"body": "【手机截屏】清洗队把杜维恩西侧消防门的备用钥匙卡忘在门卫储物格里了，拿到卡就能走西通道直达装卸区。",
-			},
+				"title": "基金会来电：核对西屋与侧嘴",
+				"body": "【虚构来电】基金会：请核查西屋、侧嘴与螺旋肩纹是否指向同一编号。我们的接洽渠道和博物馆借展均是剧情安排；UNESCO的登记不证明现实中该器正在伦敦。"
+			}
 		},
 		"required_links": [
-			["greek_archive", "greek_browser"],
-			["greek_browser", "greek_chat"],
-		],
-	},
+			[
+				"askos_archive",
+				"askos_browser"
+			],
+			[
+				"askos_browser",
+				"askos_chat"
+			]
+		]
+	}
 }
 
-
 static func chain_ids() -> Array[String]:
-	return ["ram_zun", "egypt_stela", "greek_relief"]
+	return ["ram_zun", "egypt_heart_scarab", "akrotiri_askos"]
 
 
 static func chain(chain_id: String) -> Dictionary:

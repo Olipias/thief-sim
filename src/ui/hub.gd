@@ -115,6 +115,10 @@ func _ready() -> void:
 	for id in ROWS:
 		var button: Button = _row(id).get_node("HBox/Buy")
 		button.pressed.connect(_on_buy.bind(id))
+	if Game.story_flag("saw_p00"):
+		tab_shop.hide()
+		tab_sell.hide()
+		tab_reason.text = "书桌·电脑"
 	_build_level_cards()
 	_build_reasoning_ui()
 	_refresh()
@@ -264,14 +268,20 @@ const APP_NAMES := {
 	"pc_archive": "电脑·档案库",
 	"pc_browser": "电脑·浏览器",
 	"pc_mail": "电脑·邮件",
-	"phone_chat": "手机·密信",
+	"phone_chat": "聊天",
+	"board": "推理板",
 }
 
-const APP_ORDER: Array[String] = ["pc_archive", "pc_browser", "pc_mail", "phone_chat"]
+const APP_ORDER: Array[String] = ["pc_archive", "pc_browser", "pc_mail", "phone_chat", "board"]
 
+var search_field: LineEdit
+var archive_filter: OptionButton
+var detail_filter: OptionButton
+var evidence_board: EvidenceBoard
 var _reason_source_hbox: HBoxContainer
+var _clues_scroll: ScrollContainer
 var _reason_clues_list: VBoxContainer
-var _reason_chains_list: VBoxContainer
+var _reason_chains_list: HBoxContainer
 var _reason_feedback: Label
 var _selected_app: String = "pc_archive"
 
@@ -295,10 +305,41 @@ func _build_reasoning_ui() -> void:
 		if app_id == _selected_app:
 			btn.button_pressed = true
 
+	var tools_row := HBoxContainer.new()
+	reason_box.add_child(tools_row)
+	search_field = LineEdit.new()
+	search_field.placeholder_text = "搜索编号、人名、关键词（回车检索）"
+	search_field.custom_minimum_size = Vector2(340, 22)
+	search_field.add_theme_font_size_override("font_size", 10)
+	tools_row.add_child(search_field)
+	search_field.text_submitted.connect(func(_query: String) -> void: _refresh_reasoning())
+	archive_filter = OptionButton.new()
+	for title in ["全部展厅", "中国厅", "埃及厅", "希腊厅"]:
+		archive_filter.add_item(title)
+	archive_filter.add_theme_font_size_override("font_size", 10)
+	tools_row.add_child(archive_filter)
+	archive_filter.item_selected.connect(func(_index: int) -> void: _refresh_reasoning())
+	detail_filter = OptionButton.new()
+	for title in ["全部年代/来源", "商代 / 旧藏购入", "埃及晚期 / 古尔德", "晚期基克拉泽斯 / 西屋"]:
+		detail_filter.add_item(title)
+	detail_filter.add_theme_font_size_override("font_size", 9)
+	tools_row.add_child(detail_filter)
+	detail_filter.item_selected.connect(func(_index: int) -> void: _refresh_reasoning())
+	evidence_board = EvidenceBoard.new()
+	reason_box.add_child(evidence_board)
+	evidence_board.changed.connect(func() -> void:
+		_build_level_cards()
+		for child in _reason_chains_list.get_children():
+			child.queue_free()
+		for cid in EvidenceData.chain_ids():
+			_reason_chains_list.add_child(_make_chain_row(cid))
+	)
 	var clues_scroll := ScrollContainer.new()
-	clues_scroll.custom_minimum_size = Vector2(0, 86)
+	_clues_scroll = clues_scroll
+	clues_scroll.custom_minimum_size = Vector2(0, 160)
 	reason_box.add_child(clues_scroll)
 	_reason_clues_list = VBoxContainer.new()
+	_reason_clues_list.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	_reason_clues_list.add_theme_constant_override("separation", 4)
 	clues_scroll.add_child(_reason_clues_list)
 
@@ -307,7 +348,7 @@ func _build_reasoning_ui() -> void:
 	sep.custom_minimum_size = Vector2(0, 1)
 	reason_box.add_child(sep)
 
-	_reason_chains_list = VBoxContainer.new()
+	_reason_chains_list = HBoxContainer.new()
 	_reason_chains_list.add_theme_constant_override("separation", 6)
 	reason_box.add_child(_reason_chains_list)
 
@@ -323,6 +364,10 @@ func _on_reason_app_selected(app_id: String) -> void:
 
 
 func _refresh_reasoning() -> void:
+	evidence_board.visible = _selected_app == "board"
+	_reason_chains_list.visible = _selected_app == "board"
+	_clues_scroll.visible = _selected_app != "board"
+	evidence_board.refresh()
 	# 刷新来源按钮按下状态
 	for i in _reason_source_hbox.get_child_count():
 		var btn: Button = _reason_source_hbox.get_child(i) as Button
@@ -334,7 +379,46 @@ func _refresh_reasoning() -> void:
 	# 刷新线索列表
 	for child in _reason_clues_list.get_children():
 		child.queue_free()
+	search_field.visible = _selected_app == "pc_browser"
+	archive_filter.visible = _selected_app == "pc_archive"
+	detail_filter.visible = _selected_app == "pc_archive"
 	var clues := EvidenceData.clues_for_app(_selected_app)
+	if _selected_app == "pc_browser":
+		var query := search_field.text.strip_edges().to_lower()
+		clues = clues.filter(func(clue: Dictionary) -> bool:
+			var chain: Dictionary = EvidenceData.chain(clue.chain_id)
+			return not query.is_empty() and (str(chain).to_lower().contains(query))
+		)
+	if _selected_app == "pc_archive" and archive_filter.selected > 0:
+		var selected_id := EvidenceData.chain_ids()[archive_filter.selected - 1]
+		clues = clues.filter(func(clue: Dictionary) -> bool: return clue.chain_id == selected_id)
+
+	if _selected_app == "pc_archive" and detail_filter.selected > 0:
+		var detail_id := EvidenceData.chain_ids()[detail_filter.selected - 1]
+		clues = clues.filter(func(clue: Dictionary) -> bool: return clue.chain_id == detail_id)
+	if _selected_app == "pc_mail":
+		for i in 3:
+			var cid := EvidenceData.chain_ids()[i]
+			var sender: String = ["中国追索者", "埃及裔学者", "希腊文化基金会"][i]
+			var mail := Label.new()
+			mail.text = sender + "：若你带回" + Game.item_name(cid) + "，请先联系我。渠道与委托均为虚构。"
+			mail.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+			mail.custom_minimum_size.x = 520
+			mail.add_theme_font_size_override("font_size", 10)
+			_reason_clues_list.add_child(mail)
+			var reply := Button.new()
+			reply.text = "已回复：愿意接洽" if Game.story_flag("mail_contact_" + cid) else "回复：愿意接洽 / 不回复则保留邮件"
+			reply.add_theme_font_size_override("font_size", 10)
+			reply.pressed.connect(func() -> void:
+				Game.set_story_flag("mail_contact_" + cid)
+				_refresh_reasoning()
+			)
+			_reason_clues_list.add_child(reply)
+	if _selected_app == "phone_chat":
+		var chat := Label.new()
+		chat.text = "恶魔：" + ("东西带回来了？别让我等。" if Game.story_flag("bm_relic_secured") else "我要的不是最贵的那件。看看编号背后的故事。")
+		chat.add_theme_font_size_override("font_size", 11)
+		_reason_clues_list.add_child(chat)
 	if clues.is_empty():
 		var empty := Label.new()
 		empty.text = "该来源暂时没有可访问线索。"
@@ -389,8 +473,17 @@ func _make_clue_row(clue: Dictionary) -> PanelContainer:
 		)
 		row.add_child(btn)
 
+	if _selected_app == "pc_mail":
+		var reply := Button.new()
+		reply.text = "已回复" if Game.story_flag("reply_" + String(clue.id)) else "回复：愿意接洽（虚构渠道）"
+		reply.add_theme_font_size_override("font_size", 9)
+		reply.pressed.connect(func() -> void:
+			Game.set_story_flag("reply_" + String(clue.id))
+			_refresh_reasoning()
+		)
+		vbox.add_child(reply)
 	var body := Label.new()
-	body.text = String(clue.get("body", "")) if collected else "收集后查看详情"
+	body.text = String(clue.get("body", "")) + ("\n来源字段：有争议 / 追索中；早期流转记录不完整。" if _selected_app == "pc_archive" else "\n安保、排期及交易渠道为游戏虚构。") if collected else "收集后查看详情"
 	body.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	body.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	body.add_theme_font_size_override("font_size", 9)
@@ -414,40 +507,11 @@ func _make_chain_row(chain_id: String) -> PanelContainer:
 	title.add_theme_color_override("font_color", Color("f5d766"))
 	vbox.add_child(title)
 
-	var clues: Dictionary = chain.get("clues", {})
-	var clues_hbox := HBoxContainer.new()
-	clues_hbox.add_theme_constant_override("separation", 4)
-	vbox.add_child(clues_hbox)
-
 	var all_collected := true
-	for clue_id in clues:
-		var clue: Dictionary = clues[clue_id]
-		var collected := Game.has_clue(clue_id)
-		if not collected:
+	for clue in Game.clues_for_chain(chain_id):
+		if not clue.collected:
 			all_collected = false
-		var badge := Label.new()
-		badge.text = String(clue.get("title", clue_id)).substr(0, 6) + "…"
-		badge.add_theme_font_size_override("font_size", 8)
-		badge.add_theme_color_override("font_color", Color("7fd18f") if collected else Color("6a6a6a"))
-		clues_hbox.add_child(badge)
-
-	var links: Array = chain.get("required_links", [])
-	var links_done := true
-	var links_label := Label.new()
-	var link_parts: Array[String] = []
-	for link in links:
-		if link is Array and link.size() == 2:
-			var from_id := String(link[0])
-			var to_id := String(link[1])
-			var ok := Game.has_link(from_id, to_id)
-			if not ok:
-				links_done = false
-			link_parts.append("%s%s" % [String(chain.get("clues", {}).get(from_id, {}).get("title", from_id)).substr(0, 4), "→" if ok else "?"])
-	links_label.text = "连线：" + "  ".join(link_parts) if not link_parts.is_empty() else "连线：待收集"
-	links_label.add_theme_font_size_override("font_size", 8)
-	links_label.add_theme_color_override("font_color", Color("c8c2b2"))
-	vbox.add_child(links_label)
-
+	var links_done := false
 	if Game.chain_unlocked(chain_id):
 		var unlocked := Label.new()
 		unlocked.text = "已解锁盗取方案"
@@ -456,14 +520,10 @@ func _make_chain_row(chain_id: String) -> PanelContainer:
 		vbox.add_child(unlocked)
 	elif all_collected:
 		var verify := Button.new()
-		verify.text = "验证连线" if links_done else "补全连线"
+		verify.text = "验证连线"
 		verify.custom_minimum_size = Vector2(80, 22)
 		_style_button(verify, links_done, 9)
 		verify.pressed.connect(func() -> void:
-			# 自动补全本链所需的两条连线（玩家已确认这些卡应被连起来）。
-			for link in links:
-				if link is Array and link.size() == 2:
-					Game.make_link(String(link[0]), String(link[1]))
 			if Game.verify_chain(chain_id):
 				_reason_feedback.text = "%s 解锁成功" % String(chain.get("title", chain_id))
 				_refresh_reasoning()
@@ -584,7 +644,7 @@ func _on_buy(id: String) -> void:
 
 
 func _unhandled_input(event: InputEvent) -> void:
-	if event.is_action_pressed("interact"):
+	if event.is_action_pressed("interact") and levels_box.visible:
 		var first_level := String(Game.LEVELS.keys()[0])
 		start_requested.emit(first_level)
 		get_viewport().set_input_as_handled()

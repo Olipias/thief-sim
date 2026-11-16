@@ -78,7 +78,7 @@ func _test_catalog() -> void:
 		check(target_ids.has(target), "LEVELS[%s] 目标 %s 标记 is_target" % [level_id, target])
 		check(String(info.get("map", "")).ends_with(".json"), "LEVELS[%s] 地图为 JSON" % level_id)
 		target_ids.erase(target)
-	# 大英博物馆三目标（ram_zun / egypt_stela / greek_relief）通过推理板动态解锁，
+	# 大英博物馆三目标（ram_zun / egypt_heart_scarab / akrotiri_askos）通过推理板动态解锁，
 	# 不全部静态列在 LEVELS 中。
 	for chain_id in EvidenceData.chain_ids():
 		var chain: Dictionary = EvidenceData.chain(chain_id)

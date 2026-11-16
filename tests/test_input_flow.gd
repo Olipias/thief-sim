@@ -307,13 +307,18 @@ func _test_new_game_opening() -> void:
 	await _frames(2)
 	main._on_new_game()
 	await _frames(3)
-	check(main.dialogue_tree.is_active(), "P2-A：新游戏先播恶魔契约")
-	if main.dialogue_tree.is_active():
-		await _finish_story_tree()
-	check(Game.story_flag("saw_p00"), "P2-A：saw_p00 落档")
-	check(main._hub != null, "P2-A：契约结束后进入据点")
-	check(not main.dialogue_tree.is_active(), "P2-A：契约结束后不残留对谈")
-	check(not Game.story_flag("saw_p01"), "P2-A：未完成教学关不播 P-01")
+	var intro: ContractIntro
+	for child in main.ui_layer.get_children():
+		if child is ContractIntro:
+			intro = child
+	check(intro != null, "新游戏先播契约分镜")
+	check(ContractIntro.PANEL_SECONDS * ContractIntro.PANELS.size() == 144.0, "分镜未跳过时长144秒")
+	if intro != null:
+		await _click((intro.get_child(0) as Button).get_global_rect().get_center())
+	await _frames(4)
+	check(Game.story_flag("saw_p00"), "跳过演出后契约进度落档")
+	check(main._museum != null, "契约直接进入教学关")
+	await _skip_dialogue()
 
 
 func _test_tutorial_direct_hub() -> void:
@@ -450,11 +455,11 @@ func _test_hub_stories() -> void:
 func _test_bm_target_selection() -> void:
 	# P6：推理板解锁后选埃及/希腊目标，Museum 必须按所选目标生成与判定。
 	Game.reset_progress()
-	for flag in ["saw_p00", "saw_p01", "saw_h01", "saw_h02", "chain_egypt_stela_done"]:
+	for flag in ["saw_p00", "saw_p01", "saw_h01", "saw_h02", "chain_egypt_heart_scarab_done"]:
 		Game.set_story_flag(flag)
 	main.show_menu()
 	await _frames(3)
-	check(Game.set_bm_target("egypt_stela"), "P6：解锁后可切换埃及目标")
+	check(Game.set_bm_target("egypt_heart_scarab"), "P6：解锁后可切换埃及目标")
 	main.start_mission("british_museum")
 	await _frames(4)
 	while main.dialogue.is_active():
@@ -464,12 +469,13 @@ func _test_bm_target_selection() -> void:
 	check(museum != null, "P6：大英关卡已进入")
 	if museum == null:
 		return
-	check(museum.target_item_id() == "egypt_stela", "P6：Museum.target_item_id 跟随所选目标（实际 %s）" % museum.target_item_id())
+	check(museum.target_item_id() == "egypt_heart_scarab", "P6：Museum.target_item_id 跟随所选目标（实际 %s）" % museum.target_item_id())
 	var spawned := false
 	for child in museum.get_children():
-		if child is Artifact and child.item_id == "egypt_stela":
+		if child is Artifact and child.item_id == "egypt_heart_scarab":
 			spawned = true
 	check(spawned, "P6：埃及目标实际生成")
+	check(museum.target_room == 1, "埃及目标在独立展厅")
 
 
 func _test_route_planning() -> void:
@@ -529,11 +535,17 @@ func _test_route_planning() -> void:
 	check(museum.failure_replay, "进入失败回放态")
 	check(museum.failure_reason == "输入流测试", "失败原因被记录")
 
+	# v0.20.4：前 0.6s 忽略 E/Space 误触，避免刚被发现就跳过回放。
+	await _tap(KEY_SPACE)
+	check(museum.failure_replay, "0.6s 定格内空格不误触回退")
+	await _wait(0.7)
 	await _tap(KEY_SPACE)
 	await _frames(2)
-	check(not museum.failure_replay, "空格回退清除失败回放")
+	check(not museum.failure_replay, "定格结束后空格回退清除失败回放")
 	check(museum.planning_mode, "回退后自动进入规划模式")
 	check(museum.planned_points.is_empty(), "回退后清空规划节点")
+	museum.level_id = "museum"
+
 
 
 func _test_leave_scene_clean() -> void:
@@ -580,6 +592,7 @@ func _ready() -> void:
 	await _test_sell_tab()
 	await _test_phone_archive_footer()
 	await _test_hub_phone()
+	await _test_investigation_inputs()
 	await _test_hub_stories()
 	await _test_bm_target_selection()
 	await _test_archive_cards_readable()
@@ -840,3 +853,55 @@ func _test_bm_story_interactions() -> void:
 	check(not Game.story_flag("read_label") and not Game.story_flag("read_note"), "都不读：flag 保持 false")
 	check(not main.dialogue_tree.is_active(), "都不读：没有自动弹出对谈")
 
+
+
+func _drag_input(from: Vector2, to: Vector2) -> void:
+	var down := InputEventMouseButton.new()
+	down.position = from
+	down.button_index = MOUSE_BUTTON_LEFT
+	down.pressed = true
+	Input.parse_input_event(down)
+	await _frames(2)
+	var move := InputEventMouseMotion.new()
+	move.position = to
+	move.button_mask = MOUSE_BUTTON_MASK_LEFT
+	Input.parse_input_event(move)
+	await _frames(2)
+	var up := InputEventMouseButton.new()
+	up.position = to
+	up.button_index = MOUSE_BUTTON_LEFT
+	Input.parse_input_event(up)
+	await _frames(2)
+
+
+func _test_investigation_inputs() -> void:
+	Game.set_story_flag("saw_p00")
+	Game.set_story_flag("saw_p01")
+	Game.set_story_flag("saw_h01")
+	main.show_menu()
+	await _frames(4)
+	await _wait(0.3)
+	await _tap(KEY_P)
+	var header := main.phone.tab_task.get_parent()
+	await _click((header.get_child(header.get_child_count() - 2) as Button).get_global_rect().get_center())
+	check(main.phone.extra_page.visible, "真实鼠标打开日历")
+	await _click((header.get_child(header.get_child_count() - 1) as Button).get_global_rect().get_center())
+	await _click((main.phone.extra_page.get_child(0) as Button).get_global_rect().get_center())
+	check(main.phone.call_label.text.contains("恶魔"), "真实鼠标接听NPC对话")
+	await _tap(KEY_ESCAPE)
+	await _wait(0.3)
+	var hub: Hub = main._hub
+	await _click(hub.tab_reason.get_global_rect().get_center())
+	Game.set_story_flag("link_zun_tech_zun_chat", false)
+	for id in ["zun_archive", "zun_tech", "zun_chat"]:
+		Game.collect_clue(id)
+	Game.set_story_flag("link_zun_archive_zun_tech", false)
+	await _click((hub._reason_source_hbox.get_child(4) as Button).get_global_rect().get_center())
+	var board := hub.evidence_board
+	check(board.is_visible_in_tree(), "鼠标打开推理板")
+	var old_pos: Vector2 = board.cards[0].pos
+	await _drag_input(board.global_position + old_pos + Vector2(10, 10), board.global_position + old_pos + Vector2(18, 15))
+	check(board.cards[0].pos != old_pos, "真实鼠标拖动卡片")
+	await _drag_input(board.global_position + board.cards[0].pos + Vector2(156, 22), board.global_position + board.cards[1].pos + Vector2(20, 20))
+	check(Game.has_link("zun_archive", "zun_tech"), "真实拖线记录玩家指定关系")
+	check(not Game.has_link("zun_tech", "zun_chat"), "拖一条线不会自动补全其他关联")

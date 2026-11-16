@@ -52,7 +52,7 @@ func _run_playback_then_finish() -> void:
 
 func _test_evidence_chains() -> void:
 	var ids := EvidenceData.chain_ids()
-	check(ids == ["ram_zun", "egypt_stela", "greek_relief"], "推理链：三条链顺序固定（%s）" % str(ids))
+	check(ids == ["ram_zun", "egypt_heart_scarab", "akrotiri_askos"], "推理链：三条链顺序固定（%s）" % str(ids))
 	check(EvidenceData.CHAINS.size() == 3, "推理链：恰好三条（实际 %d）" % EvidenceData.CHAINS.size())
 
 	for chain_id in ids:
