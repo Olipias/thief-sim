@@ -85,6 +85,7 @@ step "输入流自检（真实按键驱动 UI 覆盖层）" "$GODOT" --headless 
 step "存档兼容自检（老档 / 脏档 / 未来档）" "$GODOT" --headless --script tests/test_save_compat.gd
 step "玩家进度自检（结算 / 仓库 / 收集册 / 存档健壮性）" "$GODOT" --headless --script tests/test_progression.gd
 step "剧情自检（story_flags / 双羊尊文物志）" "$GODOT" --headless --script tests/test_story.gd
+step "确定性预演自检（R-02 灰盒一致性）" "$GODOT" --headless --script tests/test_sim_preview.gd
 step "剧情验收（独立：隐藏条件 / 双羊全分支播放）" "$GODOT" --headless --script tests/test_story_flow.gd
 step "推理数据自检（三链 / 线索数据边界 / 恶魔分支）" "$GODOT" --headless --script tests/test_reasoning.gd
 step "场景实例化自检（src/*.tscn）" "$GODOT" --headless res://tests/test_scenes.tscn

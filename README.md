@@ -18,6 +18,8 @@
 
 ## 开发进度
 
+- v0.22.0（2026-11-16，M1/R-02）：**确定性预演灰盒**首个可玩技术里程碑——`src/sim/sim_preview.gd` 固定 tick 模拟内核（巡逻/监控摆动/噪音事件/发现判定/动作时间轴全确定性，无随机数、无执行偏移）；预演与执行共用同一 tick 函数、同快照启动、逐 tick 摘要与事件 100% 一致；失败恢复整份快照并保留路线；`tests/test_sim_preview.gd` 18 项一致性验收并入 verify（`--fast` 14 项）。
+
 - v0.21.4（2026-11-16）：按用户指令**彻底移除闭馆倒计时**——`museum.gd` 删除 `CLOSING_SECONDS/closing_remaining` 与超时失败回放、`mission_phone` 任务页不再显示倒计时、简报台词同步；孤儿 `main_menu.gd.uid` 已删；`tools/verify.sh` 15 项全绿、`--visual` 17 项/36 张基线全绿。
 
 - v0.21.3（2026-11-16，仅文档）：采纳[内容核查流程](docs/CONTENT_REVIEW.md)和[确定性预演灰盒](docs/DETERMINISTIC_PREVIEW.md)；埃及件目已锁定、逐件主张需核实，新增恶魔独立审校和所有结局必经固定声明；灰盒提前至安全屋之前。未开始开发或宣称审校完成。
