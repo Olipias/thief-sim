@@ -33,6 +33,8 @@
 
 ## 当前文档同步任务
 
+- ✅ **课堂自动化 pytest + RUNBOOK（v0.22.6）**｜plan（BlueLantern）｜2026-11-18：`tests/demo/test_logic.py`（subprocess 驱动真实 Godot 测试，含确定性预演逐 tick 断言核对）+ `tests/demo/test_history.py`（据/推断/设/未核实边界）+ `docs/demo/RUNBOOK.md`；test_sim_preview/test_input_flow 全绿时打印逐行 PASS 摘要。
+
 - ✅ **课堂桌面包导出（v0.22.5）**｜plan（BlueLantern）｜2026-11-18：`tools/export.sh` 改为课堂桌面交付（`build/class-demo/` Windows+Linux，`--with-web` 可选），中文试玩 README（新键位/试玩任务/已知限制）、zip+SHA256、干净目录启动验证通过。
 
 - ✅ **课堂演示切片 V0-1（v0.22.4）**｜plan（BlueLantern）｜2026-11-18：确定性预演接入真实博物馆关卡（SimPreview 同一内核 + 真实状态转换快照 + 预演轨迹/守卫残影/首次发现预警绘制 + Enter 手动重算）。

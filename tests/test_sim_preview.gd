@@ -13,9 +13,13 @@ const Sim := preload("res://src/sim/sim_preview.gd")
 
 var _failures := 0
 var _checks := 0
+## 断言摘要（课堂演示与 pytest 驱动器读取）：每次 check 都记录，全绿时打印。
+var _assertion_log: Array[String] = []
+
 
 func check(cond: bool, msg: String) -> void:
 	_checks += 1
+	_assertion_log.append(("PASS - " if cond else "FAIL - ") + msg)
 	if not cond:
 		_failures += 1
 		printerr("FAIL - " + msg)
@@ -40,15 +44,19 @@ func _initialize() -> void:
 		print("FAILED %d / %d checks" % [_failures, _checks])
 		quit(1)
 	else:
+		# 全绿也打印断言摘要（逐行 PASS），供 pytest 驱动器与课堂演示核对覆盖。
+		for line in _assertion_log:
+			print(line)
 		print("ALL %d CHECKS PASSED" % _checks)
 		quit(0)
 
 
-## 构造一条会撞上巡逻的路线（玩家直接走向守卫路点区域并等待）
+## 构造一条会撞上巡逻的路线：守卫在远处巡逻，玩家走进其巡逻半径被发现。
 func _risky_route() -> Array:
 	return [
-		{"pos": Vector2i(6, 5), "action": "", "ticks": 0, "done": 0},
-		{"pos": Vector2i(7, 5), "action": "wait", "ticks": 30, "done": 0},
+		{"pos": Vector2i(6, 5), "action": "wait", "ticks": 10, "done": 0},
+		{"pos": Vector2i(10, 5), "action": "", "ticks": 0, "done": 0},
+		{"pos": Vector2i(11, 5), "action": "wait", "ticks": 40, "done": 0},
 	]
 
 
@@ -61,6 +69,8 @@ func _safe_route() -> Array:
 
 func _test_deterministic_same_route() -> void:
 	var start := Sim.default_snapshot()
+	start["guard"]["pos"] = Vector2i(12, 7)
+	start["guard"]["waypoints"] = [Vector2i(12, 7), Vector2i(12, 3)]
 	var route := _risky_route()
 	var preview := Sim.simulate_route(start, route)
 	var execute := Sim.execute_route(start, route)

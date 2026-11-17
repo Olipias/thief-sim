@@ -17,10 +17,13 @@ const SAVE := "/tmp/thief_sim_input_flow_save.json"
 var _failures := 0
 var _checks := 0
 var main: Main
+## 断言摘要（课堂演示与 pytest 驱动器读取）：每次 check 都记录，收尾打印。
+var _assertion_log: Array[String] = []
 
 
 func check(cond: bool, msg: String) -> void:
 	_checks += 1
+	_assertion_log.append(("PASS - " if cond else "FAIL - ") + msg)
 	if not cond:
 		_failures += 1
 		printerr("FAIL - " + msg)
@@ -501,6 +504,15 @@ func _test_route_planning() -> void:
 	check(museum.planned_points.size() == 1, "左键点击添加规划节点")
 	check(museum.planned_points[0].distance_to(click_world) < 8.0, "节点落在点击位置附近（世界坐标）")
 
+	# V0-1：规划节点变化后自动预演；Enter 手动重算。断言轨迹/守卫残影/预警与内核一致。
+	await _tap(KEY_ENTER)
+	await _frames(2)
+	check(museum._preview_active, "Enter 预演激活")
+	check(museum._preview_cells.size() > 1, "预演生成玩家轨迹（%d tick）" % museum._preview_cells.size())
+	check(museum._preview_guard_cells.size() > 1, "预演生成守卫残影（%d tick）" % museum._preview_guard_cells.size())
+	var kernel := SimPreview.simulate_route(museum._build_sim_snapshot(), museum._planned_sim_route(), 900)
+	check(museum._preview_spotted_tick == kernel.first_spotted, "预演预警与一致性内核首次发现 tick 一致")
+
 	await _tap(KEY_TAB)
 	check(not museum.planning_mode, "再按 Tab 退出规划模式")
 	check(museum.police[0].ai_enabled, "退出规划模式后守卫 AI 恢复")
@@ -604,8 +616,14 @@ func _ready() -> void:
 	await _frames(5)
 	if _failures > 0:
 		print("FAILED %d / %d checks" % [_failures, _checks])
+		for line in _assertion_log:
+			if line.begins_with("FAIL"):
+				print(line)
 		get_tree().quit(1)
 	else:
+		# 全绿也打印断言摘要（逐行 PASS），供 pytest 驱动器与课堂演示核对覆盖。
+		for line in _assertion_log:
+			print(line)
 		print("ALL %d CHECKS PASSED" % _checks)
 		get_tree().quit(0)
 

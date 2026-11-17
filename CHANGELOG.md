@@ -7,6 +7,23 @@
 
 ---
 
+## [v0.22.6] - 2026-11-18
+
+### 新增（课堂自动化与演示入口，plan.md 阶段 C）
+- **pytest 套件（`tests/demo/`）**：
+  - `test_logic.py`：subprocess 驱动**真实 Godot 测试**（test_logic / test_content / test_save_compat / test_progression / test_sim_preview / test_input_flow），断言退出码 0、无引擎错误（verify.sh 同款白名单）、关键断言文本；并源码级校验「预演/执行共用同一 tick 内核、零随机数、无真实场景函数混入」。
+  - `test_history.py`：史料「据 / 推断 / 设 / 未核实」边界——evidence.gd 线索三层分类、1936 入藏不得推导 1860 被掠、圣甲虫不得写成大英实藏、注壶未核实项明示、无民族主义断言、声明页覆盖四件文物。
+- **`docs/demo/RUNBOOK.md`**：现场命令（pytest 短套件 / 原生输入流 / 完整验证 / 桌面包位置）、三个演示点、故障排查。
+- **依赖**：`requirements-demo.txt`（pytest>=8,<10；pytest 装在 `tools/demo_lib/`，PYTHONPATH 引入，无需系统安装）。
+
+### 修改
+- **`tests/test_sim_preview.gd` / `tests/test_input_flow.gd`**：全绿时打印逐行 `PASS - <断言>` 摘要（供 pytest 驱动器与课堂演示核对覆盖；失败仍仅打 FAIL 行）。
+- **`tests/test_sim_preview.gd`**：`_risky_route` 改为守卫在远处巡逻、玩家走进巡逻半径被发现（预演/执行 23 tick 逐 tick 一致，提升覆盖长度）。
+
+### 测试
+- pytest 套件：`tests/demo/` 全部通过（test_logic 13 项 / test_history 11 项，含真实 Godot 子进程套件）。
+- `tools/verify.sh --fast` 14 项全绿（test_input_flow 摘要打印不影响断言）。
+
 ## [v0.22.5] - 2026-11-18
 
 ### 新增（课堂桌面包交付，plan.md 阶段 A/D）

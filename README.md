@@ -18,6 +18,7 @@
 
 ## 开发进度
 
+- v0.22.6（2026-11-18，课堂自动化与演示入口）：**pytest 套件**（tests/demo/：test_logic 用 subprocess 驱动真实 Godot 测试 + 源码级「共用内核/零随机」校验；test_history 守「据/推断/设/未核实」边界）+ `docs/demo/RUNBOOK.md` 演示入口；test_sim_preview/test_input_flow 全绿时输出逐行 PASS 摘要（pytest 驱动器可断言覆盖）。
 - v0.22.5（2026-11-18，课堂桌面包）：`tools/export.sh` 默认导出 **Windows + Linux 桌面包到 `build/class-demo/`**（含中文 README、zip 与 SHA256；`--with-web` 可选）；干净目录启动验证通过，朋友无需安装 Godot。
 - v0.22.4（2026-11-18，课堂切片 V0-1）：**确定性预演接入真实关卡**——规划模式（Tab/R）下节点变化实时重算预演，世界层绘制玩家轨迹/守卫残影/黄色首次发现预警；Enter 手动重算；预演与执行共用同一内核（plan.md 阶段 B 第一步）。`tools/verify.sh --fast` 14 项全绿。
 - v0.22.3（2026-11-18，仅计划修订）：[课堂桌面演示计划](plan.md)改为独立导出包、pytest/原生输入自动化与两位好友下载试玩回归；取消Cloudflare/Web前置，老师公网/浏览器条目替代尚未确认。
