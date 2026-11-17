@@ -40,6 +40,11 @@ DEFAULT_THRESHOLD = 0.02  # 2% 像素不同即失败
 OVERRIDES = {
     "shot_alert.png": 0.20,
     "shot_smoke.png": 0.06,
+    # 以下截图含巡逻光锥/预览脉动/粒子等时间相关元素，实测 1.2%–2.6% 抖动，
+    # 放宽到 5% 只拦大幅变样（避免并行/低配下假红）。
+    "shot_room3.png": 0.05,
+    "shot_planning.png": 0.05,
+    "shot_failure_replay.png": 0.05,
 }
 
 

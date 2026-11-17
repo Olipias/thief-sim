@@ -347,7 +347,12 @@ func _test_british_museum_level() -> void:
 	cop0.patrol_points = [Vector2(296, 328), Vector2(264, 328)]
 	cop0.state = Police.State.PATROL
 	cop0.ai_enabled = true
-	await get_tree().create_timer(1.5).timeout
+	# 轮询而非固定 1.5s：低配/并行负载下 AI 步进可能变慢，固定等待会假红。
+	var unstick_deadline := Time.get_ticks_msec() + 3000
+	while Time.get_ticks_msec() < unstick_deadline:
+		await get_tree().process_frame
+		if cop0.global_position.distance_to(bench_start) > 6.0:
+			break
 	check(cop0.global_position.distance_to(bench_start) > 6.0, "guard unsticks from a solid decoration")
 
 	if zun != null:
