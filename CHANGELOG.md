@@ -7,7 +7,15 @@
 
 ---
 
-## [v0.22.4] - 2026-11-18
+## [v0.22.5] - 2026-11-18
+
+### 新增（课堂桌面包交付，plan.md 阶段 A/D）
+- **`tools/export.sh`**：改为默认导出 **Windows + Linux 桌面包到 `build/class-demo/`**（独立目录，不覆盖旧 web/windows/linux 产物）；`--with-web` 可选保留 Web 导出。Windows/Linux 目录内附**中文试玩说明 README.txt**（新操作键位 Tab 规划/Enter 预演/空格执行/失败回放、3–5 分钟试玩任务、已知限制、SmartScreen 提示），导出后自动输出 zip 与 SHA256。
+- **干净目录验证**：`build/class-demo/thief-sim-class-demo-linux.zip` 解压到无源码目录，`chmod +x` 后 `--headless --quit-after 12` 启动正常（退出码 0，无引擎异常）；Linux exe SHA256 `4c803162021088489bde6d3b569736a064bc6a77b2cdb1e623f6e5cbb673faa4`（包 zip `fa611be38bc306d7…`，Windows zip `881fcfc44b070588…`，完整哈希见导出输出）。
+- 朋友无需安装 Godot；用户用所选方式分发 zip。
+
+### 测试
+- 导出后未改代码；`tools/verify.sh --fast` 维持全绿（本批仅新增导出脚本与包产物）。
 
 ### 新增（课堂演示切片 V0-1：确定性预演接入真实关卡，plan.md 阶段 B）
 - **`museum.gd`**：新增 `_build_sim_snapshot()`（真实守卫路点/玩家/监控枢轴 → SimPreview 格坐标快照）、`_planned_sim_route()`（规划节点 → 模拟路线）、`run_preview()`（调用 `SimPreview.simulate_route()` 预演并重放缓存每 tick 玩家/守卫轨迹与首次发现位置）、`_draw_preview_overlay()`（世界层绘制半透明玩家轨迹、守卫淡红残影、黄色首次发现预警脉动圈 + 「预演：约 X.Xs 后在此被发现」；无风险路线显示绿色提示）。
