@@ -18,3 +18,7 @@ build/
 
 # agentchattr 房间令牌（本机私有，不进版本库）
 tools/.agentchattr_token
+
+# 课堂演示 pytest 本地依赖（requirements-demo.txt 可重装）
+tools/demo_lib/
+.venv/
