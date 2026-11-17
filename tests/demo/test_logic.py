@@ -17,7 +17,7 @@ from pathlib import Path
 import pytest
 
 ROOT = Path(__file__).resolve().parents[2]
-GODOT = Path(os.environ.get("GODOT", str(Path.home() / ".local", "bin", "godot")))
+GODOT = Path(os.environ.get("GODOT", str(Path.home() / ".local" / "bin" / "godot")))
 
 # 课堂 demo 的快速、纯逻辑/数据套件；场景/输入流可用 -m slow 单独跑。
 CASES = [
