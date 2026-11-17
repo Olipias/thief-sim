@@ -5,6 +5,52 @@
 
 ---
 
+---
+
+## [v0.22.4] - 2026-11-18
+
+### 新增（课堂演示切片 V0-1：确定性预演接入真实关卡，plan.md 阶段 B）
+- **`museum.gd`**：新增 `_build_sim_snapshot()`（真实守卫路点/玩家/监控枢轴 → SimPreview 格坐标快照）、`_planned_sim_route()`（规划节点 → 模拟路线）、`run_preview()`（调用 `SimPreview.simulate_route()` 预演并重放缓存每 tick 玩家/守卫轨迹与首次发现位置）、`_draw_preview_overlay()`（世界层绘制半透明玩家轨迹、守卫淡红残影、黄色首次发现预警脉动圈 + 「预演：约 X.Xs 后在此被发现」；无风险路线显示绿色提示）。
+- **`project.godot`**：新增 `plan_preview` 输入 action（Enter 键）；规划模式下节点添加/移动实时自动重算预演。
+- 预演与执行调用**同一实际内核**（`SimPreview.simulate_route()` 与一致性测试共用 `tick()`），满足 plan.md §2 要求；守卫巡逻随机偏移仅存在于真实执行，预演为确定性预测（差异在课堂上如实说明）。
+
+### 测试
+- `test_scripts` 42 脚本编译 / `test_scenes` 146 / `test_input_flow` 164 / `test_sim_preview` 34 / `tools/verify.sh --fast` 14 项全绿。
+
+## [v0.22.3] - 2026-11-18
+
+### 修改
+- 按用户选择将plan.md改为桌面试玩：独立导出包、pytest与Godot原生输入/日志/截图自动化、两位好友下载试玩与回归；取消Cloudflare/公网部署和浏览器工具的前置依赖。
+- 明确朋友无需安装Godot；保留老师公网URL和Playwright/MCP原文要求的未确认替代状态，不宣称已豁免或全部满足。
+
+### 测试
+- 仅计划文档修订，文档链接/版本格式与diff检查通过；未改代码、导出包或运行时测试。
+
+## [v0.22.2] - 2026-11-18
+
+### 新增
+- 根目录plan.md：2026-11-19课堂四反馈闭环的OpenCode执行计划、最小可玩Web切片、pytest/Playwright/MCP、Cloudflare大文件部署风险、两位真实好友到回归证据链及5分钟演示脚本。
+
+### 修改
+- 将课堂公网链接与好友试用提前，明确Godot原生测试和静态介绍页不能替代课程要求；保留长期安全屋等任务，不在本轮计划编写中开发。
+
+### 测试
+- 文档链接/版本格式及diff检查通过；本批仅计划文档，未安装依赖、运行游戏测试、部署或生成好友反馈。
+
+## [v0.22.1] - 2026-11-16
+
+### 修复
+- **`src/sim/sim_preview.gd`（R-02 复核修复）**：
+  - 非门口位置执行 `unlock` 不再累计开锁进度，防止玩家在别处等待 40 tick 后门被错误解锁；只有 `player.pos == DOOR_POS` 时才推进 `unlock_progress` 并触发 `door_unlocked` 事件。
+  - 守卫噪音调查结束后 `guard.alert` 正确回到 0：调查计时用尽即回巡逻态；若噪音提前消失，也立即从调查态切回巡逻态，避免永久停在 `alert = 1`。
+  - `snapshot_summary` 增加 `wait_left` / `investigate_left` / `move_phase` / `target_taken`，提升逐 tick 状态可见性，便于后续调试与一致性问题定位。
+
+### 测试
+- `tests/test_sim_preview.gd` 原有 18 项 + test 补充的 16 项压力/边界用例 = **34 项全绿**。
+- `tools/verify.sh --fast` **14 项全绿**。
+
+---
+
 ## [v0.22.0] - 2026-11-16
 
 ### 新增（M1/R-02 确定性预演灰盒 · 首个可玩技术里程碑）

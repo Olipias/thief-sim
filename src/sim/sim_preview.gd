@@ -95,10 +95,11 @@ static func snapshot_summary(snap: Dictionary) -> String:
 	var noise_sig := ""
 	for n in snap.get("noise", []):
 		noise_sig += "%s/%s/%s;" % [str(n.get("pos")), str(n.get("radius")), str(n.get("left"))]
-	return "t=%s|p=%s,%s,u=%s,k=%s|g=%s,w=%s,f=%s,a=%s,i=%s|c.ph=%s|d=%s|n=%s" % [
+	return "t=%s|p=%s,%s,u=%s,k=%s|g=%s,w=%s,f=%s,a=%s,i=%s,wl=%s,il=%s,mp=%s|c.ph=%s|d=%s|tt=%s|n=%s" % [
 		str(snap.get("tick")), str(p.get("pos")), str(p.get("crouch")), str(p.get("unlock_progress")), str(p.get("carrying")),
 		str(g.get("pos")), str(g.get("wp_index")), str(g.get("facing")), str(g.get("alert")), str(g.get("investigate_pos")),
-		str(cam_phase(snap)), str(snap.get("door_locked")), noise_sig,
+		str(g.get("wait_left")), str(g.get("investigate_left")), str(g.get("move_phase")),
+		str(cam_phase(snap)), str(snap.get("door_locked")), str(snap.get("target_taken")), noise_sig,
 	]
 
 
@@ -164,10 +165,11 @@ static func tick(snap: Dictionary, route: Array, route_index_ref: Dictionary) ->
 		match action:
 			"unlock":
 				if snap["door_locked"]:
-					p["unlock_progress"] = int(p["unlock_progress"]) + 1
-					if int(p["unlock_progress"]) >= UNLOCK_TICKS:
-						snap["door_locked"] = false
-						snap["events"].append({"tick": snap["tick"], "kind": "door_unlocked", "detail": "node"})
+					if p["pos"] == DOOR_POS:
+						p["unlock_progress"] = int(p["unlock_progress"]) + 1
+						if int(p["unlock_progress"]) >= UNLOCK_TICKS:
+							snap["door_locked"] = false
+							snap["events"].append({"tick": snap["tick"], "kind": "door_unlocked", "detail": "node"})
 					node["done"] = int(node.get("done", 0)) + 1
 				else:
 					node["done"] = left
@@ -223,11 +225,16 @@ static func tick(snap: Dictionary, route: Array, route_index_ref: Dictionary) ->
 			g["investigate_left"] = int(g["investigate_left"]) - 1
 			if route_distance(g["pos"], noise_target) > 0:
 				g["pos"] = step_towards(g["pos"], noise_target)
-			# 调查完或噪音消失即回巡逻
-			if int(g["investigate_left"]) <= 0 and noise_best > GUARD_NOISE_RANGE:
+			# 调查计时结束即回巡逻
+			if int(g["investigate_left"]) <= 0:
 				g["investigate_pos"] = Vector2i(-1, -1)
 				g["alert"] = 0
 		else:
+			# 噪音消失时，若仍在调查态也回巡逻
+			if int(g["alert"]) == 1:
+				g["alert"] = 0
+				g["investigate_pos"] = Vector2i(-1, -1)
+				g["investigate_left"] = 0
 			# 正常巡逻：walk -> wait 循环（路点以 x/y 平铺存储，避免类型歧义）
 			var wps: Array = g["waypoints"]
 			var gpos: Vector2i = g["pos"] if g["pos"] is Vector2i else Vector2i(int(g["pos"]["x"]), int(g["pos"]["y"]))

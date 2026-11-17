@@ -678,6 +678,9 @@ func _process(delta: float) -> void:
 	if prompt != _last_prompt:
 		_last_prompt = prompt
 		prompt_changed.emit(prompt)
+	# R-02 预演：规划模式下每次节点变动实时重算（纯整数运算，开销可忽略）。
+	if planning_mode:
+		run_preview()
 
 
 func _room_has_police(idx: int) -> bool:
@@ -712,6 +715,8 @@ func _process_planning_input() -> void:
 	if planning_mode:
 		if Input.is_action_just_pressed("plan_execute") and planned_points.size() >= 1:
 			execute_plan()
+		elif Input.is_action_just_pressed("plan_preview"):
+			run_preview()
 		return
 
 	# 非规划/非执行：C / Ctrl 蹲下（按住式）
@@ -826,6 +831,112 @@ func _check_camera_detection() -> void:
 		if Police.in_cone(cam.global_position, facing, player.global_position, CAMERA_VISION_RANGE, CAMERA_VISION_HALF_ANGLE):
 			_on_player_detected(cam, "监控摄像头扇区")
 			return
+
+
+## R-02 预演：把真实世界状态转成 SimPreview 灰盒快照（规划模式下用）。
+## 灰盒范围：最近守卫一名 + 单台监控枢轴（BM 视觉摄像头，无则用默认）。
+func _build_sim_snapshot() -> Dictionary:
+	var snap := SimPreview.default_snapshot()
+	if player != null:
+		snap["player"]["pos"] = Vector2i(
+			int(player.global_position.x / TILE),
+			int(player.global_position.y / TILE))
+	if not police.is_empty() and is_instance_valid(police[0]):
+		var cop: Police = police[0]
+		snap["guard"]["pos"] = Vector2i(int(cop.global_position.x / TILE), int(cop.global_position.y / TILE))
+		var wps: Array = []
+		for pt in cop.patrol_points:
+			wps.append(Vector2i(int(pt.x / TILE), int(pt.y / TILE)))
+		snap["guard"]["waypoints"] = wps
+	if not _bm_cameras.is_empty() and is_instance_valid(_bm_cameras[0]):
+		var cam: Node2D = _bm_cameras[0]
+		snap["camera"]["pivot"] = Vector2i(int(cam.global_position.x / TILE), int(cam.global_position.y / TILE))
+	return snap
+
+
+## 已规划节点 → SimPreview 路线（像素坐标转格坐标；移动段 action 留空）。
+func _planned_sim_route() -> Array:
+	var route: Array = []
+	var last: Vector2i = Vector2i(
+		int(player.global_position.x / TILE), int(player.global_position.y / TILE)) if player != null else Vector2i.ZERO
+	for pt in planned_points:
+		var cell := Vector2i(int(pt.x / TILE), int(pt.y / TILE))
+		if cell != last:
+			route.append({"pos": cell, "action": "", "ticks": 0, "done": 0})
+			last = cell
+	return route
+
+
+var _preview_active := false
+var _preview_cells: Array = []
+var _preview_guard_cells: Array = []
+var _preview_spotted_tick := -1
+var _preview_spotted_pos := Vector2i(-1, -1)
+
+## 运行一次预演并缓存结果（规划模式下反复调用开销可忽略：纯整数运算）。
+func run_preview() -> void:
+	if player == null or planned_points.is_empty():
+		_preview_active = false
+		_preview_cells = []
+		_preview_guard_cells = []
+		_preview_spotted_tick = -1
+		_preview_spotted_pos = Vector2i(-1, -1)
+		queue_redraw()
+		return
+	var snap := _build_sim_snapshot()
+	var route := _planned_sim_route()
+	var result := SimPreview.simulate_route(snap, route, 900)
+	_preview_spotted_tick = result.first_spotted
+	# 重放快照拿每 tick 位置（预演 trace 只是摘要；直接重放最直观且确定性一致）。
+	_preview_cells = []
+	_preview_guard_cells = []
+	var replay := SimPreview.copy_snapshot(snap)
+	var replay_route: Array = route.duplicate(true)
+	var idx := {"i": 0}
+	var t := 0
+	while t < 900:
+		SimPreview.tick(replay, replay_route, idx)
+		t = int(replay["tick"])
+		_preview_cells.append(replay["player"]["pos"])
+		_preview_guard_cells.append(replay["guard"]["pos"])
+		if result.first_spotted != -1 and int(replay["tick"]) >= result.first_spotted:
+			break
+	_preview_spotted_pos = Vector2i(-1, -1)
+	if _preview_spotted_tick != -1 and _preview_cells.size() >= _preview_spotted_tick:
+		_preview_spotted_pos = _preview_cells[_preview_spotted_tick - 1]
+	_preview_active = true
+	queue_redraw()
+
+
+## 把预演结果画在规划叠加层上：半透明玩家轨迹 + 守卫残影 + 黄色首次发现预警。
+func _draw_preview_overlay() -> void:
+	if not _preview_active or _preview_cells.is_empty() or player == null:
+		return
+	var font := ThemeDB.fallback_font
+	var prev: Vector2i = _preview_cells[0]
+	for i in range(1, _preview_cells.size()):
+		var cell: Vector2i = _preview_cells[i]
+		var alpha := 0.12 + 0.25 * (float(i) / float(_preview_cells.size()))
+		draw_line(
+			Vector2(prev.x * TILE + TILE / 2.0, prev.y * TILE + TILE / 2.0),
+			Vector2(cell.x * TILE + TILE / 2.0, cell.y * TILE + TILE / 2.0),
+			Color(0.45, 0.85, 0.95, alpha), 2.0)
+		prev = cell
+	var gprev: Vector2i = _preview_guard_cells[0]
+	for i in range(1, _preview_guard_cells.size()):
+		var gcell: Vector2i = _preview_guard_cells[i]
+		if i % 10 == 0:
+			draw_circle(Vector2(gcell.x * TILE + TILE / 2.0, gcell.y * TILE + TILE / 2.0), 5.0, Color(0.85, 0.35, 0.35, 0.28))
+		gprev = gcell
+	if _preview_spotted_tick != -1 and _preview_spotted_pos.x >= 0:
+		var pos := Vector2(_preview_spotted_pos.x * TILE + TILE / 2.0, _preview_spotted_pos.y * TILE + TILE / 2.0)
+		var pulse := 6.0 + 3.0 * absf(sin(_bm_time * 4.0))
+		draw_arc(pos, PLAN_POINT_RADIUS + pulse, 0.0, TAU, 16, Color(1.0, 0.85, 0.25, 0.9), 2.0)
+		draw_string(font, pos + Vector2(8, -10), "预演：约 %.1fs 后在此被发现" % (float(_preview_spotted_tick) / SimPreview.TICK_RATE),
+			HORIZONTAL_ALIGNMENT_LEFT, 220, 9, Color(1.0, 0.9, 0.45, 0.95))
+	else:
+		draw_string(font, player.global_position + Vector2(-60, -24),
+			"预演：此路线在预演范围内未被发现", HORIZONTAL_ALIGNMENT_LEFT, 240, 9, Color(0.55, 0.95, 0.65, 0.9))
 
 
 func _on_player_detected(detector: Node2D, reason: String) -> void:
@@ -1415,4 +1526,5 @@ func _draw() -> void:
 				"X":
 					draw_texture_rect(TEX_EXIT, rect, false)
 	_draw_planning_overlay()
+	_draw_preview_overlay()
 	_draw_failure_replay()

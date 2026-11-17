@@ -28,6 +28,13 @@ func _initialize() -> void:
 	_test_crouch_shrinks_detection()
 	_test_unlock_and_take()
 	_test_planning_freezes_source()
+	_test_frame_batching()
+	_test_multi_noise()
+	_test_long_route()
+	_test_restore_full()
+	_test_unlock_requires_door()
+	_test_guard_alert_resets()
+	_test_no_random_and_fixed_tick()
 
 	if _failures > 0:
 		print("FAILED %d / %d checks" % [_failures, _checks])
@@ -84,9 +91,9 @@ func _test_deterministic_same_route() -> void:
 	check(str(pm.trace) == str(em.trace), "修改路线后预演/执行仍一致")
 
 	# 5. 规划全冻结：simulate_route 不修改传入快照
-	var before := Sim.snapshot_summary(start)
+	var before := Sim.copy_snapshot(start)
 	Sim.simulate_route(start, route)
-	check(Sim.snapshot_summary(start) == before, "预演不污染源快照（规划冻结）")
+	check(_deep_equal(start, before), "预演不污染源快照（整份深比较）")
 
 
 func _test_fail_restore_full_snapshot() -> void:
@@ -177,10 +184,162 @@ func _test_unlock_and_take() -> void:
 func _test_planning_freezes_source() -> void:
 	var start := Sim.default_snapshot()
 	start["guard"]["wait_left"] = 13
-	var before := Sim.snapshot_summary(start)
+	var before := Sim.copy_snapshot(start)
 	var route := [
 		{"pos": Vector2i(2, 9), "action": "wait", "ticks": 10, "done": 0},
 		{"pos": Vector2i(1, 9), "action": "wait", "ticks": 20, "done": 0},
 	]
 	Sim.execute_route(start, route)
-	check(Sim.snapshot_summary(start) == before, "执行也不污染源快照（同快照原则）")
+	check(_deep_equal(start, before), "执行也不污染源快照（整份深比较）")
+
+
+## ---------- R-02 压力/边界用例（test 补充） ----------
+
+## 不同 batch 间隔（模拟不同渲染帧率）逐 tick 重放，轨迹必须与 execute_route 一致。
+func _test_frame_batching() -> void:
+	var start := Sim.default_snapshot()
+	var route := _safe_route()
+	var reference := Sim.execute_route(start, route, 200)
+	for batch in [1, 3, 7, 20]:
+		var snap := Sim.copy_snapshot(start)
+		var r: Array = route.duplicate(true)
+		var idx := {"i": 0}
+		var trace: Array[String] = []
+		var guard := 0
+		while int(snap["tick"]) < 200 and guard < 200:
+			# 一个渲染帧推进 batch 个固定 tick；摘要仍逐 tick 记录。
+			for _k in batch:
+				if int(snap["tick"]) >= 200:
+					break
+				Sim.tick(snap, r, idx)
+				trace.append(Sim.snapshot_summary(snap))
+				var spotted := false
+				for e in snap["events"]:
+					if int(e["tick"]) == int(snap["tick"]) and String(e["kind"]) == "spotted":
+						spotted = true
+				if spotted:
+					break
+			guard += 1
+			var any_spotted := false
+			for e in snap["events"]:
+				if String(e["kind"]) == "spotted":
+					any_spotted = true
+			if any_spotted:
+				break
+		check(str(trace) == str(reference.trace), "batch=%d 逐 tick 轨迹与执行一致" % batch)
+
+
+## 多噪音并发：最近噪音优先，且两次运行完全一致。
+func _test_multi_noise() -> void:
+	var start := Sim.default_snapshot()
+	start["player"]["pos"] = Vector2i(14, 10)
+	start["camera"]["pivot"] = Vector2i(0, 0)
+	start["camera"]["phase"] = 0
+	start["noise"] = [
+		{"pos": Vector2i(5, 5), "radius": Sim.GUARD_NOISE_RANGE, "left": 20, "source": "a"},
+		{"pos": Vector2i(3, 8), "radius": Sim.GUARD_NOISE_RANGE, "left": 20, "source": "b"},
+		{"pos": Vector2i(10, 5), "radius": Sim.GUARD_NOISE_RANGE, "left": 20, "source": "c"},
+	]
+	var route := [{"pos": Vector2i(14, 10), "action": "wait", "ticks": 80, "done": 0}]
+	var a := Sim.simulate_route(start, route, 300)
+	var b := Sim.simulate_route(start, route, 300)
+	check(str(a.trace) == str(b.trace), "多噪音并发两次预演逐 tick 一致")
+	check(str(a.events) == str(b.events), "多噪音并发事件序列一致")
+	var first_noise := {}
+	for e in a.events:
+		if String(e["kind"]) == "guard_investigate":
+			first_noise = e
+			break
+	check(not first_noise.is_empty(), "多噪音触发调查")
+	if not first_noise.is_empty():
+		check(str(first_noise["detail"]) == str(Vector2i(5, 5)), "最近噪音 (5,5) 优先（实际 %s）" % str(first_noise["detail"]))
+
+
+## 长路线（80 节点/数千 tick）不截断、重复运行一致。
+func _test_long_route() -> void:
+	var start := Sim.default_snapshot()
+	start["guard"]["pos"] = Vector2i(14, 0)
+	start["guard"]["waypoints"] = [Vector2i(14, 0), Vector2i(14, 1)]
+	start["camera"]["pivot"] = Vector2i(14, 0)
+	start["camera"]["phase"] = 0
+	var route: Array = []
+	for i in 120:
+		var x := 1 + (i % 12)
+		var y := 9 if (i % 2 == 0) else 8
+		route.append({"pos": Vector2i(x, y), "action": "wait", "ticks": 1, "done": 0})
+	var a := Sim.simulate_route(start, route, 5000)
+	var b := Sim.simulate_route(start, route, 5000)
+	check(a.trace.size() > 300, "长路线产生了足够 tick（%d）" % a.trace.size())
+	check(str(a.trace) == str(b.trace), "长路线两次预演逐 tick 一致")
+	check(str(a.events) == str(b.events), "长路线事件序列一致")
+
+
+## restore_full 必须完整覆盖目标快照（包括隐蔽计时器/监控相位/噪音/事件）。
+func _test_restore_full() -> void:
+	var start := Sim.default_snapshot()
+	start["tick"] = 77
+	start["guard"]["wait_left"] = 13
+	start["camera"]["phase"] = 5
+	start["noise"] = [{"pos": Vector2i(5, 5), "radius": 6, "left": 9, "source": "x"}]
+	var target := Sim.copy_snapshot(start)
+	target["tick"] = 0
+	target["guard"]["wait_left"] = 0
+	target["camera"]["phase"] = 0
+	target["player"]["pos"] = Vector2i(14, 10)
+	target["noise"] = []
+	Sim.restore_full(start, target)
+	check(_deep_equal(start, target), "restore_full 完整还原（含 tick/守卫等待/监控相位/噪音）")
+
+
+## 开锁动作必须发生在门口；在别处执行 unlock 不应开门。
+func _test_unlock_requires_door() -> void:
+	var start := Sim.default_snapshot()
+	start["guard"]["pos"] = Vector2i(14, 0)
+	start["guard"]["waypoints"] = [Vector2i(14, 0), Vector2i(14, 1)]
+	start["camera"]["pivot"] = Vector2i(14, 0)
+	start["camera"]["phase"] = 0
+	start["player"]["pos"] = Vector2i(1, 1)
+	var route := [{"pos": Vector2i(1, 1), "action": "unlock", "ticks": Sim.UNLOCK_TICKS + 5, "done": 0}]
+	var run := Sim.simulate_route(start, route, 100)
+	check(bool(run.snapshot["door_locked"]), "非门口执行 unlock 不应开门")
+
+
+## 噪音调查结束后 guard.alert 必须回到 0（巡逻），不能永久停在调查态。
+func _test_guard_alert_resets() -> void:
+	var start := Sim.default_snapshot()
+	start["player"]["pos"] = Vector2i(14, 10)
+	start["guard"]["pos"] = Vector2i(2, 2)
+	start["guard"]["waypoints"] = [Vector2i(2, 2), Vector2i(5, 2)]
+	start["camera"]["pivot"] = Vector2i(14, 0)
+	start["camera"]["phase"] = 0
+	start["noise"] = [{"pos": Vector2i(5, 5), "radius": Sim.GUARD_NOISE_RANGE, "left": 20, "source": "test"}]
+	var route := [{"pos": Vector2i(14, 10), "action": "wait", "ticks": 200, "done": 0}]
+	var run := Sim.simulate_route(start, route, 250)
+	check(int(run.snapshot["guard"]["alert"]) == 0, "噪音调查结束后守卫回到巡逻态（实际 alert=%d）" % int(run.snapshot["guard"]["alert"]))
+
+
+## 零随机数 + 固定 tick 是确定性预演的前提。
+func _test_no_random_and_fixed_tick() -> void:
+	check(Sim.TICK_RATE == 20, "TICK_RATE 固定 20")
+	var src := FileAccess.get_file_as_string("res://src/sim/sim_preview.gd")
+	check(not src.contains("randi") and not src.contains("randf") and not src.contains("randomize"), "sim_preview.gd 不调用随机数")
+
+
+func _deep_equal(a: Variant, b: Variant) -> bool:
+	if typeof(a) != typeof(b):
+		return false
+	if a is Dictionary:
+		if a.size() != b.size():
+			return false
+		for k in a:
+			if not b.has(k) or not _deep_equal(a[k], b[k]):
+				return false
+		return true
+	if a is Array:
+		if a.size() != b.size():
+			return false
+		for i in a.size():
+			if not _deep_equal(a[i], b[i]):
+				return false
+		return true
+	return a == b
