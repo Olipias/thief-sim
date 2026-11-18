@@ -18,6 +18,7 @@
 
 ## 开发进度
 
+- v0.22.7（2026-11-18，开场动画分镜）：**Excalidraw 绘制开场动画 8 格分镜**（对应 ContractIntro PANELS）——`docs/art_direction/opening_storyboard_excalidraw.png`（2×，内嵌可编辑场景）与 `.svg`；每格含标题/三行台词/画面元素说明/格号时长标签，底部风格与跳过注记；正式像素 CG 仍按 OPENING_CODEX_BRIEF.md 由 codex 产出。
 - v0.22.6（2026-11-18，课堂自动化与演示入口）：**pytest 套件**（tests/demo/：test_logic 用 subprocess 驱动真实 Godot 测试 + 源码级「共用内核/零随机」校验；test_history 守「据/推断/设/未核实」边界）+ `docs/demo/RUNBOOK.md` 演示入口；test_sim_preview/test_input_flow 全绿时输出逐行 PASS 摘要（pytest 驱动器可断言覆盖）。
 - v0.22.5（2026-11-18，课堂桌面包）：`tools/export.sh` 默认导出 **Windows + Linux 桌面包到 `build/class-demo/`**（含中文 README、zip 与 SHA256；`--with-web` 可选）；干净目录启动验证通过，朋友无需安装 Godot。
 - v0.22.4（2026-11-18，课堂切片 V0-1）：**确定性预演接入真实关卡**——规划模式（Tab/R）下节点变化实时重算预演，世界层绘制玩家轨迹/守卫残影/黄色首次发现预警；Enter 手动重算；预演与执行共用同一内核（plan.md 阶段 B 第一步）。`tools/verify.sh --fast` 14 项全绿。

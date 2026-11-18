@@ -7,6 +7,16 @@
 
 ---
 
+## [v0.22.7] - 2026-11-18
+
+### 新增（开场动画分镜 · Excalidraw 绘制，用户指定由 art/plan 用 Excalidraw 产出）
+- **Excalidraw 分镜画布**（97 元素）：8 格分镜对应 `ContractIntro.PANELS`——雨夜屋顶（雨线+屋顶剪影）、旧匣封印（匣盖裂纹）、倒影访客（双重轮廓：灰=我 / 红=恶魔）、契约条件（契约纸+恶魔带角轮廓）、手印代价（指纹浮现）、问题沉默（烫痕红光）、指令面具（青铜面具剪影+展柜+金绿目纹）、黎明前出发（街道熄灯：亮灯渐灭 + 教学键位标签）；格间推进箭头、底部风格/跳过/来源三行注记。
+- **导出**：`docs/art_direction/opening_storyboard_excalidraw.png`（3539×1865，2×，PNG 内嵌可编辑场景）与 `opening_storyboard_excalidraw.svg`（矢量）。
+- 对应交付对象：`art`（本用户指定的 Excalidraw 分镜）；正式像素 CG 仍按 `docs/art_direction/OPENING_CODEX_BRIEF.md` 由 codex 产出。
+
+### 测试
+- 纯美术资产，不涉及运行代码；`get_canvas_screenshot` 人眼核对通过（8 格布局/台词/注记完整）。
+
 ## [v0.22.6] - 2026-11-18
 
 ### 新增（课堂自动化与演示入口，plan.md 阶段 C）

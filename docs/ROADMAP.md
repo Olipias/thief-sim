@@ -33,6 +33,8 @@
 
 ## 当前文档同步任务
 
+- ✅ **开场动画分镜（v0.22.7）**｜plan（BlueLantern）｜2026-11-18：Excalidraw 绘制 8 格分镜（对应 ContractIntro.PANELS），导出 `docs/art_direction/opening_storyboard_excalidraw.png/.svg`；正式像素 CG 仍按 OPENING_CODEX_BRIEF.md 由 codex 产出。
+
 - ✅ **课堂自动化 pytest + RUNBOOK（v0.22.6）**｜plan（BlueLantern）｜2026-11-18：`tests/demo/test_logic.py`（subprocess 驱动真实 Godot 测试，含确定性预演逐 tick 断言核对）+ `tests/demo/test_history.py`（据/推断/设/未核实边界）+ `docs/demo/RUNBOOK.md`；test_sim_preview/test_input_flow 全绿时打印逐行 PASS 摘要。
 
 - ✅ **课堂桌面包导出（v0.22.5）**｜plan（BlueLantern）｜2026-11-18：`tools/export.sh` 改为课堂桌面交付（`build/class-demo/` Windows+Linux，`--with-web` 可选），中文试玩 README（新键位/试玩任务/已知限制）、zip+SHA256、干净目录启动验证通过。
