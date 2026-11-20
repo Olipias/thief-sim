@@ -1,0 +1,28 @@
+Godot Engine v4.7.2.stable.official.ed1daf0bf - https://godotengine.org
+
+PASS - 迷雾：玩家起始分区有效
+PASS - 迷雾：入口分区已揭示
+PASS - 迷雾：入口分区已写入跨次记录
+PASS - 迷雾：至少有一个其他房间初始隐藏
+PASS - 跨次保留：第二个房间分区索引一致
+PASS - 跨次保留：第二个房间已揭示
+PASS - 跨次保留：第二个房间已写入记录
+PASS - 跨次保留：重进后入口仍揭示
+PASS - 跨次保留：重进后第二个房间仍揭示
+PASS - 跨次保留：未进入的房间仍隐藏
+PASS - 侦察撤离：场景中存在普通战利品
+PASS - 侦察撤离：普通战利品有实例ID
+PASS - 侦察撤离：战利品拾取成功
+PASS - 侦察撤离：战利品在背包中
+PASS - 侦察撤离：背包条目保留实例ID
+PASS - 侦察撤离：结算标记 recon
+PASS - 侦察撤离：背包已清空
+PASS - 侦察撤离：战利品进入 stash
+PASS - 侦察撤离：未发放任务报酬
+PASS - 侦察撤离：实例ID已记录
+PASS - 侦察撤离后：已探房间保留
+PASS - 侦察撤离后：第二个房间记录保留
+PASS - 侦察撤离后：已带出实例不再刷新
+PASS - 新游戏：已探房间清空
+PASS - 新游戏：已取实例清空
+ALL 25 CHECKS PASSED

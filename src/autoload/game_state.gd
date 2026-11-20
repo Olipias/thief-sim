@@ -615,11 +615,136 @@ func stash_value() -> int:
 	return total
 
 
+## R-05 预约：item_id → 已预约件数（货物仍留在箱内，预约不扣货不发钱）。
+## 只增字段进存档：老档缺省 = {}；脏值按 0 处理。交货/取消按计数释放。
+var loot_reserved: Dictionary = {}
+
+## 玩家随身预约货标记：bag_items 条目上的 "reserved": true（取出预约物时打上，
+## 存回箱内/交货时清除）。与 loot_reserved 计数一进一出，保持守恒。
+
+
+## 预约一件箱内战利品（index 对应 loot_stash）：不扣货不发钱，买家到门外等待。
+## 主目标（含教学 mask）不可进入普通交易。
+func reserve_loot(index: int) -> bool:
+	if index < 0 or index >= loot_stash.size():
+		return false
+	var id := loot_stash[index]
+	if not CATALOG.has(id) or item_is_target(id):
+		return false
+	loot_reserved[id] = int(loot_reserved.get(id, 0)) + 1
+	save_game()
+	return true
+
+
+## 取消一件预约（按 item_id 计数减一）：不吞物、不退款，货物回到普通箱内。
+func cancel_loot_reservation(index: int) -> bool:
+	if index < 0 or index >= loot_stash.size():
+		return false
+	var id := loot_stash[index]
+	var count := int(loot_reserved.get(id, 0))
+	if count <= 0:
+		return false
+	if count == 1:
+		loot_reserved.erase(id)
+	else:
+		loot_reserved[id] = count - 1
+	save_game()
+	return true
+
+
+## 取出一件箱内战利品到随身：若该 id 尚有预约额度，取出的这件即预约货（打标记）。
+## 返回是否成功（成功时 bag 已通过 bag_auto_fit 放置）。
+func take_stash_item(index: int) -> bool:
+	if index < 0 or index >= loot_stash.size():
+		return false
+	var id := loot_stash[index]
+	var placed := bag_auto_fit(id)
+	if int(placed.get("x", -1)) < 0:
+		return false
+	loot_stash.remove_at(index)
+	var payload := {"id": id, "x": int(placed["x"]), "y": int(placed["y"]), "rot": int(placed.get("rot", 0))}
+	var count := int(loot_reserved.get(id, 0))
+	if count > 0:
+		payload["reserved"] = true
+		if count == 1:
+			loot_reserved.erase(id)
+		else:
+			loot_reserved[id] = count - 1
+	bag_items.append(payload)
+	backpack_changed.emit()
+	save_game()
+	return true
+
+
+## 存入一件随身物品进箱（index 对应 bag_items）：预约标记随之回到箱内计数。
+func stash_bag_item(index: int) -> bool:
+	if index < 0 or index >= bag_items.size():
+		return false
+	var item: Dictionary = bag_items[index]
+	var id := String(item["id"])
+	bag_items.remove_at(index)
+	loot_stash.append(id)
+	if bool(item.get("reserved", false)):
+		loot_reserved[id] = int(loot_reserved.get(id, 0)) + 1
+	_recompute_mission()
+	backpack_changed.emit()
+	save_game()
+	return true
+
+
+## 随身预约货（用于门禁与交货清单）：[{index, id, value}]。
+func reserved_bag_items() -> Array[Dictionary]:
+	var out: Array[Dictionary] = []
+	for i in bag_items.size():
+		var item: Dictionary = bag_items[i]
+		if bool(item.get("reserved", false)):
+			var id := String(item["id"])
+			out.append({"index": i, "id": id, "value": item_value(id)})
+	return out
+
+
+## 门口交货一次性结算：移除随身预约货并按价值收钱。返回 {paid, items, ok}。
+## 幂等：结算后随身不再有 reserved 标记，重复调用/读档重放不会二次收款。
+## 只消耗本次交付件数的预约额度：箱内其他预约不受影响。
+func deliver_reserved_items() -> Dictionary:
+	var goods := reserved_bag_items()
+	var result := {"ok": false, "paid": 0, "items": []}
+	if goods.is_empty():
+		return result
+	var paid := 0
+	var names := []
+	# 从大到小移除，避免索引位移吞错条目。
+	for i in range(goods.size() - 1, -1, -1):
+		var index := int(goods[i]["index"])
+		var id := String(goods[i]["id"])
+		var value := int(goods[i]["value"])
+		if index < 0 or index >= bag_items.size():
+			return {"ok": false, "paid": 0, "items": []}
+		if not bool(bag_items[index].get("reserved", false)):
+			return {"ok": false, "paid": 0, "items": []}
+		names.append(item_name(id))
+		paid += value
+		bag_items.remove_at(index)
+	money += paid
+	# 预约额度只描述"箱内承诺"：取出时已随货物转移到随身标记，
+	# 交货只消耗随身标记，不再动箱内剩余预约（另一件的承诺保持有效）。
+	money_changed.emit()
+	backpack_changed.emit()
+	save_game()
+	result["ok"] = true
+	result["paid"] = paid
+	result["items"] = names
+	return result
+
+
 ## 卖出一件仓库战利品（index 对应 loot_stash），返回卖得金币。
+## 已预约的物品不可走旧直售通道（否则预约计数悬空、买家门口空手）。
 func sell_stash_item(index: int) -> int:
 	if index < 0 or index >= loot_stash.size():
 		return 0
 	var id := loot_stash[index]
+	if int(loot_reserved.get(id, 0)) > 0:
+		return 0
 	var value := item_value(id)
 	loot_stash.remove_at(index)
 	money += value
@@ -628,12 +753,20 @@ func sell_stash_item(index: int) -> int:
 	return value
 
 
-## 全部出手，返回总金币。
+## 全部出手，返回总金币。只卖**未预约**的箱内物品（预约货留给门口买家）。
 func sell_all_stash() -> int:
-	var total := stash_value()
+	var total := 0
+	var sold_indexes: Array[int] = []
+	for i in loot_stash.size():
+		var id := loot_stash[i]
+		if int(loot_reserved.get(id, 0)) > 0:
+			continue
+		total += item_value(id)
+		sold_indexes.append(i)
 	if total <= 0:
 		return 0
-	loot_stash.clear()
+	for i in range(sold_indexes.size() - 1, -1, -1):
+		loot_stash.remove_at(sold_indexes[i])
 	money += total
 	money_changed.emit()
 	save_game()
@@ -736,6 +869,7 @@ func save_game() -> void:
 		"archive_seen": archive_seen,
 		"bm_selected_target": bm_selected_target,
 		"pending_mission_level": pending_mission_level,
+		"loot_reserved": loot_reserved,
 		"level_visited_rooms": level_visited_rooms,
 		"level_taken_items": level_taken_items,
 	})
@@ -804,6 +938,7 @@ func load_game() -> void:
 	_restore_level_visited(data.get("level_visited_rooms", {}))
 	_restore_level_taken(data.get("level_taken_items", {}))
 	_restore_pending_mission(data.get("pending_mission_level", ""))
+	_restore_loot_reserved(data.get("loot_reserved", {}))
 	bm_selected_target = _migrate_selected_target(str(data.get("bm_selected_target", "ram_zun")))
 	money_changed.emit()
 	items_changed.emit()
@@ -816,6 +951,20 @@ func _restore_pending_mission(saved: Variant) -> void:
 	# 只接受合法关卡 id；老档缺省 / 脏数据一律视为未准备。
 	var level := str(saved) if typeof(saved) == TYPE_STRING else ""
 	pending_mission_level = level if LEVELS.has(level) else ""
+
+
+## R-05 预约恢复：只接受 {普通战利品 item id → 非负整数计数}；脏值/主目标/非法 id 丢弃。
+func _restore_loot_reserved(saved: Variant) -> void:
+	loot_reserved.clear()
+	if typeof(saved) != TYPE_DICTIONARY:
+		return
+	for key in saved:
+		var id := str(key)
+		var count := _as_int(saved[key], 0)
+		# 只有普通战利品可预约：主目标（含教学 mask）与非法 id 一律拒绝。
+		if not CATALOG.has(id) or item_is_target(id) or count <= 0:
+			continue
+		loot_reserved[id] = count
 
 
 ## 手机「委托」确认行动：记录待出发关卡（出发门禁依据），返回是否成功。
@@ -1180,6 +1329,9 @@ func _restore_bag(saved: Variant) -> void:
 		if not placed.is_empty():
 			if not instance_id.is_empty():
 				placed["instance_id"] = instance_id
+			# R-05 预约货标记：老档缺省视为未预约（只增字段）。
+			if bool(entry.get("reserved", false)):
+				placed["reserved"] = true
 			bag_items.append(placed)
 		if item_is_target(id):
 			mission_complete = true
@@ -1196,6 +1348,7 @@ func reset_progress() -> void:
 	loot_stash.clear()
 	archive_seen.clear()
 	pending_mission_level = ""
+	loot_reserved.clear()
 	story_flags.clear()
 	bm_selected_target = "ram_zun"
 	level_visited_rooms.clear()

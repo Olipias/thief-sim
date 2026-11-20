@@ -286,7 +286,11 @@ func _physics_process(delta: float) -> void:
 	var target := _nearest_interactable()
 	var prompt := ""
 	if target != null:
-		prompt = "按 E " + String(target.get_meta("prompt", ""))
+		# 门口提示按随身内容分流：带预约货 → 交货；否则 → 出发。
+		if target.is_in_group("sh_door") and not Game.reserved_bag_items().is_empty():
+			prompt = "按 E 交货：门口买家"
+		else:
+			prompt = "按 E " + String(target.get_meta("prompt", ""))
 	if prompt != _last_prompt:
 		_last_prompt = prompt
 		prompt_changed.emit(prompt)

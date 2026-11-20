@@ -30,6 +30,7 @@ func _initialize() -> void:
 	_test_archive_lifecycle()
 	_test_save_robustness()
 	_test_new_game_clears_everything()
+	_test_r05_reservation_and_delivery()
 
 	if _failures > 0:
 		print("FAILED %d / %d checks" % [_failures, _checks])
@@ -37,6 +38,100 @@ func _initialize() -> void:
 	else:
 		print("ALL %d CHECKS PASSED" % _checks)
 		quit(0)
+
+
+# ---------------------------------------------------------------- R-05 预约/交货
+
+func _test_r05_reservation_and_delivery() -> void:
+	var gs = _new_game(DIR + "/r05_trade.json")
+	gs.reset_progress()
+	gs.loot_stash.clear()
+	gs.loot_stash.append("vase")
+	gs.loot_stash.append("gem")
+	var money0: int = gs.money
+
+	# 预约不扣货、不发钱；取出后打 reserved 标记，交货只收一次钱。
+	check(gs.reserve_loot(0), "R-05：预约花瓶成功")
+	check(gs.loot_stash.size() == 2 and gs.money == money0, "R-05：预约不扣货不发钱")
+	check(int(gs.loot_reserved.get("vase", 0)) == 1, "R-05：预约计数 +1")
+	check(gs.take_stash_item(0), "R-05：取出预约花瓶到随身")
+	check(gs.loot_stash.size() == 1, "R-05：取出后箱内减少")
+	check(not gs.loot_reserved.has("vase"), "R-05：取出一件后预约额度清零")
+	check(gs.bag_items.size() == 1 and bool(gs.bag_items[0].get("reserved", false)), "R-05：随身花瓶带 reserved 标记")
+	var paid: Dictionary = gs.deliver_reserved_items()
+	check(bool(paid.get("ok", false)) and int(paid.get("paid", 0)) == gs.item_value("vase"), "R-05：门口交货按价值付款")
+	check(gs.money == money0 + gs.item_value("vase"), "R-05：交货只加一次钱")
+	check(gs.bag_items.is_empty(), "R-05：交货后随身清空")
+	var again: Dictionary = gs.deliver_reserved_items()
+	check(not bool(again.get("ok", false)) and gs.money == money0 + gs.item_value("vase"), "R-05：重复交货不重复付款")
+
+	# 取消预约：不吞货、不退款。
+	gs.reset_progress()
+	gs.loot_stash.clear()
+	gs.loot_stash.append("vase")
+	check(gs.reserve_loot(0), "R-05：再次预约")
+	check(gs.cancel_loot_reservation(0), "R-05：取消预约")
+	check(gs.loot_stash.size() == 1 and gs.loot_reserved.is_empty(), "R-05：取消后货物与计数恢复")
+
+	# 多件同 id：取走一件并交货，不应清掉另一件仍在箱内的预约。
+	gs.reset_progress()
+	gs.loot_stash.clear()
+	gs.loot_stash.append("vase")
+	gs.loot_stash.append("vase")
+	check(gs.reserve_loot(0) and gs.reserve_loot(1), "R-05：两件花瓶都预约")
+	check(int(gs.loot_reserved.get("vase", 0)) == 2, "R-05：预约计数为 2")
+	check(gs.take_stash_item(0), "R-05：取出一件预约花瓶")
+	check(int(gs.loot_reserved.get("vase", 0)) == 1, "R-05：另一件预约额度仍保留")
+	check(gs.deliver_reserved_items().get("ok", false), "R-05：交付随身预约货")
+	check(int(gs.loot_reserved.get("vase", 0)) == 1, "R-05：交货不应清掉箱内另一件预约")
+
+	# 预约中的箱内物品不能被旧销赃页直接卖掉（否则预约计数会悬空）。
+	gs.reset_progress()
+	gs.loot_stash.clear()
+	gs.loot_stash.append("vase")
+	check(gs.reserve_loot(0), "R-05：预约花瓶用于卖出保护")
+	check(gs.sell_stash_item(0) == 0, "R-05：预约中的箱内物品不可直接卖出")
+	check(gs.loot_stash.size() == 1, "R-05：预约货仍在箱内")
+	check(int(gs.loot_reserved.get("vase", 0)) == 1, "R-05：卖出保护不吞预约计数")
+
+	# 「全部出手」也不能把预约货卖掉；只结算未预约部分。
+	gs.loot_stash.append("gem")
+	var sold_all: int = gs.sell_all_stash()
+	check(sold_all == gs.item_value("gem"), "R-05：全部出手只卖未预约货（实际 %d）" % sold_all)
+	check(gs.loot_stash.size() == 1 and String(gs.loot_stash[0]) == "vase", "R-05：全部出手后预约货仍在箱内")
+	check(int(gs.loot_reserved.get("vase", 0)) == 1, "R-05：全部出手不清预约计数")
+
+	# 主目标不可进入普通交易。
+	gs.reset_progress()
+	gs.loot_stash.clear()
+	gs.loot_stash.append("ram_zun")
+	check(not gs.reserve_loot(0), "R-05：主目标不可普通预约")
+	check(gs.loot_reserved.is_empty(), "R-05：主目标未写入预约")
+
+	# 读档：预约/随身标记保留；交货后重读不重复付款。
+	var path := DIR + "/r05_roundtrip.json"
+	gs.save_path = path
+	gs.reset_progress()
+	gs.loot_stash.clear()
+	gs.loot_stash.append("gem")
+	gs.reserve_loot(0)
+	gs.take_stash_item(0)
+	gs.save_game()
+	gs.free()
+	var reader = _new_game(path)
+	reader.load_game()
+	check(reader.bag_items.size() == 1 and bool(reader.bag_items[0].get("reserved", false)), "R-05：读档保留随身 reserved 标记")
+	var before: int = reader.money
+	var r1: Dictionary = reader.deliver_reserved_items()
+	check(bool(r1.get("ok", false)) and reader.money == before + reader.item_value("gem"), "R-05：读档后交货付款一次")
+	reader.save_game()
+	reader.free()
+	var reader2 = _new_game(path)
+	reader2.load_game()
+	var r2: Dictionary = reader2.deliver_reserved_items()
+	check(not bool(r2.get("ok", false)) and reader2.money == before + reader2.item_value("gem"), "R-05：交货后重读不重复付款")
+	reader2.free()
+	# （gs 已在上方 save_game 后 free，不能重复 free——否则 native double-free 中断整个套件。）
 
 
 # ---------------------------------------------------------------- 工具

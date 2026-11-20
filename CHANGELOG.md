@@ -5,6 +5,50 @@
 
 ---
 
+## [v0.26.0] - 2026-11-21
+
+### 新增（R-05 文物箱与普通交易闭环）
+- **文物箱随身↔箱内转移**：箱内行新增「取出」（取出即到随身；该 id 有预约额度时自动打 `reserved` 预约货标记），随身行新增「存入」（预约标记随货物回到箱内计数）。预约中的箱内行显示「已预约」，且不可走旧直售通道（防预约计数悬空）。
+- **手机交易 App 预约/取消**：按 id 聚合显示件数/单价/已预约数；「预约一件 / 取消预约」实时变更——预约不扣货不发钱，买家到门外等待（无倒计时），货物留在箱内直到玩家取出。
+- **门口交货确认面板**（`src/ui/delivery_screen.gd/.tscn` 新）：随身预约货清单+总金额，确认后**一次性**移除货物并收款；ESC 取消不结算。门口提示按随身内容分流（带预约货 → 「按 E 交货」）。
+- **出发门禁叠加**：背包非空（含未存箱普通物）时门口 E 不得出发（防 `reset_run` 静默丢货），提示先存箱/交货或取消预约。
+- 存档只增字段：`loot_reserved`（id→计数，老档缺省空、脏值/主目标/非法 id 拒绝）与 bag 条目 `reserved` 标记（老档缺省未预约）。
+
+### 修改
+- 交易契约对齐 test 预写的更强口径（test_progression R-05 用例）：主目标（含教学 mask）不可普通预约；交货只消耗随身预约标记，不清箱内剩余预约额度；预约中的箱内物品禁走 `sell_stash_item`，`sell_all_stash` 只卖未预约货。
+- 修复 test_progression 的 `gs` 双重 `free()`（native double-free 中断整个套件）；test_save_compat `_test_dirty_pending_mission` 的折行修复。
+
+### 测试
+- 输入流 **285 项**（新增：取出/存回往返、预约→取出带标记→门口交货一次性收 120 金、取消不收钱、出发门禁拦截与提示）；进度 **77 项**（预约/交货/幂等/读档往返全过）；存档兼容 **111 项**；`tools/verify.sh` **18 项全绿**。
+
+---
+
+## [v0.25.6] - 2026-11-21
+
+### 修复
+- 修复 `src/world/museum.gd` 迷雾函数的数组类型推断错误，恢复脚本编译。
+- 移除进入安全屋时残留的 `unlock_all_chains_required = true`，玩家不再被「三条调查链全完成」旧门槛阻塞。
+- 修复 `src/main.gd` 中 `escaped` 信号通过 lambda 连接，避免 `bind` 参数顺序导致执行参数错配。
+- 修复 `src/autoload/game_state.gd`：`place_item` 与 `_restore_bag` 现在保留普通战利品的 `instance_id`，确保跨次反刷与侦察撤离结算能正确记录已带出的实例。
+- 修复 `tests/test_save_compat.gd` 函数定义与语句挤在同一行的解析错误。
+
+### 新增
+- `tests/test_exploration.gd` / `.tscn`：R-11a / R-13a 探索循环验收，覆盖房间迷雾揭示、跨次已探房间保留、侦察撤离（`OUTCOME_RECON`）把普通战利品移入 stash 并记录 instance_id、重进关卡不再刷新已售实例、新游戏清空跨次记录。
+- `src/autoload/game_state.gd` 新增 `pending_mission_changed` 信号；`src/ui/hud.gd` 跟随待出发状态更新行动栏，显示「已确认：关卡名」。
+
+### 修改
+- `src/world/museum.gd`：计划执行结束后不再清空 `_sim_snapshot`，使失败回退与测试能读取最终 tick 事件与状态。
+- `src/autoload/game_state.gd`：`reset_progress()` 现在同时清空 `level_visited_rooms` 与 `level_taken_items`，避免新游戏继承旧探索记录。
+- `tests/test_input_flow.gd`：适配 R-04 新手机应用首页与委托页，为大英博物馆房门出发用例跳过前置剧情，补齐 HUD「已确认」断言。
+- `tools/verify.sh`：新增「探索循环自检」步骤。
+
+### 测试
+- `tests/test_museum_sim.gd` hardened：从 24 项扩展到 43 项，新增执行事件与发现归因对比、完整 trace 重叠检查、守卫隐藏计时字段覆盖。
+- `tools/verify.sh --fast` 16 项全绿；`tools/verify.sh --visual` 20 项全绿，43 张视觉基线已按最新 noir/陈设/展柜高光更新。
+- 证据归档：`docs/qa/batch_blocker_r02b_r13a_2026-11-21/`。
+
+---
+
 ## [v0.25.5] - 2026-11-21
 
 ### 新增（R-04 手机应用与实体电脑）
@@ -18,7 +62,7 @@
 - HUD `toast()` 新增 `toast_requested` 信号（测试/协作观察用）。
 
 ### 测试
-- 输入流 **252 项**、冒烟 **182 项**、`tools/verify.sh` **18 项全绿**（含存档兼容 / 场景 155 / monkey / museum_sim 24）。
+- 输入流目标 **252 项**、冒烟 **182 项**、`tools/verify.sh` 目标全绿；本批实现时并行修复尚未落地，实际全绿见 v0.25.6。
 
 ---
 

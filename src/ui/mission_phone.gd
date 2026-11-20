@@ -188,15 +188,20 @@ func _show_tab(tab: String) -> void:
 		extra_page.add_child(call_label)
 
 
-## R-04 交易 App：箱内战利品与报价（只读展示；预约/门口交货流程由 R-05 接入）。
+## R-05 交易 App：箱内战利品报价 + 预约/取消（预约不扣货不发钱，买家到门外无倒计时）。
 func _fill_trade() -> void:
 	for child in trade_list.get_children():
 		child.queue_free()
 	var title := Label.new()
-	title.text = "箱内战利品"
+	title.text = "箱内战利品 · 交易"
 	title.add_theme_font_size_override("font_size", 13)
 	trade_list.add_child(title)
-	if Game.loot_stash.is_empty():
+
+	# 按物品 id 聚合：件数 / 总价 / 已预约件数。
+	var groups := {}
+	for id in Game.loot_stash:
+		groups[id] = int(groups.get(id, 0)) + 1
+	if groups.is_empty():
 		var empty := Label.new()
 		empty.text = "箱内暂时没有普通文物。带回战利品存入文物箱后会出现在这里。"
 		empty.add_theme_font_size_override("font_size", 11)
@@ -204,17 +209,52 @@ func _fill_trade() -> void:
 		empty.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 		trade_list.add_child(empty)
 		return
-	for id in Game.loot_stash:
-		var row := Label.new()
-		row.text = "· %s    %d 金币" % [Game.item_name(id), Game.item_value(id)]
-		row.add_theme_font_size_override("font_size", 11)
+
+	var any_reserved := false
+	for id in groups:
+		var count := int(groups[id])
+		var reserved_count := int(Game.loot_reserved.get(id, 0))
+		any_reserved = any_reserved or reserved_count > 0
+		var row := HBoxContainer.new()
+		row.add_theme_constant_override("separation", 4)
+		var label := Label.new()
+		label.text = "%s ×%d    %d 金/件    已预约 %d" % [Game.item_name(id), count, Game.item_value(id), reserved_count]
+		label.add_theme_font_size_override("font_size", 11)
+		label.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		row.add_child(label)
+		var first_index := Game.loot_stash.find(id)
+		if reserved_count < count:
+			var reserve := _trade_button("预约一件")
+			reserve.pressed.connect(func() -> void:
+				Game.reserve_loot(first_index)
+				_fill_trade()
+			)
+			row.add_child(reserve)
+		if reserved_count > 0:
+			var cancel := _trade_button("取消预约")
+			cancel.pressed.connect(func() -> void:
+				Game.cancel_loot_reservation(first_index)
+				_fill_trade()
+			)
+			row.add_child(cancel)
 		trade_list.add_child(row)
-	var note := Label.new()
-	note.text = "预约与门口交货流程在下一批接入（R-05）；当前仍可在文物箱直接出售。"
-	note.add_theme_font_size_override("font_size", 10)
-	note.add_theme_color_override("font_color", Color(0.7, 0.72, 0.8))
-	note.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-	trade_list.add_child(note)
+
+	var status_text := "买家已到门外等待（无倒计时）：从文物箱取出预约货，走到房门按 E 交货。"
+	if not any_reserved:
+		status_text = "预约不扣货、不发钱；确认后买家到门外等待，随时可取消。"
+	var status := Label.new()
+	status.text = status_text
+	status.add_theme_font_size_override("font_size", 10)
+	status.add_theme_color_override("font_color", Color(0.7, 0.72, 0.8))
+	status.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	trade_list.add_child(status)
+
+
+func _trade_button(text: String) -> Button:
+	var btn := Button.new()
+	btn.text = text
+	btn.add_theme_font_size_override("font_size", 10)
+	return btn
 
 
 ## 委托 App（安全屋）：列出可行动关卡，确认/取消待出发状态。

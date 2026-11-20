@@ -1,4 +1,4 @@
-[gd_scene load_steps=12 format=3]
+[gd_scene load_steps=13 format=3]
 
 [ext_resource type="Script" path="res://src/main.gd" id="1_script"]
 [ext_resource type="PackedScene" path="res://src/ui/hud.tscn" id="2_hud"]
@@ -11,6 +11,7 @@
 [ext_resource type="PackedScene" path="res://src/ui/collection_screen.tscn" id="9_collection"]
 [ext_resource type="PackedScene" path="res://src/ui/computer_screen.tscn" id="10_computer"]
 [ext_resource type="PackedScene" path="res://src/ui/box_screen.tscn" id="11_box"]
+[ext_resource type="PackedScene" path="res://src/ui/delivery_screen.tscn" id="12_delivery"]
 
 [node name="Main" type="Node"]
 script = ExtResource("1_script")
@@ -39,3 +40,5 @@ layer = 5
 [node name="Computer" parent="." instance=ExtResource("10_computer")]
 
 [node name="Box" parent="." instance=ExtResource("11_box")]
+
+[node name="Delivery" parent="." instance=ExtResource("12_delivery")]

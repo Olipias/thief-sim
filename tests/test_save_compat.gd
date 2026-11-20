@@ -34,6 +34,7 @@ func _initialize() -> void:
 	_test_dirty_archive()
 	_test_dirty_story_flags()
 	_test_dirty_pending_mission()
+	_test_dirty_loot_reserved()
 	_test_relic_selection_migration()
 	_test_investigation_flags()
 	_test_current_round_trip()
@@ -229,6 +230,32 @@ func _test_dirty_pending_mission() -> void:
 	gs4.load_game()
 	check(gs4.pending_mission_level == "british_museum", "合法待出发关卡保留")
 	gs4.free()
+
+
+## R-05 预约字段：老档缺失 → 空；脏类型/非法 id/主目标 → 过滤。
+func _test_dirty_loot_reserved() -> void:
+	var legacy := _write_save("legacy_no_reserved.json", '{"money": 10, "loot_stash": ["vase"]}')
+	var gs = _new_game(legacy)
+	gs.load_game()
+	check(gs.loot_reserved.is_empty(), "老档缺 loot_reserved：默认空")
+	check(gs.loot_stash.size() == 1, "老档缺 loot_reserved：箱内物品保留")
+	gs.free()
+
+	var dirty := _write_save("dirty_reserved.json", '{"loot_reserved": "not_a_dict"}')
+	var gs2 = _new_game(dirty)
+	gs2.load_game()
+	check(gs2.loot_reserved.is_empty(), "脏 loot_reserved（非字典）：按空")
+	gs2.free()
+
+	var mixed := _write_save("mixed_reserved.json", '{"loot_reserved": {"vase": 2, "gem": -1, "ram_zun": 1, "mask": 1, "not_item": 3}}')
+	var gs3 = _new_game(mixed)
+	gs3.load_game()
+	check(int(gs3.loot_reserved.get("vase", 0)) == 2, "合法预约计数保留")
+	check(not gs3.loot_reserved.has("gem"), "负数预约计数丢弃")
+	check(not gs3.loot_reserved.has("ram_zun"), "主目标不可恢复普通预约")
+	check(not gs3.loot_reserved.has("mask"), "教学主目标不可恢复普通预约")
+	check(not gs3.loot_reserved.has("not_item"), "非法 item id 预约丢弃")
+	gs3.free()
 
 
 ## 收集册字段：老档缺失 → 空；老档有端详进度 → 兼容解锁；脏条目过滤。

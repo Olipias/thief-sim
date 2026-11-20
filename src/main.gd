@@ -9,6 +9,7 @@ const RESULT_SCREEN := preload("res://src/ui/result_screen.tscn")
 const MUSEUM := preload("res://src/world/museum.tscn")
 const COMPUTER_SCREEN := preload("res://src/ui/computer_screen.tscn")
 const BOX_SCREEN := preload("res://src/ui/box_screen.tscn")
+const DELIVERY_SCREEN := preload("res://src/ui/delivery_screen.tscn")
 
 const BRIEFINGS := {
 	"museum": [
@@ -38,6 +39,7 @@ const BRIEFINGS := {
 @onready var relic_closeup: RelicCloseup = $RelicCloseup
 @onready var computer: ComputerScreen = $Computer
 @onready var box: BoxScreen = $Box
+@onready var delivery: DeliveryScreen = $Delivery
 
 var _busy := false
 var _museum: Museum = null
@@ -64,6 +66,8 @@ func _ready() -> void:
 	hud.phone_requested.connect(open_phone)
 	computer.closed.connect(_on_device_closed)
 	box.closed.connect(_on_device_closed)
+	delivery.closed.connect(_on_device_closed)
+	delivery.confirm_requested.connect(_on_delivery_confirmed)
 	Game.pending_mission_changed.connect(_on_pending_mission_changed)
 	show_title()
 
@@ -81,9 +85,9 @@ func _process(delta: float) -> void:
 		return
 	if dialogue.is_active() or relic_closeup.is_open():
 		return
-	if computer.is_open() or box.is_open():
-		# 设备覆盖层自己处理 P/B/ESC 关闭；这里拦住 main 的 B/P 轮询，
-		# 避免设备开着时同帧又打开背包/手机。
+	if computer.is_open() or box.is_open() or delivery.is_open():
+		# 设备/交货覆盖层自己处理 P/B/ESC 关闭；这里拦住 main 的 B/P 轮询，
+		# 避免覆盖层开着时同帧又打开背包/手机。
 		return
 	if backpack.is_open():
 		# 背包打开时：B 关闭背包；P/ESC 不在这里处理（手机不打开）
@@ -228,17 +232,45 @@ func _on_device_closed() -> void:
 	_bag_cooldown = 0.2
 
 
-## 房门出发：只在手机「委托」已确认行动后放行；出发消费准备状态。
-## （未准备/取消不切场景——CONFIRMED_DESIGN §4：手机确认 → 走到房门才出发。）
+## 房门：门口行为按优先级分流（交货 → 出发 → 提示），不串动作。
 func _on_depart_requested() -> void:
 	if _busy:
 		return
+	# 1) 身上有预约货：门口 E 打开交货确认（清单+金额，玩家确认才结算）。
+	if not Game.reserved_bag_items().is_empty():
+		if delivery.is_open():
+			return
+		delivery.open()
+		hud.set_compact(true)
+		get_tree().paused = true
+		return
+	# 2) 出发门禁：背包非空（含未存箱普通物）时不得出发——
+	#    start_mission 的 reset_run 会清背包，放行会静默丢货。
+	if not Game.bag_items.is_empty():
+		var reserved_hint := "先用手机取消预约或去文物箱存回。" if not Game.loot_reserved.is_empty() else ""
+		hud.toast("背包里还有东西：先存入文物箱或交给门外买家，再出发。%s" % reserved_hint)
+		return
+	# 3) 手机「委托」已确认 → 出发（出发消费准备状态）。
 	var pending := String(Game.pending_mission_level)
 	if pending == "":
 		hud.toast("先用手机「委托」确认本次行动，再走到房门出发。")
 		return
 	Game.clear_pending_mission()
 	start_mission(pending)
+
+
+## 交货确认面板 → 一次性结算：移除随身预约货并收款；面板刷新为空态后关闭。
+func _on_delivery_confirmed() -> void:
+	var result: Dictionary = Game.deliver_reserved_items()
+	if not bool(result.get("ok", false)):
+		delivery.close()
+		_on_device_closed()
+		return
+	var paid := int(result.get("paid", 0))
+	var names: Array = result.get("items", [])
+	hud.toast("交货完成：%s，+%d 金币" % ["、".join(names), paid])
+	delivery.close()
+	_on_device_closed()
 
 
 func _clear_screen() -> void:
@@ -264,6 +296,8 @@ func show_title() -> void:
 		collection.close()
 	if relic_closeup.is_open():
 		relic_closeup.close()
+	if delivery.is_open():
+		delivery.close()
 	_museum = null
 	_hub = null
 	_safehouse = null
@@ -313,6 +347,8 @@ func show_safehouse() -> void:
 		computer.close()
 	if box.is_open():
 		box.close()
+	if delivery.is_open():
+		delivery.close()
 	if dialogue_tree.is_active():
 		dialogue_tree.close()
 	_museum = null

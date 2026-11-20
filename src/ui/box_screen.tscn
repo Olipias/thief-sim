@@ -117,4 +117,4 @@ text = ""
 [node name="Footer" type="Label" parent="Root/Panel/Margin/VBox"]
 theme_override_font_sizes/font_size = 10
 theme_override_colors/font_color = Color(0.7, 0.72, 0.8, 1)
-text = "存取转移与手机预约交易待下一批接入 · P / B / ESC 关闭"
+text = "取出预约货后，走到房门按 E 交给买家 · P / B / ESC 关闭"

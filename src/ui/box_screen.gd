@@ -83,24 +83,60 @@ func _refresh() -> void:
 	if Game.bag_items.is_empty():
 		bag_list.add_child(_row_label("（空）"))
 	else:
-		for item in Game.bag_items:
+		for i in Game.bag_items.size():
+			var item: Dictionary = Game.bag_items[i]
 			var id := String(item["id"])
-			bag_list.add_child(_row_label("%s（随身）" % Game.item_name(id)))
+			var tag := "（预约货）" if bool(item.get("reserved", false)) else "（随身）"
+			var row := HBoxContainer.new()
+			row.add_theme_constant_override("separation", 4)
+			row.add_child(_row_label("%s%s" % [Game.item_name(id), tag]))
+			var store := _row_button("存入")
+			store.pressed.connect(_on_store_pressed.bind(i))
+			row.add_child(store)
+			bag_list.add_child(row)
 	if Game.loot_stash.is_empty():
 		stash_list.add_child(_row_label("（空）"))
 	else:
 		for i in Game.loot_stash.size():
 			var id := String(Game.loot_stash[i])
+			var reserved_count := int(Game.loot_reserved.get(id, 0))
+			var status := "（已预约）" if reserved_count > 0 else ""
 			var row := HBoxContainer.new()
 			row.add_theme_constant_override("separation", 4)
-			row.add_child(_row_label("%s %d金" % [Game.item_name(id), Game.item_value(id)]))
+			row.add_child(_row_label("%s %d金%s" % [Game.item_name(id), Game.item_value(id), status]))
+			var take := _row_button("取出")
+			take.pressed.connect(_on_take_pressed.bind(i))
+			row.add_child(take)
 			var sell := _row_button("卖出")
 			sell.pressed.connect(_on_sell_pressed.bind(i))
 			row.add_child(sell)
 			stash_list.add_child(row)
 
 
-## 过渡行为：箱内普通战利品直售；R-05 手机预约→门口交货接入后移除。
+## 取出：预约中的 id 优先按预约货带出（打 reserved 标记），到房门交给买家。
+func _on_take_pressed(index: int) -> void:
+	if index < 0 or index >= Game.loot_stash.size():
+		return
+	var id := String(Game.loot_stash[index])
+	if not Game.take_stash_item(index):
+		message_label.text = "背包放不下：%s 塞不进格子" % Game.item_name(id)
+		return
+	var tag := "（预约货）" if bool(Game.bag_items[-1].get("reserved", false)) else ""
+	message_label.text = "已取出 %s%s" % [Game.item_name(id), tag]
+	_refresh()
+
+
+## 存入：随身物品放回箱内（预约标记一并回到箱内计数）。
+func _on_store_pressed(index: int) -> void:
+	if index < 0 or index >= Game.bag_items.size():
+		return
+	var id := String(Game.bag_items[index]["id"])
+	if Game.stash_bag_item(index):
+		message_label.text = "%s 已存入文物箱" % Game.item_name(id)
+	_refresh()
+
+
+## 过渡行为：箱内普通战利品直售；手机预约→门口交货闭环可用后由玩家自选。
 func _on_sell_pressed(index: int) -> void:
 	if index < 0 or index >= Game.loot_stash.size():
 		return

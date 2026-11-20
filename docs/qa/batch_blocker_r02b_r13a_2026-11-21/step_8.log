@@ -1,0 +1,10 @@
+Godot Engine v4.7.2.stable.official.ed1daf0bf - https://godotengine.org
+
+ERROR: Parse JSON failed. Error at line 0: Expected key
+   at: parse_string (core/io/json.cpp:629)
+   GDScript backtrace (most recent call first):
+       [0] _read_save_dict (res://src/autoload/game_state.gd:717)
+       [1] load_game (res://src/autoload/game_state.gd:791)
+       [2] _test_corrupt_json (res://tests/test_save_compat.gd:96)
+       [3] _initialize (res://tests/test_save_compat.gd:28)
+ALL 103 CHECKS PASSED

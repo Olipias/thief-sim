@@ -107,6 +107,7 @@ func _any_overlay_open() -> bool:
 		or main.relic_closeup.is_open()
 		or main.computer.is_open()
 		or main.box.is_open()
+		or main.delivery.is_open()
 	)
 
 
@@ -553,9 +554,6 @@ func _test_safehouse_door() -> void:
 	await _frames(2)
 	await _tap(KEY_E)
 	await _frames(6)
-	if main._museum == null:
-		print("DBG depart: pending=%s safehouse=%s paused=%s busy=%s level=%s" % [
-			Game.pending_mission_level, main._safehouse != null, get_tree().paused, main._busy, Game.current_level_id])
 	check(main._museum != null, "房门：已确认行动后 E 出发进入关卡")
 	check(Game.current_level_id == "british_museum", "房门：出发进入委托确认的关卡（实际 %s）" % Game.current_level_id)
 	check(Game.pending_mission_level == "", "房门：出发后准备状态被消费")
@@ -577,7 +575,7 @@ func _test_safehouse_box_sell() -> void:
 		return
 	var p: Player = main._safehouse.player
 	p.global_position = Vector2(272, 142)
-	await _frames(2)
+	await _physics_frames(3)  # 瞬移后等物理帧刷新 Area2D 重叠，再按 E（test #634 同款修正）。
 	await _tap(KEY_E)
 	check(main.box.is_open(), "文物箱：走近按 E 打开箱界面")
 	if not main.box.is_open():
@@ -625,6 +623,127 @@ func _test_safehouse_box_sell() -> void:
 	check(Game.money == money_before + 420, "全部出手结清剩余金币")
 	await _tap(KEY_ESCAPE)
 	check(not main.box.is_open(), "文物箱：收尾关闭箱界面")
+	await _wait(0.3)
+
+	# R-05 转移：箱内取出 → 随身；存回 → 箱内。（vase 为 2 格形制，新手 2×2 背包装得下）
+	Game.loot_stash = ["vase"] as Array[String]
+	Game.money = 0
+	await _tap(KEY_E)
+	check(main.box.is_open(), "转移：箱界面打开")
+	var jade_row: HBoxContainer = main.box.stash_list.get_child(0)
+	var take_button: Button = null
+	for child in jade_row.get_children():
+		if child is Button and (child as Button).text.contains("取出"):
+			take_button = child
+	check(take_button != null, "转移：箱内行有取出按钮")
+	if take_button == null:
+		main.box.close()
+		return
+	await _click(take_button.get_global_rect().get_center())
+	check(Game.bag_items.size() == 1, "转移：取出后随身 1 件")
+	check(Game.loot_stash.is_empty(), "转移：取出后箱内清空")
+	check(String(Game.bag_items[0]["id"]) == "vase", "转移：取出的是青瓷花瓶")
+	var store_button: Button = null
+	for child in main.box.bag_list.get_child(0).get_children():
+		if child is Button and (child as Button).text.contains("存入"):
+			store_button = child
+	check(store_button != null, "转移：随身行有存入按钮")
+	if store_button == null:
+		main.box.close()
+		return
+	await _click(store_button.get_global_rect().get_center())
+	check(Game.bag_items.is_empty() and Game.loot_stash.size() == 1, "转移：存回后随身清空、箱内 1 件")
+	await _tap(KEY_ESCAPE)
+	check(not main.box.is_open(), "转移：关闭箱界面")
+	await _wait(0.3)
+
+	# R-05 预约闭环：手机交易 App 预约 → 取出（预约货）→ 门口交货确认 → 一次性收钱。
+	await _tap(KEY_P)
+	check(main.phone.is_open(), "预约：打开手机")
+	await _click(main.phone.app_button("trade").get_global_rect().get_center())
+	var reserve_button: Button = _find_button_with_text(main.phone.trade_list, "预约一件")
+	check(reserve_button != null, "预约：交易页有「预约一件」按钮")
+	if reserve_button == null:
+		main.phone.close()
+		return
+	await _click(reserve_button.get_global_rect().get_center())
+	check(int(Game.loot_reserved.get("vase", 0)) == 1, "预约：loot_reserved 落档（不扣货不发钱）")
+	check(Game.money == 0, "预约：不付款")
+	check(Game.loot_stash.size() == 1, "预约：货物仍在箱内")
+	await _tap(KEY_P)
+	check(not main.phone.is_open(), "预约：关闭手机")
+	await _wait(0.3)
+	await _tap(KEY_E)
+	check(main.box.is_open(), "预约：打开文物箱取预约货")
+	var reserved_row: HBoxContainer = main.box.stash_list.get_child(0)
+	check((reserved_row.get_child(0) as Label).text.contains("已预约"), "预约：箱内行标记已预约")
+	var take2: Button = null
+	for child in reserved_row.get_children():
+		if child is Button and (child as Button).text.contains("取出"):
+			take2 = child
+	if take2 == null:
+		main.box.close()
+		return
+	await _click(take2.get_global_rect().get_center())
+	check(Game.bag_items.size() == 1 and bool(Game.bag_items[0].get("reserved", false)), "预约：取出的货物带预约标记")
+	check(not Game.loot_reserved.has("vase"), "预约：取出后箱内计数释放")
+	await _tap(KEY_ESCAPE)
+	check(not main.box.is_open(), "预约：关闭箱界面")
+
+	# 门口交货：提示分流 + E 打开确认面板 + 一次性结算。
+	p.global_position = Vector2(152, 136)
+	await _frames(3)
+	await _wait(0.3)
+	await _tap(KEY_E)
+	check(main.delivery.is_open(), "交货：门口 E 打开交货确认面板")
+	_check_pause_contract("交货面板")
+	check(main.delivery.items_label.text.contains("青瓷花瓶"), "交货：面板列出随身预约货")
+	# ESC 取消不结算。
+	await _tap(KEY_ESCAPE)
+	check(not main.delivery.is_open() and Game.money == 0, "交货：取消不收钱、货仍在身上")
+	await _wait(0.3)
+	await _tap(KEY_E)
+	check(main.delivery.is_open(), "交货：再次打开确认面板")
+	var confirm: Button = main.delivery.confirm_button
+	await _click(confirm.get_global_rect().get_center())
+	await _frames(4)
+	check(Game.money == 120, "交货：确认后一次性收 120 金（实际 %d）" % Game.money)
+	check(Game.bag_items.is_empty(), "交货：随身预约货移除")
+	check(Game.loot_reserved.is_empty(), "交货：预约计数清空")
+	check(not main.delivery.is_open(), "交货：结算后面板关闭")
+	_check_pause_contract("交货结算")
+
+	# 出发门禁：背包非空时不得出发（防 reset_run 丢货）。
+	Game.loot_stash = ["gem"] as Array[String]
+	p.global_position = Vector2(272, 142)
+	await _physics_frames(3)  # 传送回箱前：等物理帧刷新重叠 + 冷却解冻。
+	await _wait(0.3)
+	await _tap(KEY_E)
+	check(main.box.is_open(), "门禁：打开箱取出未预约货")
+	var vase_row = main.box.stash_list.get_child(0)
+	var take3: Button = null
+	for child in vase_row.get_children():
+		if child is Button and (child as Button).text.contains("取出"):
+			take3 = child
+	if take3 != null:
+		await _click(take3.get_global_rect().get_center())
+	await _tap(KEY_ESCAPE)
+	check(not main.box.is_open() and Game.bag_items.size() == 1, "门禁：随身 1 件未存箱货")
+	Game.pending_mission_level = "british_museum"  # 已确认行动 + 背包有货 → 门禁拦截
+	p.global_position = Vector2(152, 136)  # 走回门口再按 E
+	await _physics_frames(3)
+	await _wait(0.3)
+	var depart_toasts: Array[String] = []
+	var on_depart_toast := func(text: String) -> void: depart_toasts.append(text)
+	main.hud.toast_requested.connect(on_depart_toast)
+	await _wait(0.3)
+	await _tap(KEY_E)
+	await _frames(4)
+	check(main._museum == null, "门禁：背包有货时门口 E 不出发")
+	check(depart_toasts.size() > 0 and String(depart_toasts[0]).contains("背包"), "门禁：给出先存箱/交货提示")
+	if main.hud.toast_requested.is_connected(on_depart_toast):
+		main.hud.toast_requested.disconnect(on_depart_toast)
+	Game.pending_mission_level = ""
 
 
 func _test_safehouse_phone() -> void:

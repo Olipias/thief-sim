@@ -1,0 +1,97 @@
+[gd_scene load_steps=3 format=3]
+
+[ext_resource type="Script" path="res://src/ui/delivery_screen.gd" id="1_script"]
+
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_panel"]
+content_margin_left = 14.0
+content_margin_top = 10.0
+content_margin_right = 14.0
+content_margin_bottom = 10.0
+bg_color = Color(0.067, 0.075, 0.102, 0.98)
+border_width_left = 2
+border_width_top = 2
+border_width_right = 2
+border_width_bottom = 2
+border_color = Color(0.62, 0.5, 0.22, 1)
+corner_radius_top_left = 4
+corner_radius_top_right = 4
+corner_radius_bottom_right = 4
+corner_radius_bottom_left = 4
+
+[node name="DeliveryScreen" type="CanvasLayer"]
+process_mode = 3
+layer = 15
+script = ExtResource("1_script")
+
+[node name="Root" type="Control" parent="."]
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+mouse_filter = 2
+
+[node name="Dim" type="ColorRect" parent="Root"]
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+color = Color(0, 0, 0, 0.55)
+mouse_filter = 2
+
+[node name="Panel" type="PanelContainer" parent="Root"]
+anchors_preset = 8
+anchor_left = 0.5
+anchor_top = 0.5
+anchor_right = 0.5
+anchor_bottom = 0.5
+offset_left = -120.0
+offset_top = -64.0
+offset_right = 120.0
+offset_bottom = 64.0
+grow_horizontal = 2
+grow_vertical = 2
+theme_override_styles/panel = SubResource("StyleBoxFlat_panel")
+
+[node name="Margin" type="MarginContainer" parent="Root/Panel"]
+mouse_filter = 2
+
+[node name="VBox" type="VBoxContainer" parent="Root/Panel/Margin"]
+theme_override_constants/separation = 6
+mouse_filter = 2
+
+[node name="Title" type="Label" parent="Root/Panel/Margin/VBox"]
+theme_override_font_sizes/font_size = 14
+text = "门口交货 · 神秘买家"
+
+[node name="Body" type="VBoxContainer" parent="Root/Panel/Margin/VBox"]
+size_flags_vertical = 3
+theme_override_constants/separation = 6
+mouse_filter = 2
+
+[node name="Items" type="Label" parent="Root/Panel/Margin/VBox/Body"]
+theme_override_font_sizes/font_size = 11
+text = ""
+
+[node name="Total" type="Label" parent="Root/Panel/Margin/VBox/Body"]
+theme_override_font_sizes/font_size = 12
+text = "—"
+
+[node name="Buttons" type="HBoxContainer" parent="Root/Panel/Margin/VBox/Body"]
+alignment = 1
+theme_override_constants/separation = 10
+mouse_filter = 2
+
+[node name="Confirm" type="Button" parent="Root/Panel/Margin/VBox/Body/Buttons"]
+custom_minimum_size = Vector2(96, 24)
+text = "确认交货"
+
+[node name="Cancel" type="Button" parent="Root/Panel/Margin/VBox/Body/Buttons"]
+custom_minimum_size = Vector2(72, 24)
+text = "取消"
+
+[node name="Hint" type="Label" parent="Root/Panel/Margin/VBox"]
+theme_override_font_sizes/font_size = 10
+theme_override_colors/font_color = Color(0.7, 0.72, 0.8, 1)
+text = "确认后一次性移除货物并收款 · P / B / ESC 取消"
