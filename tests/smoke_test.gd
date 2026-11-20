@@ -307,6 +307,14 @@ func _test_minimap() -> void:
 	await get_tree().process_frame
 	check(minimap.museum == museum, "minimap binds to the level")
 	check(museum.visited_rooms.has(0), "starting room shows as visited")
+	# R-11a 信息边界：小地图只画已探房间（+当前房），未探房间/目标/出口不得泄露。
+	var known: Array = minimap.known_room_indexes()
+	var leaked := false
+	for i in museum.rooms.size():
+		if not museum.visited_rooms.has(i) and i != museum.current_room and known.has(i):
+			leaked = true
+	check(not leaked, "minimap 只绘制已探房间（未探房间不画框，实际 known=%s）" % str(known))
+	check(known.has(0), "minimap 当前所在已探房间仍可见")
 	minimap.queue_free()
 	museum.end_game()
 	museum.queue_free()

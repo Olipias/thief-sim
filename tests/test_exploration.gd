@@ -35,6 +35,7 @@ func _ready() -> void:
 	await _test_fog_persists_across_runs()
 	await _test_recon_evacuation_and_antiduplicate()
 	await _test_reset_clears_exploration()
+	await _test_minimap_does_not_leak()
 
 	Audio.shutdown()
 	if _failures > 0:
@@ -104,6 +105,42 @@ func _test_fog_reveal_on_entry() -> void:
 			hidden_found = true
 			break
 	check(hidden_found, "迷雾：至少有一个其他房间初始隐藏")
+	await _free_museum(museum)
+
+
+## 小地图信息边界：未探房间不画框，target/exit 只在 visited 后出现。
+func _test_minimap_does_not_leak() -> void:
+	Game.level_visited_rooms.clear()
+	Game.level_taken_items.clear()
+	var museum := await _make_museum()
+	var start_zone := museum._zone_at(museum.player.global_position)
+	var minimap := Minimap.new()
+	add_child(minimap)
+	minimap.bind(museum)
+	await get_tree().process_frame
+	var known: Array = minimap.known_room_indexes()
+	check(known.size() >= 1, "小地图：至少显示入口房间")
+	check(known.has(start_zone), "小地图：入口房间可见")
+	check(known.size() <= 1, "小地图：初始不泄露其他房间（实际 %d）" % known.size())
+	check(not known.has(museum.exit_room), "小地图：未探出口不显示")
+	if museum.target_room != start_zone:
+		check(not known.has(museum.target_room), "小地图：未探目标房不显示")
+
+	# 走进另一个房间后只多显示该房间；未探房间仍不出现。
+	var second_room := -1
+	for i in museum.rooms.size():
+		if i != start_zone:
+			second_room = i
+			break
+	if second_room >= 0:
+		museum.player.global_position = _room_center(museum, second_room)
+		await get_tree().physics_frame
+		await get_tree().physics_frame
+		var known2: Array = minimap.known_room_indexes()
+		check(known2.has(second_room), "小地图：踏入后显示该房间")
+		check(known2.size() <= 2, "小地图：只增加已踏房间（实际 %d）" % known2.size())
+		minimap.queue_free()
+		await get_tree().process_frame
 	await _free_museum(museum)
 
 
