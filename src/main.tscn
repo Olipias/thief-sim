@@ -1,4 +1,4 @@
-[gd_scene load_steps=10 format=3]
+[gd_scene load_steps=12 format=3]
 
 [ext_resource type="Script" path="res://src/main.gd" id="1_script"]
 [ext_resource type="PackedScene" path="res://src/ui/hud.tscn" id="2_hud"]
@@ -9,6 +9,8 @@
 [ext_resource type="PackedScene" path="res://src/ui/statements_screen.tscn" id="7_statements"]
 [ext_resource type="PackedScene" path="res://src/ui/relic_closeup.tscn" id="8_closeup"]
 [ext_resource type="PackedScene" path="res://src/ui/collection_screen.tscn" id="9_collection"]
+[ext_resource type="PackedScene" path="res://src/ui/computer_screen.tscn" id="10_computer"]
+[ext_resource type="PackedScene" path="res://src/ui/box_screen.tscn" id="11_box"]
 
 [node name="Main" type="Node"]
 script = ExtResource("1_script")
@@ -33,3 +35,7 @@ layer = 5
 [node name="RelicCloseup" parent="." instance=ExtResource("8_closeup")]
 
 [node name="Collection" parent="." instance=ExtResource("9_collection")]
+
+[node name="Computer" parent="." instance=ExtResource("10_computer")]
+
+[node name="Box" parent="." instance=ExtResource("11_box")]

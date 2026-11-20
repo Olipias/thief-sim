@@ -30,6 +30,7 @@ func _ready() -> void:
 	await _test_bag_screen()
 	await _test_title_screen()
 	await _test_collection_screen()
+	await _test_safehouse_scene()
 	await _test_hub_levels()
 	await _test_mission_phone()
 	await _test_tutorial_balance()
@@ -40,6 +41,8 @@ func _ready() -> void:
 	await _test_drop_artifact()
 	await _test_minimap()
 	await _test_escape_flow()
+	await _test_opening_cg_completion()
+	await _test_planning_state_transitions()
 	if _failures > 0:
 		print("FAILED %d / %d checks" % [_failures, _checks])
 		await _shutdown_audio()
@@ -106,11 +109,21 @@ func _test_bust_flow() -> void:
 	await get_tree().process_frame
 
 
+## 烟雾/噪音专测AI转换；真实发现→回放另由_bust_flow与真实输入回归覆盖。
+func _isolate_guard_failure_signals(cop: Police, museum: Museum) -> void:
+	for event in [cop.spotted_player, cop.caught]:
+		for connection in event.get_connections():
+			var callback: Callable = connection.callable
+			if callback.get_object() == museum:
+				event.disconnect(callback)
+
+
 func _test_smoke_bomb() -> void:
 	Game.reset_run()
 	var museum := await _make_museum()
 
 	var cop: Police = museum.police[1]
+	_isolate_guard_failure_signals(cop, museum)
 	cop.patrol_points = []
 	cop.spot_delay_scale = 1.0  # 固定时序，避免受关卡调参影响
 	cop.global_position = Vector2(10 * 16 + 8, 6 * 16 + 8)
@@ -146,6 +159,7 @@ func _test_noise_alerts() -> void:
 	Game.reset_run()
 	var museum := await _make_museum()
 	var cop: Police = museum.police[1]
+	_isolate_guard_failure_signals(cop, museum)
 	cop.patrol_points = []
 	cop.spot_delay_scale = 1.0  # 固定时序，避免受关卡调参影响
 	cop.global_position = Vector2(10 * 16 + 8, 6 * 16 + 8)
@@ -320,6 +334,25 @@ func _test_british_museum_level() -> void:
 	check(museum.get_node_or_null("BMDust") != null, "british museum room 3 has dust particles")
 	check(museum.get_node_or_null("BMZunReflection") != null, "british museum room 3 has the zun floor reflection")
 	check(museum.get_node_or_null("BMGlassGlint") != null, "british museum room 3 has the glass glint")
+	# 视觉层（V-01）：只画面，不得影响判定
+	var occluders := museum.get_node_or_null("LightOccluders")
+	check(occluders != null and occluders.get_child_count() > 0, "BM 墙/展柜有遮光体")
+	var hl := museum.get_node_or_null("BMDisplayCase/BMCaseHighlight") as Sprite2D
+	check(hl != null and hl.modulate.a > 0.3 and hl.modulate.a < 0.7, "展柜玻璃高光存在且半透明")
+	check(museum.get_node_or_null("Walls").get_child_count() > 0 and not (museum.get_node("Walls").get_child(0) is LightOccluder2D), "遮光体不混入碰撞体")
+	check(museum.player.get_node_or_null("ContactShadow") != null, "玩家有接触阴影")
+	check(museum.police.size() > 0 and museum.police[0].get_node_or_null("ContactShadow") != null, "警察有接触阴影")
+	var lamp_shadows := 0
+	for child in museum.get_children():
+		if child is PointLight2D and child.shadow_enabled:
+			lamp_shadows += 1
+	check(lamp_shadows > 0, "BM 主灯开启阴影")
+	var tints: Dictionary = museum.BM_ROOM_TINTS
+	var tints_ok := true
+	for i in museum.rooms.size():
+		tints_ok = tints_ok and tints.has(i)
+	check(tints_ok, "BM 六厅都有色温表条目")
+	check(museum.get_node("NightTint").color.is_equal_approx(museum._target_tint()), "开场色温落在起始房间")
 	if zun != null:
 		var zun_sprite: Sprite2D = zun.get_node("Sprite")
 		check(zun_sprite.hframes == Artifact.RELIC_FRAMES, "zun displays the 3D turntable strip")
@@ -414,8 +447,10 @@ func _test_title_screen() -> void:
 	title.collection_button.pressed.emit()
 	check(collected["value"], "collection button emits collection_requested")
 	var primary: Button = title.continue_button if title.continue_button.visible else title.new_game_button
-	check(primary.position.y >= 250.0, "primary action is placed in the scene (rooftop ledge)")
-	check(title.primary_hint.text != "", "primary action has a scene hint")
+	# 集中菜单位于屏幕中下部（面板中心约 180，按钮在面板内）
+	var primary_y := primary.get_global_rect().position.y
+	check(primary_y >= 150.0 and primary_y <= 330.0, "primary action is placed in the right-side menu")
+	check(title.menu_panel != null, "title screen has a centralized menu panel")
 	title.queue_free()
 	await get_tree().process_frame
 
@@ -450,6 +485,51 @@ func _test_collection_screen() -> void:
 	check(not screen.is_open(), "collection screen closes")
 	screen.queue_free()
 	Game.archive_seen.clear()
+	await get_tree().process_frame
+
+
+func _test_safehouse_scene() -> void:
+	# R-01 独立安全屋：可实例化的可走动室内场景，玩家/碰撞/交互点齐全。
+	var house := load("res://src/world/safehouse.tscn").instantiate() as Safehouse
+	add_child(house)
+	await get_tree().physics_frame
+	await get_tree().physics_frame
+	check(house.player != null, "safehouse spawns a walkable player")
+	check(house.player.get_node_or_null("Camera2D") != null, "safehouse player has a camera")
+	var groups := {"sh_computer": false, "sh_box": false, "sh_door": false}
+	for child in house.get_children():
+		if child is Area2D:
+			for g in groups.keys():
+				if child.is_in_group(g):
+					groups[g] = true
+	check(groups["sh_computer"], "safehouse has a desk computer interactable")
+	check(groups["sh_box"], "safehouse has a storage box interactable")
+	check(groups["sh_door"], "safehouse has a door interactable")
+	# 世界层约束：Safehouse 是 Node2D，玩家物理节点直接挂在世界场景下。
+	check(house is Node2D, "safehouse is a world scene (Node2D), not a UI page")
+	# C2 陈设：不得压住电脑/文物箱/房门/出生点（矩形留 4px 余量）
+	var keep_clear := [
+		Rect2(Safehouse.DESK_POS - Vector2(22, 12), Vector2(44, 24)),
+		Rect2(Safehouse.BOX_POS - Vector2(12, 10), Vector2(24, 20)),
+		Rect2(Safehouse.DOOR_POS - Vector2(12, 20), Vector2(24, 40)),
+		Rect2(Safehouse.SPAWN_POS - Vector2(12, 16), Vector2(24, 32)),
+	]
+	var furniture := [
+		Rect2(Safehouse.SHELF_POS - Vector2(16, 24), Vector2(32, 48)),
+		Rect2(Safehouse.CABINET_POS - Vector2(16, 10), Vector2(32, 20)),
+		Rect2(Safehouse.BASKET_POS - Vector2(12, 10), Vector2(24, 20)),
+	]
+	var clear_ok := true
+	for f in furniture:
+		for k in keep_clear:
+			clear_ok = clear_ok and not f.grow(4).intersects(k)
+	check(clear_ok, "safehouse 陈设不压住电脑/文物箱/房门/出生点")
+	var lanterns := 0
+	for child in house.get_children():
+		if String(child.name).begins_with("HomeLantern"):
+			lanterns += 1
+	check(lanterns == 2, "safehouse 挂了两盏灯笼 (%d)" % lanterns)
+	house.queue_free()
 	await get_tree().process_frame
 
 
@@ -501,7 +581,7 @@ func _test_mission_phone() -> void:
 	check(not phone.archive_label.text.is_empty(), "phone shows the archive card")
 	check("1936" in phone.archive_label.text, "archive card shows the documented acquisition")
 	Game.set_bm_target("egypt_heart_scarab")
-	phone._fill_task()
+	phone._fill_task_briefing()
 	check("埃及馆" in phone.meta_label.text, "phone updates location to 埃及馆 when target switches")
 	phone._show_tab("archive")
 	await get_tree().process_frame
@@ -644,7 +724,7 @@ func _test_escape_flow() -> void:
 
 	var escaped := {"value": false}
 	var pushed_out := {"value": false}
-	museum.escaped.connect(func() -> void: escaped["value"] = true)
+	museum.escaped.connect(func(_outcome: String) -> void: escaped["value"] = true)
 	museum.toast.connect(
 		func(text: String) -> void:
 			if text.begins_with("出口还锁着"):
@@ -680,3 +760,55 @@ func _find_labels(node: Node) -> Array[Label]:
 	for child in node.get_children():
 		out.append_array(_find_labels(child))
 	return out
+
+
+func _test_opening_cg_completion() -> void:
+	var intro := ContractIntro.new()
+	add_child(intro)
+	await get_tree().process_frame
+
+	intro.set_process(false)
+	var completions := {"count": 0}
+	intro.finished.connect(func() -> void: completions.count += 1)
+	intro._finish()
+	intro._finish()
+	check(completions.count == 1, "开场重复结束请求不会重复进入教学")
+	await get_tree().process_frame
+
+
+func _test_planning_state_transitions() -> void:
+	var museum := await _make_museum("british_museum")
+	# 固定感知触发时机；真实运行/输入在test_input_flow中另有覆盖。
+	museum.set_process(false)
+	for guard in museum.police:
+		guard.set_ai_enabled(false)
+	var cop: Police = museum.police[0]
+	cop.state = Police.State.INVESTIGATE
+	cop._investigate_timer = 1.7
+	cop._spot_timer = 0.2
+	var patrol := cop._patrol_index
+	var collision_mode := cop.disable_mode
+	museum.toggle_planning_mode(true)
+	await get_tree().physics_frame
+	check(PhysicsServer2D.body_get_space(cop.get_rid()).is_valid(), "冻结守卫仍保留在物理空间，不产生非法运动访问")
+	check(cop.world_frozen and not cop.ai_enabled, "规划冻结独立于已有的AI禁用")
+	check(cop.state == Police.State.INVESTIGATE and cop._patrol_index == patrol, "进入规划保留调查态与巡逻进度")
+	check(is_equal_approx(cop._investigate_timer, 1.7) and is_equal_approx(cop._spot_timer, 0.2), "规划保留调查与警觉计时")
+	museum.planned_points.append(museum.player.global_position + Vector2(16, 0))
+	museum.execute_plan()
+	check(not cop.world_frozen and museum.player.controls_enabled, "执行统一解除玩家和守卫的世界冻结")
+	check(not cop.ai_enabled and cop.state == Police.State.INVESTIGATE, "执行保留独立AI开关和调查态")
+	check(cop.disable_mode == collision_mode, "执行恢复原碰撞暂停策略")
+	museum.cancel_plan()
+	check(not cop.world_frozen and not museum.executing_plan, "取消执行不会遗留冻结")
+	var camera: Node2D = museum._bm_cameras[0]
+	museum.toggle_planning_mode(true)
+	museum.player.global_position = camera.global_position + Vector2.RIGHT.rotated(camera.rotation) * 24.0
+	museum._check_camera_detection()
+	check(not museum.failure_replay, "规划期间真实监控扇区不推进感知")
+	museum.toggle_planning_mode(false)
+	museum._check_camera_detection()
+	check(museum.failure_replay and museum.failure_detector == camera, "退出规划后监控感知立即恢复且归因正确")
+	museum.end_game()
+	museum.queue_free()
+	await get_tree().process_frame

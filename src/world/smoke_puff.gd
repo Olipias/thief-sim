@@ -1,3 +1,4 @@
+class_name SmokePuff
 extends Node2D
 ## Expanding, fading smoke puff visual.  Self-removes when done.
 

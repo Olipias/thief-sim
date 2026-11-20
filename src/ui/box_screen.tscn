@@ -1,0 +1,120 @@
+[gd_scene load_steps=3 format=3]
+
+[ext_resource type="Script" path="res://src/ui/box_screen.gd" id="1_script"]
+
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_panel"]
+content_margin_left = 14.0
+content_margin_top = 10.0
+content_margin_right = 14.0
+content_margin_bottom = 10.0
+bg_color = Color(0.067, 0.075, 0.102, 0.98)
+border_width_left = 2
+border_width_top = 2
+border_width_right = 2
+border_width_bottom = 2
+border_color = Color(0.36, 0.4, 0.48, 1)
+corner_radius_top_left = 4
+corner_radius_top_right = 4
+corner_radius_bottom_right = 4
+corner_radius_bottom_left = 4
+
+[node name="BoxScreen" type="CanvasLayer"]
+process_mode = 3
+layer = 15
+script = ExtResource("1_script")
+
+[node name="Root" type="Control" parent="."]
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+mouse_filter = 2
+
+[node name="Dim" type="ColorRect" parent="Root"]
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+color = Color(0, 0, 0, 0.55)
+mouse_filter = 2
+
+[node name="Panel" type="PanelContainer" parent="Root"]
+anchors_preset = 8
+anchor_left = 0.5
+anchor_top = 0.5
+anchor_right = 0.5
+anchor_bottom = 0.5
+offset_left = -140.0
+offset_top = -80.0
+offset_right = 140.0
+offset_bottom = 80.0
+grow_horizontal = 2
+grow_vertical = 2
+theme_override_styles/panel = SubResource("StyleBoxFlat_panel")
+
+[node name="Margin" type="MarginContainer" parent="Root/Panel"]
+mouse_filter = 2
+
+[node name="VBox" type="VBoxContainer" parent="Root/Panel/Margin"]
+theme_override_constants/separation = 6
+mouse_filter = 2
+
+[node name="Header" type="HBoxContainer" parent="Root/Panel/Margin/VBox"]
+mouse_filter = 2
+
+[node name="Title" type="Label" parent="Root/Panel/Margin/VBox/Header"]
+theme_override_font_sizes/font_size = 16
+size_flags_horizontal = 3
+text = "文物箱"
+
+[node name="Money" type="Label" parent="Root/Panel/Margin/VBox/Header"]
+theme_override_font_sizes/font_size = 12
+text = "金币 0"
+
+[node name="Body" type="VBoxContainer" parent="Root/Panel/Margin/VBox"]
+size_flags_vertical = 3
+theme_override_constants/separation = 6
+mouse_filter = 2
+
+[node name="Columns" type="HBoxContainer" parent="Root/Panel/Margin/VBox/Body"]
+size_flags_vertical = 3
+theme_override_constants/separation = 12
+mouse_filter = 2
+
+[node name="BagColumn" type="VBoxContainer" parent="Root/Panel/Margin/VBox/Body/Columns"]
+size_flags_horizontal = 3
+mouse_filter = 2
+
+[node name="BagTitle" type="Label" parent="Root/Panel/Margin/VBox/Body/Columns/BagColumn"]
+theme_override_font_sizes/font_size = 12
+text = "随身携带"
+
+[node name="BagList" type="VBoxContainer" parent="Root/Panel/Margin/VBox/Body/Columns/BagColumn"]
+size_flags_vertical = 3
+theme_override_constants/separation = 2
+mouse_filter = 2
+
+[node name="StashColumn" type="VBoxContainer" parent="Root/Panel/Margin/VBox/Body/Columns"]
+size_flags_horizontal = 3
+mouse_filter = 2
+
+[node name="StashTitle" type="Label" parent="Root/Panel/Margin/VBox/Body/Columns/StashColumn"]
+theme_override_font_sizes/font_size = 12
+text = "箱内存放"
+
+[node name="StashList" type="VBoxContainer" parent="Root/Panel/Margin/VBox/Body/Columns/StashColumn"]
+size_flags_vertical = 3
+theme_override_constants/separation = 2
+mouse_filter = 2
+
+[node name="Message" type="Label" parent="Root/Panel/Margin/VBox"]
+theme_override_font_sizes/font_size = 10
+theme_override_colors/font_color = Color(0.7, 0.72, 0.8, 1)
+text = ""
+
+[node name="Footer" type="Label" parent="Root/Panel/Margin/VBox"]
+theme_override_font_sizes/font_size = 10
+theme_override_colors/font_color = Color(0.7, 0.72, 0.8, 1)
+text = "存取转移与手机预约交易待下一批接入 · P / B / ESC 关闭"

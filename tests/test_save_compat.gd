@@ -33,6 +33,7 @@ func _initialize() -> void:
 	_test_dirty_stash()
 	_test_dirty_archive()
 	_test_dirty_story_flags()
+	_test_dirty_pending_mission()
 	_test_relic_selection_migration()
 	_test_investigation_flags()
 	_test_current_round_trip()
@@ -200,6 +201,34 @@ func _test_dirty_stash() -> void:
 	check(gs2.loot_stash.has("vase") and gs2.loot_stash.has("gem"), "脏仓库：合法 id 保留")
 	check(gs2.stash_value() == 120 + 300, "脏仓库：估值按 CATALOG 计算")
 	gs2.free()
+
+
+## R-04 待出发字段：老档缺失 → ""；脏类型 / 非法关卡 id → ""；合法值保留。
+func _test_dirty_pending_mission() -> void:
+	var legacy := _write_save("legacy_no_pending.json", '{"money": 10}')
+	var gs = _new_game(legacy)
+	gs.load_game()
+	check(gs.pending_mission_level == "", "老档缺 pending_mission_level：默认未准备")
+	check(gs.money == 10, "老档缺 pending_mission_level：其余字段正常")
+	gs.free()
+
+	var dirty := _write_save("dirty_pending.json", '{"money": 5, "pending_mission_level": 42}')
+	var gs2 = _new_game(dirty)
+	gs2.load_game()
+	check(gs2.pending_mission_level == "", "脏 pending（非字符串）：视为未准备")
+	gs2.free()
+
+	var bad_level := _write_save("bad_pending.json", '{"money": 5, "pending_mission_level": "not_a_level"}')
+	var gs3 = _new_game(bad_level)
+	gs3.load_game()
+	check(gs3.pending_mission_level == "", "非法关卡 id：视为未准备")
+	gs3.free()
+
+	var good := _write_save("good_pending.json", '{"money": 5, "pending_mission_level": "british_museum"}')
+	var gs4 = _new_game(good)
+	gs4.load_game()
+	check(gs4.pending_mission_level == "british_museum", "合法待出发关卡保留")
+	gs4.free()
 
 
 ## 收集册字段：老档缺失 → 空；老档有端详进度 → 兼容解锁；脏条目过滤。

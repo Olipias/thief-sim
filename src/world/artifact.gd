@@ -15,6 +15,8 @@ const RELIC_FPS := 8.0
 const RELIC_BASELINE := 4.0  ## 底边相对节点中心的下沉量（与展台贴合）
 
 @export var item_id := "vase"
+## 由 Museum 填入，用于普通战利品跨次反刷；主目标可空。
+@export var instance_id := ""
 
 @onready var sprite: Sprite2D = $Sprite
 @onready var glow: PointLight2D = $Glow
@@ -59,7 +61,7 @@ func has_cinematic_closeup() -> bool:
 
 
 func try_pickup() -> bool:
-	if not Game.try_pickup(item_id):
+	if not Game.try_pickup(item_id, instance_id):
 		pickup_blocked.emit(item_id)
 		return false
 	picked.emit(item_id)

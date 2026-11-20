@@ -22,3 +22,7 @@ tools/.agentchattr_token
 # 课堂演示 pytest 本地依赖（requirements-demo.txt 可重装）
 tools/demo_lib/
 .venv/
+
+# Local collaboration identities, delivery queue and session mappings
+.agent-link/
+tools/.relay_targets.json

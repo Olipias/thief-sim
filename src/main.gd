@@ -3,9 +3,12 @@ extends Node
 ## Scene flow: hideout (shop) -> museum heist -> result screen -> hideout.
 
 const HUB := preload("res://src/ui/hub.tscn")
+const SAFEHOUSE := preload("res://src/world/safehouse.tscn")
 const TITLE_SCREEN := preload("res://src/ui/title_screen.tscn")
 const RESULT_SCREEN := preload("res://src/ui/result_screen.tscn")
 const MUSEUM := preload("res://src/world/museum.tscn")
+const COMPUTER_SCREEN := preload("res://src/ui/computer_screen.tscn")
+const BOX_SCREEN := preload("res://src/ui/box_screen.tscn")
 
 const BRIEFINGS := {
 	"museum": [
@@ -33,10 +36,13 @@ const BRIEFINGS := {
 @onready var statements: StatementsScreen = $Statements
 @onready var collection: CollectionScreen = $Collection
 @onready var relic_closeup: RelicCloseup = $RelicCloseup
+@onready var computer: ComputerScreen = $Computer
+@onready var box: BoxScreen = $Box
 
 var _busy := false
 var _museum: Museum = null
 var _hub: Hub = null
+var _safehouse: Safehouse = null
 ## 关闭手机/背包后，同一帧的按键会被 _process 再读到；用短冷却防“刚关就又被打开”。
 var _phone_cooldown := 0.0
 var _bag_cooldown := 0.0
@@ -56,7 +62,16 @@ func _ready() -> void:
 	relic_closeup.closed.connect(_on_relic_closeup_closed)
 	relic_closeup.pickup_requested.connect(_on_relic_pickup)
 	hud.phone_requested.connect(open_phone)
+	computer.closed.connect(_on_device_closed)
+	box.closed.connect(_on_device_closed)
+	Game.pending_mission_changed.connect(_on_pending_mission_changed)
 	show_title()
+
+
+## 手机「委托」确认/取消后，行动中的 HUD 标签跟随待出发状态。
+func _on_pending_mission_changed(level_id: String) -> void:
+	if _safehouse != null and is_instance_valid(_safehouse):
+		hud.set_mission_target("行动未确认" if level_id == "" else "已确认：%s" % Game.level_name_of(level_id))
 
 
 func _process(delta: float) -> void:
@@ -65,6 +80,10 @@ func _process(delta: float) -> void:
 	if _busy:
 		return
 	if dialogue.is_active() or relic_closeup.is_open():
+		return
+	if computer.is_open() or box.is_open():
+		# 设备覆盖层自己处理 P/B/ESC 关闭；这里拦住 main 的 B/P 轮询，
+		# 避免设备开着时同帧又打开背包/手机。
 		return
 	if backpack.is_open():
 		# 背包打开时：B 关闭背包；P/ESC 不在这里处理（手机不打开）
@@ -91,11 +110,14 @@ func open_phone() -> void:
 		return
 	var in_level := _museum != null and is_instance_valid(_museum)
 	var in_hub := _hub != null and is_instance_valid(_hub)
-	if not in_level and not in_hub:
+	var in_safehouse := _safehouse != null and is_instance_valid(_safehouse)
+	if not in_level and not in_hub and not in_safehouse:
 		return
-	phone.open(in_hub)
+	phone.open(in_hub or in_safehouse)
 	hud.set_compact(true)
-	if in_level:
+	if in_level or in_safehouse:
+		# 安全屋现在是可走动的真实世界：手机作为覆盖层打开时同样暂停世界，
+		# 避免“手机开着还能走路”。旧纯 UI 据点（无活动世界）保持原不暂停约定。
 		get_tree().paused = true
 
 
@@ -174,6 +196,51 @@ func _on_backpack_drop(item_id: String) -> void:
 	backpack.close()
 
 
+## --- 安全屋设备覆盖层（R-01） ----------------------------------------------
+
+## 书桌电脑：从房内书桌按 E 进入；关闭回桌旁（覆盖层契约同背包/手机）。
+func _open_computer() -> void:
+	if _busy or computer.is_open():
+		return
+	if dialogue.is_active() or dialogue_tree.is_active() or relic_closeup.is_open():
+		return
+	computer.open()
+	hud.set_compact(true)
+	get_tree().paused = true
+
+
+## 文物箱：查看随身/箱内；R-01 暂支持箱内战利品直售（过渡），存取与预约交易 R-05 接入。
+func _open_box() -> void:
+	if _busy or box.is_open():
+		return
+	if dialogue.is_active() or dialogue_tree.is_active() or relic_closeup.is_open():
+		return
+	box.open()
+	hud.set_compact(true)
+	get_tree().paused = true
+
+
+## 设备覆盖层关闭（电脑或箱子）：恢复世界与 HUD，短冷却防止同帧重开。
+func _on_device_closed() -> void:
+	get_tree().paused = false
+	hud.set_compact(false)
+	_phone_cooldown = 0.2
+	_bag_cooldown = 0.2
+
+
+## 房门出发：只在手机「委托」已确认行动后放行；出发消费准备状态。
+## （未准备/取消不切场景——CONFIRMED_DESIGN §4：手机确认 → 走到房门才出发。）
+func _on_depart_requested() -> void:
+	if _busy:
+		return
+	var pending := String(Game.pending_mission_level)
+	if pending == "":
+		hud.toast("先用手机「委托」确认本次行动，再走到房门出发。")
+		return
+	Game.clear_pending_mission()
+	start_mission(pending)
+
+
 func _clear_screen() -> void:
 	for child in screen.get_children():
 		child.queue_free()
@@ -199,6 +266,7 @@ func show_title() -> void:
 		relic_closeup.close()
 	_museum = null
 	_hub = null
+	_safehouse = null
 	_clear_screen()
 	_clear_ui()
 	hud.set_compact(false)
@@ -206,7 +274,7 @@ func show_title() -> void:
 	hud.hide_hud()
 	var title := TITLE_SCREEN.instantiate() as TitleScreen
 	title.statements_requested.connect(statements.open)
-	title.continue_requested.connect(show_menu)
+	title.continue_requested.connect(show_safehouse)
 	title.new_game_requested.connect(_on_new_game)
 	title.collection_requested.connect(collection.open)
 	title.quit_requested.connect(func() -> void: get_tree().quit())
@@ -214,17 +282,21 @@ func show_title() -> void:
 
 
 func _on_new_game() -> void:
+	_busy = true
 	Game.start_new_game()
 	if not Game.story_flag("saw_p00"):
 		var intro := ContractIntro.new()
 		ui_layer.add_child(intro)
 		await intro.finished
 		Game.set_story_flag("saw_p00")
+	_busy = false
 	start_mission("museum")
 
 
 
-func show_menu() -> void:
+## 安全屋（R-01）：正式流程中旧 Hub 栏目页的替代入口。
+## 教学/任务撤离、继续游戏、结局返回都进入这个可走动的独立室内场景。
+func show_safehouse() -> void:
 	_busy = false
 	get_tree().paused = false
 	if backpack.is_open():
@@ -237,23 +309,37 @@ func show_menu() -> void:
 		collection.close()
 	if relic_closeup.is_open():
 		relic_closeup.close()
+	if computer.is_open():
+		computer.close()
+	if box.is_open():
+		box.close()
 	if dialogue_tree.is_active():
 		dialogue_tree.close()
 	_museum = null
 	_hub = null
+	_safehouse = null
 	_clear_screen()
 	_clear_ui()
 	hud.set_compact(false)
 	hud.unbind_level()
-	hud.hide_hud()
-	var hub := HUB.instantiate() as Hub
-	_hub = hub
-	Game.unlock_all_chains_required = true
-	hub.start_requested.connect(start_mission)
-	hub.quit_requested.connect(show_title)
-	ui_layer.add_child(hub)
-	# 据点剧情：P-01 在城西教学关完成后首次回据点触发；
-	# H-01 在首次任务结算后回据点触发。
+	hud.set_failure_banner("")
+	hud.set_prompt("")
+	hud.show_hud()
+	hud.set_mission_target(Game.item_name(Game.mission_target_id))
+	var safehouse := SAFEHOUSE.instantiate() as Safehouse
+	safehouse.toast.connect(hud.toast)
+	safehouse.prompt_changed.connect(hud.set_prompt)
+	safehouse.computer_requested.connect(_open_computer)
+	safehouse.box_requested.connect(_open_box)
+	safehouse.depart_requested.connect(_on_depart_requested)
+	screen.add_child(safehouse)
+	_safehouse = safehouse
+	Game.unlock_all_chains_required = false
+	# HUD 行动栏：手机「委托」确认什么就显示什么；未确认时不显示旧目标避免误导。
+	var pending := String(Game.pending_mission_level)
+	hud.set_mission_target("行动未确认" if pending == "" else "已确认：%s" % Game.level_name_of(pending))
+	# 据点剧情：P-01 在城西教学关完成后首次回安全屋触发；
+	# H-01 在首次任务结算后回安全屋触发。
 	if Game.story_flag("completed_museum") and not Game.story_flag("saw_p01"):
 		await _play_hub_story("p01_door_in_rain", "saw_p01")
 	elif Game.story_flag("completed_museum") and not Game.story_flag("saw_h01"):
@@ -293,10 +379,9 @@ func start_mission(level_id := "museum") -> void:
 	_clear_screen()
 	_clear_ui()
 	_hub = null
+	_safehouse = null
 	var museum := MUSEUM.instantiate() as Museum
 	museum.level_id = level_id
-	museum.escaped.connect(_on_escaped.bind(museum))
-	museum.caught.connect(_on_caught.bind(museum))
 	museum.toast.connect(hud.toast)
 	museum.prompt_changed.connect(hud.set_prompt)
 	museum.alert_changed.connect(hud.set_alert)
@@ -306,6 +391,9 @@ func start_mission(level_id := "museum") -> void:
 	museum.closeup_requested.connect(open_relic_closeup)
 	screen.add_child(museum)
 	_museum = museum
+	# 用 lambda 捕获 museum，避免 signal + bind 的参数顺序歧义。
+	museum.escaped.connect(func(outcome: String) -> void: _on_escaped(museum, outcome))
+	museum.caught.connect(func() -> void: _on_caught(museum))
 	hud.show_hud()
 	hud.bind_level(museum)
 	hud.set_mission_target(Game.item_name(Game.mission_target_id))
@@ -324,15 +412,15 @@ func _on_dialogue_finished() -> void:
 	hud.set_compact(false)
 
 
-func _on_escaped(museum: Museum) -> void:
-	_finish(museum, true)
+func _on_escaped(museum: Museum, outcome: String) -> void:
+	_finish(museum, outcome)
 
 
 func _on_caught(museum: Museum) -> void:
-	_finish(museum, false)
+	_finish(museum, Game.OUTCOME_CAUGHT)
 
 
-func _finish(museum: Museum, success: bool) -> void:
+func _finish(museum: Museum, outcome: String) -> void:
 	if _busy:
 		return
 	_busy = true
@@ -343,27 +431,32 @@ func _finish(museum: Museum, success: bool) -> void:
 		phone.close()
 	_museum = null
 	_hub = null
+	_safehouse = null
 	museum.end_game()
 	hud.set_alert(0)
 	hud.set_prompt("")
 	hud.set_compact(false)
 	await get_tree().create_timer(0.8, false).timeout
-	var summary := Game.finish_run(success)
+	var summary := Game.finish_run_outcome(outcome)
 	_clear_screen()
 	_clear_ui()
 	hud.unbind_level()
 	hud.hide_hud()
 	# P2-A/B：城西教学关成功撤离后，跳过独立 ResultScreen，直接回安全屋触发 P-01。
-	if success and museum.level_id == "museum":
-		show_menu()
+	# 侦察撤离同样直接回安全屋，普通战利品已入箱。
+	if outcome == Game.OUTCOME_SUCCESS and museum.level_id == "museum":
+		show_safehouse()
 		_busy = false
-	elif success and museum.level_id == "british_museum":
+	elif outcome == Game.OUTCOME_SUCCESS and museum.level_id == "british_museum":
 		Game.save_checkpoint("pre_choice")
 		await _play_devil_demand()
 		_busy = false
+	elif outcome == Game.OUTCOME_RECON:
+		show_safehouse()
+		_busy = false
 	else:
 		var result := RESULT_SCREEN.instantiate() as ResultScreen
-		result.continue_requested.connect(show_menu)
+		result.continue_requested.connect(show_safehouse)
 		ui_layer.add_child(result)
 		result.setup(summary)
 		_busy = false
@@ -394,4 +487,4 @@ func _play_devil_demand() -> void:
 
 func _on_ending_continue() -> void:
 	Game.load_checkpoint("pre_choice")
-	show_menu()
+	show_safehouse()

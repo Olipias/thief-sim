@@ -3,6 +3,8 @@ extends CanvasLayer
 ## In-game overlay: mission, money, backpack, prompts and toasts.
 
 signal phone_requested
+## 任何 toast 弹出时发出（测试与协作观察用；toast 本身仍走 HUD 标签）。
+signal toast_requested(text: String)
 
 @onready var root: Control = $Root
 @onready var mission_label: Label = $Root/MissionLabel
@@ -16,12 +18,14 @@ signal phone_requested
 @onready var failure_label: Label = $Root/FailureLabel
 
 var _toast_seq := 0
+var _current_target_name := ""
 
 
 func _ready() -> void:
 	Game.backpack_changed.connect(refresh_backpack)
 	Game.money_changed.connect(refresh_money)
 	Game.items_changed.connect(refresh_items)
+	Game.pending_mission_changed.connect(_on_pending_mission_changed)
 	$Root/PhoneButton.pressed.connect(func() -> void: phone_requested.emit())
 	refresh_backpack()
 	refresh_money()
@@ -43,7 +47,15 @@ func hide_hud() -> void:
 
 
 func set_mission_target(target_name: String) -> void:
+	_current_target_name = target_name
 	mission_label.text = "任务目标：%s" % target_name
+
+
+func _on_pending_mission_changed(level_id: String) -> void:
+	if level_id == "":
+		mission_label.text = "任务目标：%s" % _current_target_name
+	else:
+		mission_label.text = "已确认：%s" % Game.level_name_of(level_id)
 
 
 ## Show the room layout of the active level on the minimap.
@@ -115,6 +127,7 @@ func toast(text: String, seconds := 3.5) -> void:
 	var seq := _toast_seq
 	toast_label.text = text
 	toast_label.visible = true
+	toast_requested.emit(text)
 	await get_tree().create_timer(seconds).timeout
 	if seq == _toast_seq:
 		toast_label.visible = false

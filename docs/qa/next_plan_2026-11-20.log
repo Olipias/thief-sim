@@ -1,0 +1,362 @@
+
+==> 文档自检（链接 / CHANGELOG 格式）
+check_docs OK（链接 125 条可达；CHANGELOG 65 个版本条目）
+
+==> 关卡数据自检（生成物与脚本同步）
+check_level OK（2 个关卡：生成物与脚本同步）
+
+==> 资源导入（新增/改动贴图与音效）
+Godot Engine v4.7.2.stable.official.ed1daf0bf - https://godotengine.org
+
+[   0% ] [90m[1mfirst_scan_filesystem[22m | Started Project initialization (5 steps)[39m[0m
+[   0% ] [90m[1mfirst_scan_filesystem[22m | Scanning file structure...[39m[0m
+[  16% ] [90m[1mfirst_scan_filesystem[22m | Loading global class names...[39m[0m
+[  33% ] [90m[1mfirst_scan_filesystem[22m | Verifying GDExtensions...[39m[0m
+[  50% ] [90m[1mfirst_scan_filesystem[22m | Creating autoload scripts...[39m[0m
+[  66% ] [90m[1mfirst_scan_filesystem[22m | Initializing plugins...[39m[0m
+[  83% ] [90m[1mfirst_scan_filesystem[22m | Starting file scan...[39m[0m
+[92m[ DONE ][39m [1mfirst_scan_filesystem[22m
+[0m
+[   0% ] [90m[1mloading_editor_layout[22m | Started Loading editor (5 steps)[39m[0m
+[   0% ] [90m[1mloading_editor_layout[22m | Loading editor layout...[39m[0m
+[  16% ] [90m[1mloading_editor_layout[22m | Loading docks...[39m[0m
+[  33% ] [90m[1mloading_editor_layout[22m | Reopening scenes...[39m[0m
+[  50% ] [90m[1mloading_editor_layout[22m | Loading central editor layout...[39m[0m
+[  66% ] [90m[1mloading_editor_layout[22m | Loading plugin window layout...[39m[0m
+[  83% ] [90m[1mloading_editor_layout[22m | Editor layout ready.[39m[0m
+[92m[ DONE ][39m [1mloading_editor_layout[22m
+[0m
+
+==> GDScript 编译检查（src + tests）
+Godot Engine v4.7.2.stable.official.ed1daf0bf - https://godotengine.org
+
+ALL 46 SCRIPTS COMPILE
+
+==> 逻辑单测
+Godot Engine v4.7.2.stable.official.ed1daf0bf - https://godotengine.org
+
+ALL 2549 CHECKS PASSED
+
+==> 内容一致性测试
+Godot Engine v4.7.2.stable.official.ed1daf0bf - https://godotengine.org
+
+ALL 591 CHECKS PASSED
+
+==> 输入流自检（真实按键驱动 UI 覆盖层）
+Godot Engine v4.7.2.stable.official.ed1daf0bf - https://godotengine.org
+
+PASS - 覆盖层节点已接线（Backpack / Phone / DialogueTree）
+PASS - 关卡已开始（museum）
+PASS - 任务简报已跳过
+PASS - B 打开背包
+PASS - 背包打开后：覆盖层与暂停状态一致（open=true paused=true）
+PASS - 再按 B 关闭背包
+PASS - 背包关闭后不自己重开
+PASS - 背包关闭后：覆盖层与暂停状态一致（open=false paused=false）
+PASS - P 打开手机
+PASS - 手机打开后：覆盖层与暂停状态一致（open=true paused=true）
+PASS - 再按 P 关闭手机
+PASS - 手机关闭后：覆盖层与暂停状态一致（open=false paused=false）
+PASS - ESC 用例：背包已打开
+PASS - ESC 关闭背包
+PASS - ESC 关背包后：覆盖层与暂停状态一致（open=false paused=false）
+PASS - ESC 用例：手机已打开
+PASS - ESC 关闭手机
+PASS - ESC 关手机后：覆盖层与暂停状态一致（open=false paused=false）
+PASS - 冷却结束后可再次打开背包
+PASS - 再次关闭背包
+PASS - 重开用例清理后：覆盖层与暂停状态一致（open=false paused=false）
+PASS - 交叉键：背包已打开
+PASS - 背包开着时 P 不应打开手机
+PASS - 背包不受 P 影响
+PASS - 交叉键后背包仍可正常关闭
+PASS - 交叉键（背包）清理后：覆盖层与暂停状态一致（open=false paused=false）
+PASS - 交叉键：手机已打开
+PASS - 手机开着时 B 不应打开背包
+PASS - B 关闭手机
+PASS - 交叉键（B 关手机）清理后：覆盖层与暂停状态一致（open=false paused=false）
+PASS - 交叉键（手机）清理后：覆盖层与暂停状态一致（open=false paused=false）
+PASS - 卡片用例：手机已打开
+PASS - 展签卡弹层已激活
+PASS - 展签卡打开后：覆盖层与暂停状态一致（open=true paused=true）
+PASS - 按 P 应关闭最上层的展签卡
+PASS - 关闭卡片后手机仍在（逐层返回）
+PASS - 关闭展签卡后：覆盖层与暂停状态一致（open=true paused=true）
+PASS - 再按 P 关闭手机
+PASS - 卡片用例清理后：覆盖层与暂停状态一致（open=false paused=false）
+PASS - ESC 卡片用例：手机已打开
+PASS - 第二张展签卡已弹出
+PASS - ESC 关闭展签卡
+PASS - ESC 关卡片后手机仍在（逐层返回）
+PASS - ESC 卡片用例收尾：关闭手机
+PASS - ESC 卡片用例清理后：覆盖层与暂停状态一致（open=false paused=false）
+PASS - HUD 用例：背包已打开
+PASS - 背包开着时点击 HUD 手机按钮不应打开手机
+PASS - 背包不受 HUD 点击影响
+PASS - HUD 场景后背包仍可关闭
+PASS - HUD 场景后手机可正常开关
+PASS - HUD 用例清理后：覆盖层与暂停状态一致（open=false paused=false）
+PASS - 冻结回归：真实关卡存在
+PASS - 规划测试旁边确实有可拾取物
+PASS - 冻结回归：真实Tab开启规划
+PASS - 规划中WASD/方向键不能改变真实玩家位置
+PASS - 规划中真实巡逻守卫位置不变
+PASS - 规划中世界计时不推进
+PASS - 规划中致盲与发现计时均冻结
+PASS - 规划不重置巡逻节点
+PASS - 规划中E不拾取且Q不消耗烟雾弹
+PASS - 规划中可以打开暂停的手机覆盖层
+PASS - 关闭手机仍留在冻结规划态
+PASS - 关闭覆盖层不会单独恢复守卫
+PASS - 冻结回归：空格进入执行态
+PASS - 执行恢复玩家实际移动
+PASS - 执行同时恢复真实守卫巡逻
+PASS - 执行恢复世界计时
+PASS - 方向键真正接管，不被物理帧重新启动路线
+PASS - 接管后守卫仍继续实际巡逻
+PASS - E键也能真正接管执行
+PASS - E键接管不会遗留守卫冻结
+PASS - 路线自然走完进入手动状态
+PASS - 路线完成后人物与守卫都正常运行
+PASS - 反复切换规划第1次后守卫仍移动
+PASS - 反复切换规划第2次后守卫仍移动
+PASS - 反复切换规划第3次后守卫仍移动
+PASS - 接管后的守卫视野能真实触发发现回放
+PASS - 实际发现准确记录守卫与原因
+PASS - 真实发现后可按空格重试规划
+PASS - 重试后退出规划恢复玩家控制
+PASS - 失败重试不会遗留守卫永久冻结
+PASS - 路线预演：当前处于关卡内
+PASS - Tab 进入规划模式
+PASS - 规划模式下守卫世界更新冻结
+PASS - 左键点击添加规划节点
+PASS - 节点落在点击位置附近（世界坐标）
+PASS - Enter 预演激活
+PASS - 预演生成玩家轨迹（900 tick）
+PASS - 预演生成守卫残影（900 tick）
+PASS - 预演预警与一致性内核首次发现 tick 一致
+PASS - 再按 Tab 退出规划模式
+PASS - 退出规划模式后守卫世界更新恢复
+PASS - 规划退出保留测试原有的独立AI禁用，不擅自覆盖
+PASS - 空格执行规划路线
+PASS - 执行后玩家沿路径移动
+PASS - 按方向键接管并中断执行
+PASS - 接管后玩家不再自动移动
+PASS - 进入失败回放态
+PASS - 失败原因被记录
+PASS - 0.6s 定格内空格不误触回退
+PASS - 定格结束后空格回退清除失败回放
+PASS - 回退后自动进入规划模式
+PASS - 回退后清空规划节点
+PASS - 结束时没有残留覆盖层
+PASS - 结束时游戏未处于暂停
+PASS - 互动特写层已打开
+PASS - 互动特写层打开后：覆盖层与暂停状态一致（open=true paused=true）
+PASS - E 关闭特写层（拾取/离开）
+PASS - 互动特写层关闭后：覆盖层与暂停状态一致（open=false paused=false）
+PASS - 互动特写层再次打开
+PASS - ESC 关闭特写层
+PASS - ESC 关闭特写层后：覆盖层与暂停状态一致（open=false paused=false）
+PASS - 标题界面已打开
+PASS - 标题界面有「声明与说明」按钮
+PASS - 点击按钮打开声明页
+PASS - ESC 关闭声明页
+PASS - 标题界面已打开（收集册测试）
+PASS - 标题界面有集中菜单的「文物档案」按钮
+PASS - 点击「文物档案」打开收集册
+PASS - ESC 关闭收集册
+PASS - 新游戏先播q6图片分镜
+PASS - 六格每格5秒，自动总长30秒
+PASS - 开场从第一格开始
+PASS - 真实Space推进一格
+PASS - 手动推进后重新开始5秒计时
+PASS - 按住Space的重复事件不会连续跳格
+PASS - 达到5秒自动切换下一格
+PASS - 真实鼠标点击画面推进一格
+PASS - E兼容推进一格
+PASS - CG期间B不打开背包干扰播放
+PASS - 真实Skip只发出一次结束信号
+PASS - 跳过演出后契约进度落档
+PASS - Skip直接进入教学而非栏目页
+PASS - 最后一格自动结束也落档
+PASS - 自动播完直接进入教学
+PASS - P2-B：城西教学关已进入
+PASS - P2-B：目标入包
+PASS - P2-B：城西成功撤离不弹独立结算页
+PASS - P2-B：直接进入安全屋
+PASS - P2-B：进安全屋播 P-01
+PASS - P2-B：P-01 落档
+PASS - 据点已打开
+PASS - 据点有「销赃」标签
+PASS - 点击「销赃」切换到仓库页
+PASS - 仓库列出两件战利品
+PASS - 点击卖出获得对应金币
+PASS - 卖出的物品移出仓库
+PASS - 全部出手后仓库清空
+PASS - 全部出手结清剩余金币
+PASS - 电话页脚：关卡已开始
+PASS - 电话页脚：手机已打开
+PASS - A-00：档案页显示关闭提示（P/B/ESC）
+PASS - A-00：任务页显示关闭提示
+PASS - P0-2：据点已打开
+PASS - P0-2：据点按 P 打开手机
+PASS - P0-2：据点打开手机不暂停
+PASS - P0-2：据点手机隐藏档案标签
+PASS - P0-2：据点手机隐藏档案页
+PASS - P0-2：据点手机显示任务页
+PASS - P0-2：据点再按 P 关闭手机
+PASS - 真实鼠标打开日历
+PASS - 真实鼠标接听NPC对话
+PASS - 鼠标打开推理板
+PASS - 真实鼠标拖动卡片
+PASS - 真实拖线记录玩家指定关系
+PASS - 拖一条线不会自动补全其他关联
+PASS - P-01：教学关后首次回据点播放剧情
+PASS - P-01：saw_p01 落档
+PASS - P-01：剧情结束后关闭
+PASS - P-01：剧情结束后回到据点
+PASS - H-01：首次任务后回据点播放标签课
+PASS - H-01：saw_h01 落档
+PASS - H-01：剧情结束后关闭
+PASS - H-02：大英任务前播放两个地址
+PASS - H-02：saw_h02 落档
+PASS - H-02：剧情结束后进入 briefing
+PASS - P6：解锁后可切换埃及目标
+PASS - P6：大英关卡已进入
+PASS - P6：Museum.target_item_id 跟随所选目标（实际 egypt_heart_scarab）
+PASS - P6：埃及目标实际生成
+PASS - 埃及目标在独立展厅
+PASS - 展签卡不显示未解锁：商代双羊尊 · 形制与年代
+PASS - 展签卡不显示未解锁：南方青铜 · 湖南推定
+PASS - 展签卡不显示未解锁：1936 · 一次有记录的转手
+PASS - 双羊尊 3 张展签卡全部可读（实际 3）
+PASS - BM 剧情：关卡已开始
+PASS - P0-1：双羊尊旁提示为拾取/端详（当前：按 E 拾取：商代双羊尊）
+PASS - P0-1：未读标签时按 E 不开剧情对谈
+PASS - P0-1：未读标签时按 E 打开特写或已拾取
+PASS - P0-1：特写内再按 E 真正拾取双羊尊
+PASS - BM 剧情：标签关卡已开始
+PASS - 标签旁提示：显示「按 E 阅读：馆方标签」（当前：按 E 阅读：馆方标签）
+PASS - 只读标签：按 E 打开剧情对谈
+PASS - 只读标签：read_label = true
+PASS - 只读标签：read_note = false
+PASS - 只读标签：结束后不卡界面/暂停
+PASS - BM 剧情：留言关卡已开始
+PASS - 只读留言：按 E 打开剧情对谈
+PASS - 只读留言：read_note = true
+PASS - 只读留言：read_label = false
+PASS - 只读留言：结束后不卡界面/暂停
+PASS - 两张都读：留言对谈已打开
+PASS - 两张都读：自动触发双纸对谈并出现选项
+PASS - 两张都读：两个 flag 均落档
+PASS - 两张都读：结束后不卡界面/暂停
+PASS - P0-1：读完两张后按 E 不开剧情对谈
+PASS - P0-1：读完两张后按 E 仍可拾取/特写
+PASS - 重复阅读：可正常关闭、不软锁
+PASS - 都不读：flag 保持 false
+PASS - 都不读：没有自动弹出对谈
+ALL 210 CHECKS PASSED
+
+==> 存档兼容自检（老档 / 脏档 / 未来档）
+Godot Engine v4.7.2.stable.official.ed1daf0bf - https://godotengine.org
+
+ERROR: Parse JSON failed. Error at line 0: Expected key
+   at: parse_string (core/io/json.cpp:629)
+   GDScript backtrace (most recent call first):
+       [0] _read_save_dict (res://src/autoload/game_state.gd:645)
+       [1] load_game (res://src/autoload/game_state.gd:716)
+       [2] _test_corrupt_json (res://tests/test_save_compat.gd:95)
+       [3] _initialize (res://tests/test_save_compat.gd:28)
+ALL 98 CHECKS PASSED
+
+==> 玩家进度自检（结算 / 仓库 / 收集册 / 存档健壮性）
+Godot Engine v4.7.2.stable.official.ed1daf0bf - https://godotengine.org
+
+ERROR: Parse JSON failed. Error at line 0: Expected ']'
+   at: parse_string (core/io/json.cpp:629)
+   GDScript backtrace (most recent call first):
+       [0] _read_save_dict (res://src/autoload/game_state.gd:645)
+       [1] has_save (res://src/autoload/game_state.gd:389)
+       [2] _test_save_robustness (res://tests/test_progression.gd:204)
+       [3] _initialize (res://tests/test_progression.gd:31)
+ERROR: Parse JSON failed. Error at line 0: Expected ']'
+   at: parse_string (core/io/json.cpp:629)
+   GDScript backtrace (most recent call first):
+       [0] _read_save_dict (res://src/autoload/game_state.gd:645)
+       [1] load_game (res://src/autoload/game_state.gd:716)
+       [2] _reload (res://tests/test_progression.gd:67)
+       [3] _test_save_robustness (res://tests/test_progression.gd:205)
+       [4] _initialize (res://tests/test_progression.gd:31)
+ALL 48 CHECKS PASSED
+
+==> 剧情自检（story_flags / 双羊尊文物志）
+Godot Engine v4.7.2.stable.official.ed1daf0bf - https://godotengine.org
+
+ALL 30 CHECKS PASSED
+
+==> 确定性预演自检（R-02 灰盒一致性）
+Godot Engine v4.7.2.stable.official.ed1daf0bf - https://godotengine.org
+
+PASS - 预演与执行 tick 数一致（23 vs 23）
+PASS - 逐 tick 状态摘要完全一致
+PASS - 事件序列一致
+PASS - 首次发现 tick 一致（23 vs 23）
+PASS - 风险路线确实触发了发现（灰盒有效性）
+PASS - 重复执行事件一致（帧率无关）
+PASS - 修改路线后预演/执行仍一致
+PASS - 预演不污染源快照（整份深比较）
+PASS - 失败场景触发发现
+PASS - 恢复快照逐字段一致
+PASS - 失败恢复后重跑同路线仍逐 tick 一致
+PASS - 噪音触发守卫调查事件
+PASS - 守卫朝噪音源移动
+PASS - 站立距离 4 被发现
+PASS - 蹲下距离 4 未被发现
+PASS - 开锁动作 40 tick 后门解锁
+PASS - 拿取动作 20 tick 后目标入包
+PASS - 执行也不污染源快照（整份深比较）
+PASS - batch=1 逐 tick 轨迹与执行一致
+PASS - batch=3 逐 tick 轨迹与执行一致
+PASS - batch=7 逐 tick 轨迹与执行一致
+PASS - batch=20 逐 tick 轨迹与执行一致
+PASS - 多噪音并发两次预演逐 tick 一致
+PASS - 多噪音并发事件序列一致
+PASS - 多噪音触发调查
+PASS - 最近噪音 (5,5) 优先（实际 (5, 5)）
+PASS - 长路线产生了足够 tick（5000）
+PASS - 长路线两次预演逐 tick 一致
+PASS - 长路线事件序列一致
+PASS - restore_full 完整还原（含 tick/守卫等待/监控相位/噪音）
+PASS - 非门口执行 unlock 不应开门
+PASS - 噪音调查结束后守卫回到巡逻态（实际 alert=0）
+PASS - TICK_RATE 固定 20
+PASS - sim_preview.gd 不调用随机数
+ALL 34 CHECKS PASSED
+
+==> 剧情验收（独立：隐藏条件 / 双羊全分支播放）
+Godot Engine v4.7.2.stable.official.ed1daf0bf - https://godotengine.org
+
+ALL 30 CHECKS PASSED
+
+==> 推理数据自检（三链 / 线索数据边界 / 恶魔分支）
+Godot Engine v4.7.2.stable.official.ed1daf0bf - https://godotengine.org
+
+ALL 144 CHECKS PASSED
+
+==> 场景实例化自检（src/*.tscn）
+Godot Engine v4.7.2.stable.official.ed1daf0bf - https://godotengine.org
+
+ALL 146 SCENES OK
+
+==> 随机操作自检（monkey，规则不变量）
+Godot Engine v4.7.2.stable.official.ed1daf0bf - https://godotengine.org
+
+覆盖统计：背包 47 步 / 手机 55 步 / 对话框 260 步 / 对话树 13 步 / 开局 2 次
+ALL 600 步随机操作通过（seed=20261020）
+
+==> 冒烟测试（场景集成）
+Godot Engine v4.7.2.stable.official.ed1daf0bf - https://godotengine.org
+
+ALL 166 CHECKS PASSED
+
+✅ 全部通过（16 项）

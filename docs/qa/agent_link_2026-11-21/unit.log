@@ -1,0 +1,12 @@
+test_ack_not_automatic (test_agent_link.LinkTests.test_ack_not_automatic) ... ok
+test_all_and_bursts (test_agent_link.LinkTests.test_all_and_bursts) ... ok
+test_cooldown_queues_instead_of_drops (test_agent_link.LinkTests.test_cooldown_queues_instead_of_drops) ... ok
+test_credentials_private (test_agent_link.LinkTests.test_credentials_private) ... ok
+test_failure_retry_durable (test_agent_link.LinkTests.test_failure_retry_durable) ... ok
+test_mentions (test_agent_link.LinkTests.test_mentions) ... ok
+test_self_system_external (test_agent_link.LinkTests.test_self_system_external) ... ok
+
+----------------------------------------------------------------------
+Ran 7 tests in 0.007s
+
+OK

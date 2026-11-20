@@ -1,11 +1,20 @@
 class_name MissionPhone
 extends CanvasLayer
 ## 任务终端（手机）：右下角图标点开。
-## 「任务」页展示任务发布（含目标文物 3D 转台）；「档案」页可端详随身文物
-## （特写热点 + 展签卡，见文物志预案 A/B）。
+## R-04：安全屋模式以应用图标首页进入 委托 / 交易 / 联系人 / 日历（不复刻旧 Hub 栏目页）；
+## 行动中保持旧「任务 / 档案」标签布局。「委托」确认只记录待出发（Game.pending_mission_level），
+## 玩家走到安全屋房门才会真正出发；取消准备随时可做。
+## 「档案」页可端详随身文物（特写热点 + 展签卡，见文物志预案 A/B）。
 
 signal closed
 signal card_requested(item_id: String, card_id: String)
+
+const APPS := [
+	{"id": "task", "label": "委托", "hint": "确认本次行动"},
+	{"id": "trade", "label": "交易", "hint": "箱内战利品报价"},
+	{"id": "contacts", "label": "联系人", "hint": "来电与联络记录"},
+	{"id": "calendar", "label": "日历", "hint": "闭馆与维护排期"},
+]
 
 @onready var dim: ColorRect = $Root/Dim
 @onready var panel: PanelContainer = $Root/Panel
@@ -26,6 +35,10 @@ signal card_requested(item_id: String, card_id: String)
 
 var extra_page: VBoxContainer
 var call_label: Label
+## R-04：安全屋模式的应用首页（2×2 图标）与交易页，均代码构建。
+var home_page: VBoxContainer
+var trade_list: VBoxContainer
+var missions_box: VBoxContainer
 var _item_ids: Array[String] = []
 var _hub_mode := false
 
@@ -34,8 +47,29 @@ func _ready() -> void:
 	visible = false
 	extra_page = VBoxContainer.new()
 	$Root/Panel/Margin/VBox.add_child(extra_page)
+	home_page = VBoxContainer.new()
+	home_page.name = "HomePage"
+	home_page.add_theme_constant_override("separation", 8)
+	$Root/Panel/Margin/VBox.add_child(home_page)
+	_build_app_grid()
+	trade_list = VBoxContainer.new()
+	trade_list.name = "TradePage"
+	trade_list.add_theme_constant_override("separation", 4)
+	$Root/Panel/Margin/VBox.add_child(trade_list)
+	missions_box = VBoxContainer.new()
+	missions_box.name = "MissionsBox"
+	missions_box.add_theme_constant_override("separation", 4)
+	$Root/Panel/Margin/VBox/TaskPage.add_child(missions_box)
+	var back := Button.new()
+	back.name = "HomeButton"
+	back.text = "首页"
+	back.add_theme_font_size_override("font_size", 10)
+	back.visible = false
+	$Root/Panel/Margin/VBox/Header.add_child(back)
+	back.pressed.connect(func() -> void: _show_tab("home"))
 	for title in ["日历", "通讯录"]:
 		var button := Button.new()
+		button.name = "Tab_" + title
 		button.text = title
 		button.add_theme_font_size_override("font_size", 10)
 		$Root/Panel/Margin/VBox/Header.add_child(button)
@@ -48,6 +82,37 @@ func _ready() -> void:
 	)
 
 
+## 应用首页：2×2 图标按钮（委托 / 交易 / 联系人 / 日历）。
+func _build_app_grid() -> void:
+	var grid := GridContainer.new()
+	grid.name = "AppGrid"
+	grid.columns = 2
+	grid.add_theme_constant_override("h_separation", 10)
+	grid.add_theme_constant_override("v_separation", 10)
+	grid.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
+	home_page.add_child(grid)
+	var hint := Label.new()
+	hint.name = "HomeHint"
+	hint.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	home_page.add_child(hint)
+	for app in APPS:
+		var button := Button.new()
+		button.name = "App_" + String(app["id"])
+		button.custom_minimum_size = Vector2(120, 52)
+		button.text = "%s\n%s" % [String(app["label"]), String(app["hint"])]
+		button.add_theme_font_size_override("font_size", 11)
+		grid.add_child(button)
+		button.pressed.connect(_show_tab.bind(String(app["id"])))
+	hint.text = "先在「委托」确认行动，再走到房门出发。\nP / B / ESC 关闭手机。"
+	hint.add_theme_font_size_override("font_size", 10)
+	hint.add_theme_color_override("font_color", Color(0.7, 0.72, 0.8))
+
+
+## 供测试与外部定位应用图标按钮（路径 AppGrid/App_<id>）。
+func app_button(app_id: String) -> Button:
+	return home_page.get_node("AppGrid/App_" + app_id) as Button
+
+
 func is_open() -> bool:
 	return visible
 
@@ -57,11 +122,17 @@ func open(hub_mode := false) -> void:
 		return
 	_hub_mode = hub_mode
 	tab_archive.visible = not _hub_mode
-	footer_label.text = "任务 · P / B / ESC 关闭" if _hub_mode else "任务 / 档案 · P / B / ESC 关闭"
-	_fill_task()
+	tab_task.visible = not _hub_mode
+	var back: Button = $Root/Panel/Margin/VBox/Header/HomeButton
+	back.visible = _hub_mode
+	for tab_name in ["Tab_日历", "Tab_通讯录"]:
+		var button: Button = $Root/Panel/Margin/VBox/Header.get_node_or_null(tab_name)
+		if button != null:
+			button.visible = not _hub_mode
+	footer_label.text = "首页 · P / B / ESC 关闭" if _hub_mode else "任务 / 档案 · P / B / ESC 关闭"
 	_fill_archive()
 	visible = true
-	_show_tab("task")
+	_show_tab("home" if _hub_mode else "task")
 
 
 func close() -> void:
@@ -72,9 +143,23 @@ func close() -> void:
 
 
 func _show_tab(tab: String) -> void:
+	# 应用 id → 页面名映射（App_Grid 的 id 与页面名解耦）。
+	match tab:
+		"contacts":
+			tab = "通讯录"
+		"calendar":
+			tab = "日历"
 	task_page.visible = tab == "task"
 	archive_page.visible = tab == "archive"
 	extra_page.visible = tab == "日历" or tab == "通讯录"
+	home_page.visible = tab == "home"
+	trade_list.visible = tab == "trade"
+	if tab == "task" and _hub_mode:
+		_fill_missions()
+	elif tab == "task":
+		_fill_task_briefing()
+	if tab == "trade":
+		_fill_trade()
 	tab_task.button_pressed = tab == "task"
 	tab_archive.button_pressed = tab == "archive"
 	for child in extra_page.get_children():
@@ -103,7 +188,97 @@ func _show_tab(tab: String) -> void:
 		extra_page.add_child(call_label)
 
 
-func _fill_task() -> void:
+## R-04 交易 App：箱内战利品与报价（只读展示；预约/门口交货流程由 R-05 接入）。
+func _fill_trade() -> void:
+	for child in trade_list.get_children():
+		child.queue_free()
+	var title := Label.new()
+	title.text = "箱内战利品"
+	title.add_theme_font_size_override("font_size", 13)
+	trade_list.add_child(title)
+	if Game.loot_stash.is_empty():
+		var empty := Label.new()
+		empty.text = "箱内暂时没有普通文物。带回战利品存入文物箱后会出现在这里。"
+		empty.add_theme_font_size_override("font_size", 11)
+		empty.add_theme_color_override("font_color", Color(0.7, 0.72, 0.8))
+		empty.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+		trade_list.add_child(empty)
+		return
+	for id in Game.loot_stash:
+		var row := Label.new()
+		row.text = "· %s    %d 金币" % [Game.item_name(id), Game.item_value(id)]
+		row.add_theme_font_size_override("font_size", 11)
+		trade_list.add_child(row)
+	var note := Label.new()
+	note.text = "预约与门口交货流程在下一批接入（R-05）；当前仍可在文物箱直接出售。"
+	note.add_theme_font_size_override("font_size", 10)
+	note.add_theme_color_override("font_color", Color(0.7, 0.72, 0.8))
+	note.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	trade_list.add_child(note)
+
+
+## 委托 App（安全屋）：列出可行动关卡，确认/取消待出发状态。
+func _fill_missions() -> void:
+	missions_box.visible = true
+	for child in missions_box.get_children():
+		child.queue_free()
+	var pending := String(Game.pending_mission_level)
+	var status := Label.new()
+	if pending != "":
+		status.text = "已确认：%s（到房门出发）" % Game.level_name_of(pending)
+	else:
+		status.text = "未确认行动。选择一项并点「准备出发」。"
+	status.add_theme_font_size_override("font_size", 11)
+	status.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	missions_box.add_child(status)
+	for level_id in Game.LEVELS.keys():
+		var info: Dictionary = Game.LEVELS[level_id]
+		var row := HBoxContainer.new()
+		row.add_theme_constant_override("separation", 6)
+		var label := Label.new()
+		var target := String(info.get("target", ""))
+		label.text = "%s · 目标 %s · %d 金币" % [
+			String(info.get("name", level_id)), Game.item_name(target), int(info.get("reward", 0)),
+		]
+		label.add_theme_font_size_override("font_size", 11)
+		label.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		row.add_child(label)
+		if level_id == pending:
+			var cancel := Button.new()
+			cancel.text = "取消准备"
+			cancel.add_theme_font_size_override("font_size", 10)
+			cancel.pressed.connect(func() -> void:
+				Game.clear_pending_mission()
+				_fill_missions()
+			)
+			row.add_child(cancel)
+		else:
+			var prepare := Button.new()
+			prepare.text = "准备出发"
+			prepare.add_theme_font_size_override("font_size", 10)
+			prepare.pressed.connect(func() -> void:
+				Game.prepare_mission(String(level_id))
+				_fill_missions()
+			)
+			row.add_child(prepare)
+		missions_box.add_child(row)
+	var note := Label.new()
+	note.text = "确认后手机可以关掉；走到房门按 E 才会出发，取消不扣任何东西。"
+	note.add_theme_font_size_override("font_size", 10)
+	note.add_theme_color_override("font_color", Color(0.7, 0.72, 0.8))
+	note.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	missions_box.add_child(note)
+
+
+## 行动中（博物馆内）的任务页：单次行动简报。
+func _fill_task_briefing() -> void:
+	target_label.visible = true
+	meta_label.visible = true
+	story_label.visible = true
+	archive_card.visible = true
+	notes_label.visible = true
+	relic.visible = true
+	missions_box.visible = false
 	var info := Game.level_info()
 	var target_id := Game.mission_target_id
 	target_label.text = Game.item_name(target_id)

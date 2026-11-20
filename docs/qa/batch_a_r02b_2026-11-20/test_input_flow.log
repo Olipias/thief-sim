@@ -1,0 +1,238 @@
+Godot Engine v4.7.2.stable.official.ed1daf0bf - https://godotengine.org
+
+PASS - 覆盖层节点已接线（Backpack / Phone / DialogueTree）
+PASS - 关卡已开始（museum）
+PASS - 任务简报已跳过
+PASS - B 打开背包
+PASS - 背包打开后：覆盖层与暂停状态一致（open=true paused=true）
+PASS - 再按 B 关闭背包
+PASS - 背包关闭后不自己重开
+PASS - 背包关闭后：覆盖层与暂停状态一致（open=false paused=false）
+PASS - P 打开手机
+PASS - 手机打开后：覆盖层与暂停状态一致（open=true paused=true）
+PASS - 再按 P 关闭手机
+PASS - 手机关闭后：覆盖层与暂停状态一致（open=false paused=false）
+PASS - ESC 用例：背包已打开
+PASS - ESC 关闭背包
+PASS - ESC 关背包后：覆盖层与暂停状态一致（open=false paused=false）
+PASS - ESC 用例：手机已打开
+PASS - ESC 关闭手机
+PASS - ESC 关手机后：覆盖层与暂停状态一致（open=false paused=false）
+PASS - 冷却结束后可再次打开背包
+PASS - 再次关闭背包
+PASS - 重开用例清理后：覆盖层与暂停状态一致（open=false paused=false）
+PASS - 交叉键：背包已打开
+PASS - 背包开着时 P 不应打开手机
+PASS - 背包不受 P 影响
+PASS - 交叉键后背包仍可正常关闭
+PASS - 交叉键（背包）清理后：覆盖层与暂停状态一致（open=false paused=false）
+PASS - 交叉键：手机已打开
+PASS - 手机开着时 B 不应打开背包
+PASS - B 关闭手机
+PASS - 交叉键（B 关手机）清理后：覆盖层与暂停状态一致（open=false paused=false）
+PASS - 交叉键（手机）清理后：覆盖层与暂停状态一致（open=false paused=false）
+PASS - 卡片用例：手机已打开
+PASS - 展签卡弹层已激活
+PASS - 展签卡打开后：覆盖层与暂停状态一致（open=true paused=true）
+PASS - 按 P 应关闭最上层的展签卡
+PASS - 关闭卡片后手机仍在（逐层返回）
+PASS - 关闭展签卡后：覆盖层与暂停状态一致（open=true paused=true）
+PASS - 再按 P 关闭手机
+PASS - 卡片用例清理后：覆盖层与暂停状态一致（open=false paused=false）
+PASS - ESC 卡片用例：手机已打开
+PASS - 第二张展签卡已弹出
+PASS - ESC 关闭展签卡
+PASS - ESC 关卡片后手机仍在（逐层返回）
+PASS - ESC 卡片用例收尾：关闭手机
+PASS - ESC 卡片用例清理后：覆盖层与暂停状态一致（open=false paused=false）
+PASS - HUD 用例：背包已打开
+PASS - 背包开着时点击 HUD 手机按钮不应打开手机
+PASS - 背包不受 HUD 点击影响
+PASS - HUD 场景后背包仍可关闭
+PASS - HUD 场景后手机可正常开关
+PASS - HUD 用例清理后：覆盖层与暂停状态一致（open=false paused=false）
+PASS - 冻结回归：真实关卡存在
+PASS - 规划测试旁边确实有可拾取物
+PASS - 冻结回归：真实Tab开启规划
+PASS - 规划中WASD/方向键不能改变真实玩家位置
+PASS - 规划中真实巡逻守卫位置不变
+PASS - 规划中世界计时不推进
+PASS - 规划中致盲与发现计时均冻结
+PASS - 规划不重置巡逻节点
+PASS - 规划中E不拾取且Q不消耗烟雾弹
+PASS - 规划中可以打开暂停的手机覆盖层
+PASS - 关闭手机仍留在冻结规划态
+PASS - 关闭覆盖层不会单独恢复守卫
+PASS - 冻结回归：空格进入执行态
+PASS - 执行恢复玩家实际移动
+PASS - 执行同时恢复真实守卫巡逻
+PASS - 执行恢复世界计时
+PASS - 方向键真正接管，不被物理帧重新启动路线
+PASS - 接管后守卫仍继续实际巡逻
+PASS - E键也能真正接管执行
+PASS - E键接管不会遗留守卫冻结
+PASS - 路线自然走完进入手动状态
+PASS - 路线完成后人物与守卫都正常运行
+PASS - 反复切换规划第1次后守卫仍移动
+PASS - 反复切换规划第2次后守卫仍移动
+PASS - 反复切换规划第3次后守卫仍移动
+PASS - 接管后的守卫视野能真实触发发现回放
+PASS - 实际发现准确记录守卫与原因
+PASS - 真实发现后可按空格重试规划
+PASS - 重试后退出规划恢复玩家控制
+PASS - 失败重试不会遗留守卫永久冻结
+PASS - 路线预演：当前处于关卡内
+PASS - Tab 进入规划模式
+PASS - 规划模式下守卫世界更新冻结
+PASS - 左键点击添加规划节点
+PASS - 节点落在点击位置附近（世界坐标）
+PASS - Enter 预演激活
+PASS - 预演生成玩家轨迹（900 tick）
+PASS - 预演生成守卫残影（900 tick）
+PASS - 预演预警与一致性内核首次发现 tick 一致
+PASS - 再按 Tab 退出规划模式
+PASS - 退出规划模式后守卫世界更新恢复
+PASS - 规划退出保留测试原有的独立AI禁用，不擅自覆盖
+PASS - 空格执行规划路线
+PASS - 执行后玩家沿路径移动
+PASS - 按方向键接管并中断执行
+PASS - 接管后玩家不再自动移动
+PASS - 进入失败回放态
+PASS - 失败原因被记录
+PASS - 0.6s 定格内空格不误触回退
+PASS - 定格结束后空格回退清除失败回放
+PASS - 回退后自动进入规划模式
+PASS - 回退后保留原规划路线与节点动作
+PASS - 结束时没有残留覆盖层
+PASS - 结束时游戏未处于暂停
+PASS - 互动特写层已打开
+PASS - 互动特写层打开后：覆盖层与暂停状态一致（open=true paused=true）
+PASS - E 关闭特写层（拾取/离开）
+PASS - 互动特写层关闭后：覆盖层与暂停状态一致（open=false paused=false）
+PASS - 互动特写层再次打开
+PASS - ESC 关闭特写层
+PASS - ESC 关闭特写层后：覆盖层与暂停状态一致（open=false paused=false）
+PASS - 标题界面已打开
+PASS - 标题界面有「声明与说明」按钮
+PASS - 点击按钮打开声明页
+PASS - ESC 关闭声明页
+PASS - 标题界面已打开（收集册测试）
+PASS - 标题界面有集中菜单的「文物档案」按钮
+PASS - 点击「文物档案」打开收集册
+PASS - ESC 关闭收集册
+PASS - 新游戏先播q6图片分镜
+PASS - 六格每格5秒，自动总长30秒
+PASS - 开场从第一格开始
+PASS - 真实Space推进一格
+PASS - 手动推进后重新开始5秒计时
+PASS - 按住Space的重复事件不会连续跳格
+PASS - 达到5秒自动切换下一格
+PASS - 真实鼠标点击画面推进一格
+PASS - E兼容推进一格
+PASS - CG期间B不打开背包干扰播放
+PASS - 真实Skip只发出一次结束信号
+PASS - 跳过演出后契约进度落档
+PASS - Skip直接进入教学而非栏目页
+PASS - 最后一格自动结束也落档
+PASS - 自动播完直接进入教学
+PASS - P2-B：城西教学关已进入
+PASS - P2-B：目标入包
+PASS - P2-B：城西成功撤离不弹独立结算页
+PASS - P2-B：直接进入安全屋
+PASS - P2-B：安全屋有可操控角色
+PASS - P2-B：进安全屋播 P-01
+PASS - P2-B：P-01 落档
+PASS - 碰撞回归：安全屋已打开
+PASS - 碰撞：持续向上走被顶墙挡住（y=19.0）
+PASS - 碰撞：书桌电脑挡住玩家（y=47.0）
+PASS - 碰撞：走动不误开设备界面
+PASS - 电脑：走近按 E 打开书桌电脑
+PASS - 电脑：覆盖层与暂停状态一致（open=true paused=true）
+PASS - 电脑：ESC 关闭电脑
+PASS - 电脑关闭：覆盖层与暂停状态一致（open=false paused=false）
+PASS - 文物箱：走近按 E 打开箱界面
+PASS - 文物箱：覆盖层与暂停状态一致（open=true paused=true）
+PASS - 文物箱：开着时 P 不打开手机
+PASS - 文物箱：P 不关闭箱界面
+PASS - 文物箱：B 关闭箱界面
+PASS - 文物箱关闭：覆盖层与暂停状态一致（open=false paused=false）
+PASS - 房门：门前识别到房门交互点
+PASS - 房门：按 E 出发进入关卡
+PASS - 房门：教学完成后出发前往大英（实际 british_museum）
+PASS - 房门：出发后离开安全屋场景
+PASS - 文物箱：安全屋已打开
+PASS - 文物箱：走近按 E 打开箱界面
+PASS - 文物箱：箱内列出两件战利品
+PASS - 文物箱：战利品行有卖出按钮
+PASS - 点击卖出获得对应金币
+PASS - 卖出的物品移出箱内
+PASS - 文物箱：ESC 关闭箱界面
+PASS - 文物箱：重新打开箱界面
+PASS - 剩余战利品卖出后箱内清空
+PASS - 全部出手结清剩余金币
+PASS - 文物箱：收尾关闭箱界面
+PASS - 电话页脚：关卡已开始
+PASS - 电话页脚：手机已打开
+PASS - A-00：档案页显示关闭提示（P/B/ESC）
+PASS - A-00：任务页显示关闭提示
+PASS - 安全屋手机：安全屋已打开
+PASS - 安全屋手机：按 P 打开手机
+PASS - 安全屋手机：打开手机暂停世界（覆盖层契约）
+PASS - 安全屋手机：隐藏档案标签
+PASS - 安全屋手机：隐藏档案页
+PASS - 安全屋手机：显示任务页
+PASS - 安全屋手机：手机开着时玩家不能移动
+PASS - 安全屋手机：再按 P 关闭手机
+PASS - 安全屋手机关闭：覆盖层与暂停状态一致（open=false paused=false）
+PASS - 真实按键从安全屋打开手机
+PASS - 真实鼠标打开日历
+PASS - 真实鼠标接听NPC对话
+PASS - 鼠标打开推理板
+PASS - 真实鼠标拖动卡片
+PASS - 真实拖线记录玩家指定关系
+PASS - 拖一条线不会自动补全其他关联
+PASS - P-01：教学关后首次回安全屋播放剧情
+PASS - P-01：saw_p01 落档
+PASS - P-01：剧情结束后关闭
+PASS - P-01：剧情结束后回到安全屋
+PASS - H-01：首次任务后回安全屋播放标签课
+PASS - H-01：saw_h01 落档
+PASS - H-01：剧情结束后关闭
+PASS - H-02：大英任务前播放两个地址
+PASS - H-02：saw_h02 落档
+PASS - H-02：剧情结束后进入 briefing
+PASS - P6：解锁后可切换埃及目标
+PASS - P6：大英关卡已进入
+PASS - P6：Museum.target_item_id 跟随所选目标（实际 egypt_heart_scarab）
+PASS - P6：埃及目标实际生成
+PASS - 埃及目标在独立展厅
+PASS - 展签卡不显示未解锁：商代双羊尊 · 形制与年代
+PASS - 展签卡不显示未解锁：南方青铜 · 湖南推定
+PASS - 展签卡不显示未解锁：1936 · 一次有记录的转手
+PASS - 双羊尊 3 张展签卡全部可读（实际 3）
+PASS - BM 剧情：关卡已开始
+PASS - P0-1：双羊尊旁提示为拾取/端详（当前：按 E 拾取：商代双羊尊）
+PASS - P0-1：未读标签时按 E 不开剧情对谈
+PASS - P0-1：未读标签时按 E 打开特写或已拾取
+PASS - P0-1：特写内再按 E 真正拾取双羊尊
+PASS - BM 剧情：标签关卡已开始
+PASS - 标签旁提示：显示「按 E 阅读：馆方标签」（当前：按 E 阅读：馆方标签）
+PASS - 只读标签：按 E 打开剧情对谈
+PASS - 只读标签：read_label = true
+PASS - 只读标签：read_note = false
+PASS - 只读标签：结束后不卡界面/暂停
+PASS - BM 剧情：留言关卡已开始
+PASS - 只读留言：按 E 打开剧情对谈
+PASS - 只读留言：read_note = true
+PASS - 只读留言：read_label = false
+PASS - 只读留言：结束后不卡界面/暂停
+PASS - 两张都读：留言对谈已打开
+PASS - 两张都读：自动触发双纸对谈并出现选项
+PASS - 两张都读：两个 flag 均落档
+PASS - 两张都读：结束后不卡界面/暂停
+PASS - P0-1：读完两张后按 E 不开剧情对谈
+PASS - P0-1：读完两张后按 E 仍可拾取/特写
+PASS - 重复阅读：可正常关闭、不软锁
+PASS - 都不读：flag 保持 false
+PASS - 都不读：没有自动弹出对谈
+ALL 235 CHECKS PASSED

@@ -1,0 +1,144 @@
+
+==> 文档自检（链接 / CHANGELOG 格式）
+check_docs OK（链接 130 条可达；CHANGELOG 72 个版本条目）
+
+==> 关卡数据自检（生成物与脚本同步）
+check_level OK（2 个关卡：生成物与脚本同步）
+
+==> 资源导入（新增/改动贴图与音效）
+Godot Engine v4.7.2.stable.official.ed1daf0bf - https://godotengine.org
+
+[   0% ] [90m[1mfirst_scan_filesystem[22m | Started Project initialization (5 steps)[39m[0m
+[   0% ] [90m[1mfirst_scan_filesystem[22m | Scanning file structure...[39m[0m
+[  16% ] [90m[1mfirst_scan_filesystem[22m | Loading global class names...[39m[0m
+[  33% ] [90m[1mfirst_scan_filesystem[22m | Verifying GDExtensions...[39m[0m
+[  50% ] [90m[1mfirst_scan_filesystem[22m | Creating autoload scripts...[39m[0m
+[  66% ] [90m[1mfirst_scan_filesystem[22m | Initializing plugins...[39m[0m
+[  83% ] [90m[1mfirst_scan_filesystem[22m | Starting file scan...[39m[0m
+[92m[ DONE ][39m [1mfirst_scan_filesystem[22m
+[0m
+[   0% ] [90m[1mupdate_scripts_classes[22m | Started Registering global classes... (8 steps)[39m[0m
+[   0% ] [90m[1mupdate_scripts_classes[22m | [39m[0m
+[  11% ] [90m[1mupdate_scripts_classes[22m | Hud[39m[0m
+[  22% ] [90m[1mupdate_scripts_classes[22m | MissionPhone[39m[0m
+[  33% ] [90m[1mupdate_scripts_classes[22m | Museum[39m[0m
+[  44% ] [90m[1mupdate_scripts_classes[22m | Main[39m[0m
+[  55% ] [90m[1mupdate_scripts_classes[22m | [39m[0m
+[  66% ] [90m[1mupdate_scripts_classes[22m | [39m[0m
+[  77% ] [90m[1mupdate_scripts_classes[22m | [39m[0m
+[92m[ DONE ][39m [1mupdate_scripts_classes[22m
+[0m
+[   0% ] [90m[1mloading_editor_layout[22m | Started Loading editor (5 steps)[39m[0m
+[   0% ] [90m[1mloading_editor_layout[22m | Loading editor layout...[39m[0m
+[  16% ] [90m[1mloading_editor_layout[22m | Loading docks...[39m[0m
+[  33% ] [90m[1mloading_editor_layout[22m | Reopening scenes...[39m[0m
+SCRIPT ERROR: Parse Error: Function "_fill_task()" not found in base self.
+          at: GDScript::reload (res://src/ui/mission_phone.gd:130)
+SCRIPT ERROR: Compile Error: Failed to compile depended scripts.
+          at: GDScript::reload (res://src/main.gd:0)
+ERROR: Failed to load script "res://src/main.gd" with error "Parse error".
+   at: load (modules/gdscript/gdscript_resource_format.cpp:46)
+[  50% ] [90m[1mloading_editor_layout[22m | Loading central editor layout...[39m[0m
+[  66% ] [90m[1mloading_editor_layout[22m | Loading plugin window layout...[39m[0m
+[  83% ] [90m[1mloading_editor_layout[22m | Editor layout ready.[39m[0m
+[92m[ DONE ][39m [1mloading_editor_layout[22m
+[0m
+
+✗ 输出包含引擎报错/警告：测试输出必须干净。
+  新引入的请修根因；确属无害的，才允许加入 verify.sh 的 ALLOW_RE 并写明理由。
+
+==> GDScript 编译检查（src + tests）
+Godot Engine v4.7.2.stable.official.ed1daf0bf - https://godotengine.org
+
+SCRIPT ERROR: Parse Error: Function "_fill_task()" not found in base self.
+          at: GDScript::reload (res://src/ui/mission_phone.gd:130)
+          GDScript backtrace (most recent call first):
+              [0] _check (res://tests/test_scripts.gd:65)
+              [1] _ready (res://tests/test_scripts.gd:36)
+SCRIPT ERROR: Compile Error: Failed to compile depended scripts.
+          at: GDScript::reload (res://src/main.gd:0)
+          GDScript backtrace (most recent call first):
+              [0] _check (res://tests/test_scripts.gd:65)
+              [1] _ready (res://tests/test_scripts.gd:36)
+ERROR: Failed to load script "res://src/main.gd" with error "Compilation failed".
+   at: load (modules/gdscript/gdscript_resource_format.cpp:46)
+   GDScript backtrace (most recent call first):
+       [0] _check (res://tests/test_scripts.gd:65)
+       [1] _ready (res://tests/test_scripts.gd:36)
+SCRIPT ERROR: Parse Error: Function "_fill_task()" not found in base self.
+          at: GDScript::reload (res://src/ui/mission_phone.gd:130)
+          GDScript backtrace (most recent call first):
+              [0] _check (res://tests/test_scripts.gd:69)
+              [1] _ready (res://tests/test_scripts.gd:36)
+FAIL - 可编译：res://src/ui/mission_phone.gd（错误码 43）
+SCRIPT ERROR: Parse Error: Cannot find member "clear" in base "Signal".
+          at: GDScript::reload (res://tests/test_input_flow.gd:500)
+          GDScript backtrace (most recent call first):
+              [0] _check (res://tests/test_scripts.gd:65)
+              [1] _ready (res://tests/test_scripts.gd:36)
+SCRIPT ERROR: Parse Error: Function "clear()" not found in base Signal.
+          at: GDScript::reload (res://tests/test_input_flow.gd:500)
+          GDScript backtrace (most recent call first):
+              [0] _check (res://tests/test_scripts.gd:65)
+              [1] _ready (res://tests/test_scripts.gd:36)
+ERROR: Failed to load script "res://tests/test_input_flow.gd" with error "Parse error".
+   at: load (modules/gdscript/gdscript_resource_format.cpp:46)
+   GDScript backtrace (most recent call first):
+       [0] _check (res://tests/test_scripts.gd:65)
+       [1] _ready (res://tests/test_scripts.gd:36)
+SCRIPT ERROR: Parse Error: Cannot find member "clear" in base "Signal".
+          at: GDScript::reload (res://tests/test_input_flow.gd:500)
+          GDScript backtrace (most recent call first):
+              [0] _check (res://tests/test_scripts.gd:69)
+              [1] _ready (res://tests/test_scripts.gd:36)
+SCRIPT ERROR: Parse Error: Function "clear()" not found in base Signal.
+          at: GDScript::reload (res://tests/test_input_flow.gd:500)
+          GDScript backtrace (most recent call first):
+              [0] _check (res://tests/test_scripts.gd:69)
+              [1] _ready (res://tests/test_scripts.gd:36)
+FAIL - 可编译：res://tests/test_input_flow.gd（错误码 43）
+SCRIPT ERROR: Parse Error: Could not resolve class "res://tests/test_input_flow.gd".
+          at: GDScript::reload (res://tests/test_planning_freeze.gd:1)
+          GDScript backtrace (most recent call first):
+              [0] _check (res://tests/test_scripts.gd:65)
+              [1] _ready (res://tests/test_scripts.gd:36)
+ERROR: Failed to load script "res://tests/test_planning_freeze.gd" with error "Parse error".
+   at: load (modules/gdscript/gdscript_resource_format.cpp:46)
+   GDScript backtrace (most recent call first):
+       [0] _check (res://tests/test_scripts.gd:65)
+       [1] _ready (res://tests/test_scripts.gd:36)
+SCRIPT ERROR: Parse Error: Could not resolve class "res://tests/test_input_flow.gd".
+          at: GDScript::reload (res://tests/test_planning_freeze.gd:1)
+          GDScript backtrace (most recent call first):
+              [0] _check (res://tests/test_scripts.gd:69)
+              [1] _ready (res://tests/test_scripts.gd:36)
+FAIL - 可编译：res://tests/test_planning_freeze.gd（错误码 43）
+SCRIPT ERROR: Parse Error: Unexpected "Indent" in class body.
+          at: GDScript::reload (res://tests/test_save_compat.gd:190)
+          GDScript backtrace (most recent call first):
+              [0] _check (res://tests/test_scripts.gd:65)
+              [1] _ready (res://tests/test_scripts.gd:36)
+ERROR: Failed to load script "res://tests/test_save_compat.gd" with error "Parse error".
+   at: load (modules/gdscript/gdscript_resource_format.cpp:46)
+   GDScript backtrace (most recent call first):
+       [0] _check (res://tests/test_scripts.gd:65)
+       [1] _ready (res://tests/test_scripts.gd:36)
+SCRIPT ERROR: Parse Error: Unexpected "Indent" in class body.
+          at: GDScript::reload (res://tests/test_save_compat.gd:190)
+          GDScript backtrace (most recent call first):
+              [0] _check (res://tests/test_scripts.gd:69)
+              [1] _ready (res://tests/test_scripts.gd:36)
+FAIL - 可编译：res://tests/test_save_compat.gd（错误码 43）
+FAILED 4 / 51 checks
+
+==> 逻辑单测
+Godot Engine v4.7.2.stable.official.ed1daf0bf - https://godotengine.org
+
+ALL 2549 CHECKS PASSED
+
+==> 内容一致性测试
+Godot Engine v4.7.2.stable.official.ed1daf0bf - https://godotengine.org
+
+ALL 635 CHECKS PASSED
+
+==> 输入流自检（真实按键驱动 UI 覆盖层）

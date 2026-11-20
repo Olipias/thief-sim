@@ -15,6 +15,7 @@ func _initialize() -> void:
 	_test_new_game()
 	_test_lore_progress()
 	_test_vision_cone()
+	_test_police_world_freeze()
 	_test_map()
 	_test_evidence_chains()
 	if _failures > 0:
@@ -482,3 +483,21 @@ func _test_evidence_chains() -> void:
 	if FileAccess.file_exists(path):
 		DirAccess.remove_absolute(ProjectSettings.globalize_path(path))
 	gs.free()
+
+
+func _test_police_world_freeze() -> void:
+	var police_script = load("res://src/actors/police.gd")
+	var cop = police_script.new()
+	cop.ai_enabled = false
+	cop.state = police_script.State.CHASE
+	cop._spot_timer = 0.25
+	cop._lose_timer = 1.2
+	cop._patrol_index = 2
+	cop.set_frozen(true)
+	cop.set_frozen(true)
+	check(cop.world_frozen, "守卫世界冻结可重复进入")
+	cop.set_frozen(false)
+	check(not cop.world_frozen and not cop.ai_enabled, "解冻不覆盖其他原因关闭的AI")
+	check(cop.state == police_script.State.CHASE and cop._patrol_index == 2, "解冻不重置追击状态或巡逻进度")
+	check(is_equal_approx(cop._spot_timer, 0.25) and is_equal_approx(cop._lose_timer, 1.2), "解冻不重置警觉和丢失目标计时")
+	cop.free()

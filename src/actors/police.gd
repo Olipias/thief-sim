@@ -31,6 +31,8 @@ var patrol_points: Array[Vector2] = []
 var museum: Node = null
 var active := true
 var ai_enabled := true
+## 世界暂停独立于剧情/截图关闭AI；恢复规划不能擅自重新启用其他原因关闭的AI。
+var world_frozen := false
 var state := State.PATROL
 
 var _player: Node2D = null
@@ -79,6 +81,14 @@ func set_ai_enabled(on: bool) -> void:
 	queue_redraw()
 
 
+## 规划冻结：完全暂停守卫（AI/感知/动画），退出时恢复原状态，不重置巡逻进度。
+## 与 set_ai_enabled 的区别：冻结不触发 _enter_patrol 之类的状态复位。
+func set_frozen(frozen: bool) -> void:
+	world_frozen = frozen
+	if frozen:
+		velocity = Vector2.ZERO
+
+
 func alert_level() -> int:
 	return _alert_level
 
@@ -116,7 +126,7 @@ func blind(seconds: float) -> void:
 
 
 func _physics_process(delta: float) -> void:
-	if not active:
+	if not active or world_frozen:
 		return
 	if _blind_timer > 0.0:
 		_blind_timer = maxf(0.0, _blind_timer - delta)
@@ -140,6 +150,9 @@ func _physics_process(delta: float) -> void:
 		State.CHASE:
 			_process_chase(delta)
 
+	# spotted_player可能在上面的状态更新里同步触发世界冻结。
+	if world_frozen or not active:
+		return
 	if _detour_timer > 0.0:
 		_detour_timer -= delta
 		var speed := CHASE_SPEED if state == State.CHASE else PATROL_SPEED
@@ -258,7 +271,7 @@ func _nearest_waypoint() -> int:
 
 
 ## 同一房间检查：门洞可以走，但守卫不会“隔房”看到玩家。
-func same_room(a: int, b: int) -> bool:
+static func same_room(a: int, b: int) -> bool:
 	return a < 0 or b < 0 or a == b
 
 
@@ -349,7 +362,11 @@ func _draw() -> void:
 		for i in steps + 1:
 			var angle := _facing.angle() - VISION_HALF_ANGLE + 2.0 * VISION_HALF_ANGLE * i / steps
 			points.append(Vector2.RIGHT.rotated(angle) * VISION_RANGE)
-		draw_colored_polygon(points, color)
+		# 边缘渐变：近处最亮，远端淡出（纯画面；判定仍由 in_cone 决定，见下方轮廓线）
+		var colors := PackedColorArray([Color(color.r, color.g, color.b, minf(color.a * 1.8, 0.4))])
+		for i in steps + 1:
+			colors.append(Color(color.r, color.g, color.b, color.a * 0.25))
+		draw_polygon(points, colors)
 		# 判定锥边线：手电的亮区可能比真实判定锥窄，这条线才是「会被看见」的边界
 		var outline := points.duplicate()
 		outline.append(Vector2.ZERO)

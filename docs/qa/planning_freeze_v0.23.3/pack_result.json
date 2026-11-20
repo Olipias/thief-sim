@@ -1,0 +1,34 @@
+{
+  "binary": "/tmp/thief-planning-fix-v0.23.3-unpacked/thief-sim.x86_64",
+  "checks": [
+    {
+      "passed": true,
+      "message": "发布包已通过真实按钮进入CG，未停留在标题页"
+    },
+    {
+      "passed": true,
+      "message": "发布包已实际进入有任务HUD的教学关卡"
+    },
+    {
+      "passed": true,
+      "message": "发布包规划中真实方向键不移动玩家"
+    },
+    {
+      "passed": true,
+      "message": "发布包规划中守卫与世界画面保持冻结"
+    },
+    {
+      "passed": true,
+      "message": "发布包Space执行后玩家确实移动"
+    },
+    {
+      "passed": true,
+      "message": "发布包执行后真实守卫恢复行动"
+    },
+    {
+      "passed": true,
+      "message": "发布包方向键接管后守卫继续行动"
+    }
+  ],
+  "failures": 0
+}

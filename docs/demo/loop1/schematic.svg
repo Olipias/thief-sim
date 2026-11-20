@@ -1,0 +1,53 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 490" role="img" aria-labelledby="title desc">
+<title id="title">小偷模拟器项目结构图</title><desc id="desc">玩法模块连接共享内容、确定性模拟、进度存档和测试；虚线框为待实现目标。</desc>
+<defs><marker id="arrow" markerWidth="8" markerHeight="8" refX="7" refY="4" orient="auto"><path d="M0 0 L8 4 L0 8" fill="none" stroke="#8195b5" stroke-width="1.5"/></marker></defs>
+<style>text{font-family:"Noto Sans CJK SC","Microsoft YaHei",sans-serif;fill:#edf2fc}.label{font-size:20px;font-weight:600}.sub{font-size:14px;fill:#aebcd2}.edge{fill:none;stroke:#8195b5;stroke-width:2;marker-end:url(#arrow)}</style>
+<rect width="1200" height="490" rx="16" fill="#0d1421"/>
+<text x="24" y="32" class="sub">已有代码模块 · 实线不代表全流程已验收</text>
+<path d="M230 100 H252" class="edge"/>
+<path d="M470 100 H492" class="edge"/>
+<path d="M710 100 H732" class="edge"/>
+<path d="M950 100 H972" class="edge"/>
+<path d="M195 164 H360 V143" class="edge"/>
+<path d="M600 164 V143" class="edge"/>
+<path d="M600 164 H840 V143" class="edge"/>
+<path d="M1000 164 V143" class="edge"/>
+<path d="M195 288 V321" class="edge"/>
+<path d="M600 288 V321" class="edge"/>
+<path d="M1000 288 V312 H700 V321" class="edge"/>
+<rect x="16" y="58" width="214" height="85" rx="12" fill="#141f31" stroke="#b49a64" stroke-width="2"/>
+<text x="34" y="92" class="label">签约CG / 教学</text>
+<text x="34" y="118" class="sub">每格5秒 · 可推进 / 跳过</text>
+<rect x="256" y="58" width="214" height="85" rx="12" fill="#141f31" stroke="#293d59" stroke-width="2"/>
+<text x="274" y="92" class="label">调查线索</text>
+<text x="274" y="118" class="sub">资料卡 · 检索 · 关系判断</text>
+<rect x="496" y="58" width="214" height="85" rx="12" fill="#141f31" stroke="#5eaaa8" stroke-width="2"/>
+<text x="514" y="92" class="label">路线规划 / 预演</text>
+<text x="514" y="118" class="sub">编辑路线 · 预测风险</text>
+<rect x="736" y="58" width="214" height="85" rx="12" fill="#141f31" stroke="#5eaaa8" stroke-width="2"/>
+<text x="754" y="92" class="label">潜入执行</text>
+<text x="754" y="118" class="sub">行动 · 发现反馈 · 重试</text>
+<rect x="976" y="58" width="208" height="85" rx="12" fill="#141f31" stroke="#293d59" stroke-width="2"/>
+<text x="994" y="92" class="label">剧情交付 / 分支</text>
+<text x="994" y="118" class="sub">恶魔 / 国家接收方</text>
+<rect x="16" y="181" width="360" height="107" rx="12" fill="#141f31" stroke="#293d59" stroke-width="2"/>
+<text x="34" y="215" class="label">共享内容数据</text>
+<text x="34" y="241" class="sub">evidence / lore / story</text>
+<text x="34" y="264" class="sub">史料可追溯 · 虚构单独标注</text>
+<rect x="420" y="181" width="360" height="107" rx="12" fill="#141f31" stroke="#5eaaa8" stroke-width="2"/>
+<text x="438" y="215" class="label">共享模拟内核</text>
+<text x="438" y="241" class="sub">SimPreview · 固定tick</text>
+<text x="438" y="264" class="sub">预演与执行从同一快照开始</text>
+<rect x="824" y="181" width="360" height="107" rx="12" fill="#141f31" stroke="#293d59" stroke-width="2"/>
+<text x="842" y="215" class="label">进度与存档</text>
+<text x="842" y="241" class="sub">Game · 任务 / 背包 / 旗标</text>
+<text x="842" y="264" class="sub">旧档兼容与状态检查</text>
+<rect x="16" y="334" width="764" height="107" rx="12" fill="#141f31" stroke="#667ebc" stroke-width="2"/>
+<text x="34" y="368" class="label">自动验证 → 发现问题 → 修订</text>
+<text x="34" y="394" class="sub">pytest + Godot：逻辑 / 历史边界 / 真实输入 / 截图</text>
+<text x="34" y="417" class="sub">测试对应真实代码与内容；不替代人工史料审阅</text>
+<rect x="824" y="334" width="360" height="107" rx="12" fill="#141f31" stroke="#9aa7bb" stroke-width="2" stroke-dasharray="7 5"/>
+<text x="842" y="368" class="label">后续目标设计（虚线）</text>
+<text x="842" y="394" class="sub">独立安全屋 / 实体电脑</text>
+<text x="842" y="417" class="sub">手机与门 / 箱子预约交易</text>
+<text x="24" y="475" class="sub">agent生成 · 依据当前代码与CONFIRMED_DESIGN · 完整安全屋与交易仍按ROADMAP推进</text></svg>

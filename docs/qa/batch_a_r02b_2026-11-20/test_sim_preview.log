@@ -1,0 +1,41 @@
+Godot Engine v4.7.2.stable.official.ed1daf0bf - https://godotengine.org
+
+PASS - 预演与执行 tick 数一致（20 vs 20）
+PASS - 逐 tick 状态摘要完全一致
+PASS - 事件序列一致
+PASS - 首次发现 tick 一致（20 vs 20）
+PASS - 风险路线确实触发了发现（灰盒有效性）
+PASS - 重复执行事件一致（帧率无关）
+PASS - 修改路线后预演/执行仍一致
+PASS - 预演不污染源快照（整份深比较）
+PASS - 失败场景触发发现
+PASS - 恢复快照逐字段一致
+PASS - 失败恢复后重跑同路线仍逐 tick 一致
+PASS - 噪音触发守卫调查事件
+PASS - 守卫朝噪音源移动
+PASS - 站立距离 4 被发现
+PASS - 蹲下距离 4 未被发现
+PASS - 开锁动作 40 tick 后门解锁
+PASS - 拿取动作 20 tick 后目标入包
+PASS - 执行也不污染源快照（整份深比较）
+PASS - batch=1 逐 tick 轨迹与执行一致
+PASS - batch=3 逐 tick 轨迹与执行一致
+PASS - batch=7 逐 tick 轨迹与执行一致
+PASS - batch=20 逐 tick 轨迹与执行一致
+PASS - 多噪音并发两次预演逐 tick 一致
+PASS - 多噪音并发事件序列一致
+PASS - 多噪音触发调查
+PASS - 最近噪音 (5,5) 优先（实际 (5, 5)）
+PASS - 长路线产生了足够 tick（5000）
+PASS - 长路线两次预演逐 tick 一致
+PASS - 长路线事件序列一致
+PASS - restore_full 完整还原（含 tick/守卫等待/监控相位/噪音）
+PASS - 非门口执行 unlock 不应开门
+PASS - 门口门锁保持锁定
+PASS - 噪音调查结束后守卫回到巡逻态（实际 alert=0）
+PASS - TICK_RATE 固定 20
+PASS - sim_preview.gd 不调用随机数
+PASS - 多守卫/监控场景触发发现
+PASS - 监控摄像头也被纳入发现归因
+PASS - 墙体遮挡时不应发现玩家
+ALL 38 CHECKS PASSED

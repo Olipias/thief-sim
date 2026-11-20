@@ -44,25 +44,46 @@ func _ready() -> void:
 	main.collection.close()
 	await _wait(0.2)
 
-	main.show_menu()
+	main.show_safehouse()
 	await _wait(0.6)
-	await _shot("/tmp/shot_hub.png")
+	await _shot("/tmp/shot_safehouse.png")
+
+	# 安全屋设备：书桌电脑覆盖层（R-01）
+	main._open_computer()
+	await _wait(0.3)
+	await _shot("/tmp/shot_computer.png")
+	main.computer.close()
+	await _wait(0.2)
+
 	var intro := ContractIntro.new()
 	main.ui_layer.add_child(intro)
-	intro.elapsed = 69.0
+	intro.panel_index = 4
+	intro._refresh()
 	intro.set_process(false)
 	intro.queue_redraw()
 	await _wait(0.2)
 	await _shot("/tmp/shot_contract_intro.png")
+	for page in range(OpeningCG.PANELS.size()):
+		intro.panel_index = page
+		intro._refresh()
+		await _wait(0.1)
+		await _shot("/tmp/shot_contract_intro_%02d.png" % (page + 1))
 	intro.queue_free()
 
-	main._hub._show_tab("reason")
+	# 旧 Hub 推理板内容改用独立宿主截图（正式流程已不进入旧栏目页）
+	var hub := (load("res://src/ui/hub.tscn") as PackedScene).instantiate() as Hub
+	main.ui_layer.add_child(hub)
+	hub._show_tab("reason")
 	for cid in EvidenceData.chain_ids():
 		for clue in Game.clues_for_chain(cid):
 			Game.collect_clue(clue.id)
-	main._hub._on_reason_app_selected("board")
+	hub._on_reason_app_selected("board")
 	await _wait(0.3)
 	await _shot("/tmp/shot_evidence_board.png")
+	hub.queue_free()
+	await _wait(0.2)
+
+	# 手机：通讯录 / 日历（安全屋内打开；安全屋手机同样暂停世界）
 	main.open_phone()
 	main.phone._show_tab("通讯录")
 	await _wait(0.3)
@@ -71,13 +92,12 @@ func _ready() -> void:
 	await _wait(0.3)
 	await _shot("/tmp/shot_calendar.png")
 	main.phone.close()
+	await _wait(0.2)
 	for id in ["egypt_heart_scarab", "akrotiri_askos"]:
 		main.relic_closeup.open(id, false)
 		await _wait(0.5)
 		await _shot("/tmp/shot_pack_%s.png" % id)
 		main.relic_closeup.close()
-	main._hub._show_tab("levels")
-
 
 	main.start_mission()
 	await _wait(0.6)
@@ -118,6 +138,9 @@ func _ready() -> void:
 	museum.player.use_item("smoke")
 	await _wait(0.25)
 	await _shot("/tmp/shot_smoke.png")
+	# 此后截图固定关闭AI；规划冻结/恢复应保留这个独立开关。
+	for p_cop in museum.police:
+		p_cop.set_ai_enabled(false)
 
 	# 路线预演：规划模式 + 节点连线 + 预测标签（清掉 smoke toast 保持画面干净）
 	main.hud.clear_toast()
@@ -131,9 +154,7 @@ func _ready() -> void:
 	await _shot("/tmp/shot_planning.png")
 	museum.toggle_planning_mode(false)
 	await _wait(0.2)
-	# 退出规划模式会恢复守卫 AI；截图流程继续需要冻结守卫。
-	for p_cop in museum.police:
-		p_cop.set_ai_enabled(false)
+	# 退出规划不再覆盖截图固定关闭的AI，也不会额外跑动0.2秒。
 
 	# 任务终端（手机）
 	main.open_phone()
@@ -185,7 +206,7 @@ func _ready() -> void:
 		await _wait(0.2)
 
 	# 大英博物馆·中国馆：目标「商代双羊尊」
-	main.show_menu()
+	main.show_safehouse()
 	await _wait(0.3)
 	main.start_mission("british_museum")
 	await _wait(0.6)
@@ -267,19 +288,16 @@ func _ready() -> void:
 		await _shot("/tmp/shot_bm_both.png", true)
 		_skip_dialogue_tree(main)
 		await _wait(0.2)
-	# 据点：销赃页
+	# 安全屋：文物箱（箱内战利品过渡直售，R-05 换手机预约交货）
 	var stash: Array[String] = ["vase", "gem", "jade"]
 	Game.loot_stash = stash
-	main.show_menu()
+	main.show_safehouse()
 	await _wait(0.4)
-	var hub: Hub = null
-	for child in main.get_node("UILayer").get_children():
-		if child is Hub:
-			hub = child
-	if hub != null:
-		hub._show_tab("sell")
-		await _wait(0.3)
-		await _shot("/tmp/shot_sell.png")
+	main._open_box()
+	await _wait(0.3)
+	await _shot("/tmp/shot_box.png")
+	main.box.close()
+	await _wait(0.2)
 
 	Audio.shutdown()
 	# 与冒烟测试相同的优雅退出：等音频服务端释放引用、再跑几帧，避免退出时误报泄漏

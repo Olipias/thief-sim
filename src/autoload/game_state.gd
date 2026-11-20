@@ -5,9 +5,15 @@ extends Node
 signal backpack_changed
 signal money_changed
 signal items_changed
+signal pending_mission_changed(level_id: String)
 
 const MISSION_REWARD := 200
 const DEFAULT_SAVE_PATH := "user://save.json"
+
+## 行动结算类型
+const OUTCOME_SUCCESS := "success"
+const OUTCOME_RECON := "recon"
+const OUTCOME_CAUGHT := "caught"
 
 ## 关卡注册表：id → 名称 / 地图数据 / 任务目标文物 / 组织报酬。
 ## 新增关卡时在此登记，并保证目标文物在 CATALOG 中 is_target=true。
@@ -209,10 +215,21 @@ var story_flags: Dictionary = {}
 ## 据点仓库：成功带出但尚未出售的战利品（item_id 列表，玩家在「销赃」页自行决定是否出手）
 var loot_stash: Array[String] = []
 
+## R-04 待出发行动：手机「委托」确认后记录的 level_id（"" = 未准备）。
+## 出发门禁：安全屋房门只放行已准备的行动；出发时消费（清空），返回安全屋后重新准备。
+## 只增字段进存档：老档缺该键默认 ""（读写见 _restore_pending_mission）。
+var pending_mission_level := ""
+
 ## 文物档案收集：玩家在行动中接触过的文物 id（标题页「文物档案」收集册的解锁依据）
 var archive_seen: Dictionary = {}
 
-## Items currently carried: {id: String, x: int, y: int, rot: int}
+## 跨次探索知识：level_id → { zone_index: true }。zone 0..rooms.size()-1 为房间，后续为 corridor floor rect。
+var level_visited_rooms: Dictionary = {}
+
+## 已带出的普通战利品实例：level_id → ["level:x,y", ...]，防止同一实例重复刷新。
+var level_taken_items: Dictionary = {}
+
+## Items currently carried: {id: String, x: int, y: int, rot: int, instance_id?: String}
 var bag_items: Array[Dictionary] = []
 var mission_complete := false
 
@@ -347,6 +364,9 @@ func place_item(item: Dictionary, gx: int, gy: int, rot: int) -> bool:
 	if not bag_can_place(item_id, rot, gx, gy):
 		return false
 	var placed := {"id": item_id, "x": gx, "y": gy, "rot": rot}
+	var instance_id := String(item.get("instance_id", ""))
+	if not instance_id.is_empty():
+		placed["instance_id"] = instance_id
 	bag_items.append(placed)
 	_recompute_mission()
 	backpack_changed.emit()
@@ -393,6 +413,12 @@ func has_save() -> bool:
 func start_new_game() -> void:
 	reset_progress()
 	save_game()
+
+
+func level_name_of(level_id: String) -> String:
+	if not LEVELS.has(level_id):
+		return level_id
+	return String((LEVELS[level_id] as Dictionary).get("name", level_id))
 
 
 func level_info() -> Dictionary:
@@ -442,13 +468,17 @@ func item_is_target(item_id: String) -> bool:
 
 
 ## Auto-places the item into the grid (tries both rotations).
-func try_pickup(item_id: String) -> bool:
+## instance_id 用于普通战利品跨次反刷；主目标可空。
+func try_pickup(item_id: String, instance_id := "") -> bool:
 	if current_level_id == "british_museum" and (not bag_items.is_empty() or item_id != mission_target_id):
 		return false
 	var fit := bag_auto_fit(item_id)
 	if fit["x"] < 0:
 		return false
-	if not place_item({"id": item_id}, int(fit["x"]), int(fit["y"]), int(fit["rot"])):
+	var payload := {"id": item_id}
+	if not instance_id.is_empty():
+		payload["instance_id"] = instance_id
+	if not place_item(payload, int(fit["x"]), int(fit["y"]), int(fit["rot"])):
 		return false
 	# 第一次接触 = 归档（即便之后被抓/丢掉，档案页也保留这一页）
 	if not archive_seen.has(item_id):
@@ -465,57 +495,99 @@ func loot_value() -> int:
 
 
 ## Settles the run and returns a summary for the result screen.
+## 保留旧 bool 签名做兼容：true = 成功带出目标，false = 被逮捕。
 func finish_run(success: bool) -> Dictionary:
+	return finish_run_outcome(OUTCOME_SUCCESS if success else OUTCOME_CAUGHT)
+
+
+## 三结局结算：成功带出目标 / 侦察撤离 / 被逮捕。
+## outcome: OUTCOME_SUCCESS | OUTCOME_RECON | OUTCOME_CAUGHT
+func finish_run_outcome(outcome: String) -> Dictionary:
 	var summary := {
 		"success": false,
+		"recon": false,
 		"stash_items": [],
 		"stash_value": 0,
 		"reward": 0,
 		"target_name": "",
 		"money_total": money,
+		"outcome": outcome,
 	}
-	if not success:
-		# 被逮捕：本次携带的赃物全部没收，且立刻落盘——
-		# 否则上次拾取时的自动存档会让赃物在"退出重开"后复活。
-		bag_items.clear()
-		mission_complete = false
-		backpack_changed.emit()
-		save_game()
-		return summary
-	if not mission_complete:
-		# 守卫：调用方若在未带出目标时上报成功，不做任何结算（正常流程不会到这）
-		return summary
-
-	var taken: Array[Dictionary] = []
-	for item in bag_items:
-		var id := String(item["id"])
-		if id != mission_target_id:
-			taken.append({"name": item_name(id), "value": item_value(id)})
-			loot_stash.append(id)
-		else:
-			summary["target_name"] = item_name(id)
-	var stash_value := 0
-	for item in taken:
-		stash_value += int(item["value"])
-	var reward := mission_reward()
-	money += reward
-	# 赃物不再自动出售：全部存入据点仓库，由玩家在「销赃」页决定
-	bag_items.clear()
-	mission_complete = false
-	# 记录关卡完成，用于据点剧情（H-01 等）触发判定。
-	if current_level_id == "museum":
-		set_story_flag("completed_museum")
-	elif current_level_id == "british_museum":
-		set_story_flag("completed_british_museum")
-	summary["success"] = true
-	summary["stash_items"] = taken
-	summary["stash_value"] = stash_value
-	summary["reward"] = reward
-	summary["money_total"] = money
-	money_changed.emit()
-	backpack_changed.emit()
-	save_game()
-	return summary
+	match outcome:
+		OUTCOME_CAUGHT:
+			# 被逮捕：本次携带的赃物全部没收，且立刻落盘——
+			# 否则上次拾取时的自动存档会让赃物在"退出重开"后复活。
+			bag_items.clear()
+			mission_complete = false
+			backpack_changed.emit()
+			save_game()
+			return summary
+		OUTCOME_RECON:
+			# 侦察撤离：普通战利品入箱，不记主任务完成，不拿报酬。
+			var taken: Array[Dictionary] = []
+			for item in bag_items:
+				var id := String(item["id"])
+				taken.append({"name": item_name(id), "value": item_value(id)})
+				loot_stash.append(id)
+				var instance_id := String(item.get("instance_id", ""))
+				if not instance_id.is_empty():
+					mark_item_taken(current_level_id, instance_id)
+			var stash_value := 0
+			for item in taken:
+				stash_value += int(item["value"])
+			bag_items.clear()
+			mission_complete = false
+			summary["recon"] = true
+			summary["stash_items"] = taken
+			summary["stash_value"] = stash_value
+			money_changed.emit()
+			backpack_changed.emit()
+			save_game()
+			return summary
+		OUTCOME_SUCCESS:
+			if not mission_complete:
+				# 守卫：调用方若在未带出目标时上报成功，不做任何结算（正常流程不会到这）
+				return summary
+			var taken: Array[Dictionary] = []
+			for item in bag_items:
+				var id := String(item["id"])
+				var instance_id := String(item.get("instance_id", ""))
+				if id != mission_target_id:
+					taken.append({"name": item_name(id), "value": item_value(id)})
+					loot_stash.append(id)
+				else:
+					summary["target_name"] = item_name(id)
+				if not instance_id.is_empty():
+					mark_item_taken(current_level_id, instance_id)
+			var stash_value := 0
+			for item in taken:
+				stash_value += int(item["value"])
+			var reward := mission_reward()
+			money += reward
+			# 赃物不再自动出售：全部存入据点仓库，由玩家在「销赃」页决定
+			bag_items.clear()
+			mission_complete = false
+			# 记录关卡完成，用于据点剧情（H-01 等）触发判定。
+			if current_level_id == "museum":
+				set_story_flag("completed_museum")
+			elif current_level_id == "british_museum":
+				set_story_flag("completed_british_museum")
+			summary["success"] = true
+			summary["stash_items"] = taken
+			summary["stash_value"] = stash_value
+			summary["reward"] = reward
+			summary["money_total"] = money
+			money_changed.emit()
+			backpack_changed.emit()
+			save_game()
+			return summary
+		_:
+			# 未知 outcome 按被捕处理，避免状态悬空。
+			bag_items.clear()
+			mission_complete = false
+			backpack_changed.emit()
+			save_game()
+			return summary
 
 
 ## --- 文物档案收集 ------------------------------------------------------------
@@ -663,6 +735,9 @@ func save_game() -> void:
 		"loot_stash": loot_stash,
 		"archive_seen": archive_seen,
 		"bm_selected_target": bm_selected_target,
+		"pending_mission_level": pending_mission_level,
+		"level_visited_rooms": level_visited_rooms,
+		"level_taken_items": level_taken_items,
 	})
 	# 原子写：先写 .tmp 再改名覆盖。写到一半崩溃时主档保持上一次的完整状态，
 	# 不会出现"半截 JSON → 读档失败 → 玩家进度归零"。
@@ -726,6 +801,9 @@ func load_game() -> void:
 	_restore_story_flags(data.get("story_flags", {}))
 	_restore_stash(data.get("loot_stash", []))
 	_restore_archive(data.get("archive_seen", {}))
+	_restore_level_visited(data.get("level_visited_rooms", {}))
+	_restore_level_taken(data.get("level_taken_items", {}))
+	_restore_pending_mission(data.get("pending_mission_level", ""))
 	bm_selected_target = _migrate_selected_target(str(data.get("bm_selected_target", "ram_zun")))
 	money_changed.emit()
 	items_changed.emit()
@@ -734,6 +812,31 @@ func load_game() -> void:
 
 ## 文物志进度恢复（JSON 数值是 float，统一转 int）。
 ## 防御式读取：脏档里的非法类型（字典/数组等）跳过，绝不在加载时抛错。
+func _restore_pending_mission(saved: Variant) -> void:
+	# 只接受合法关卡 id；老档缺省 / 脏数据一律视为未准备。
+	var level := str(saved) if typeof(saved) == TYPE_STRING else ""
+	pending_mission_level = level if LEVELS.has(level) else ""
+
+
+## 手机「委托」确认行动：记录待出发关卡（出发门禁依据），返回是否成功。
+func prepare_mission(level_id: String) -> bool:
+	if not LEVELS.has(level_id):
+		return false
+	pending_mission_level = level_id
+	pending_mission_changed.emit(level_id)
+	save_game()
+	return true
+
+
+## 出发时消费 / 玩家取消准备。
+func clear_pending_mission() -> void:
+	if pending_mission_level == "":
+		return
+	pending_mission_level = ""
+	pending_mission_changed.emit("")
+	save_game()
+
+
 func _restore_lore(saved_stage: Variant, saved_found: Variant) -> void:
 	lore_stage.clear()
 	if typeof(saved_stage) == TYPE_DICTIONARY:
@@ -784,6 +887,78 @@ func _restore_archive(saved: Variant) -> void:
 		var id := str(key)
 		if CATALOG.has(id) and _as_bool(saved[key], false):
 			archive_seen[id] = true
+
+
+func _restore_level_visited(saved: Variant) -> void:
+	level_visited_rooms.clear()
+	if typeof(saved) != TYPE_DICTIONARY:
+		return
+	for level_id in saved:
+		var src: Variant = saved[level_id]
+		if typeof(src) != TYPE_DICTIONARY:
+			continue
+		var room_map := {}
+		for room_idx in src:
+			if _as_bool(src[room_idx], false):
+				room_map[int(room_idx)] = true
+		level_visited_rooms[str(level_id)] = room_map
+
+
+func _restore_level_taken(saved: Variant) -> void:
+	level_taken_items.clear()
+	if typeof(saved) != TYPE_DICTIONARY:
+		return
+	for level_id in saved:
+		var src: Variant = saved[level_id]
+		if typeof(src) != TYPE_ARRAY:
+			continue
+		var list: Array[String] = []
+		for v in src:
+			if typeof(v) == TYPE_STRING:
+				list.append(str(v))
+		level_taken_items[str(level_id)] = list
+
+
+## --- 跨次探索：房间已探与普通战利品实例 ----------------------------------
+
+func is_room_visited(level_id: String, room_idx: int) -> bool:
+	var map: Dictionary = level_visited_rooms.get(level_id, {})
+	return bool(map.get(room_idx, false))
+
+
+func mark_room_visited(level_id: String, room_idx: int) -> void:
+	if not level_visited_rooms.has(level_id):
+		level_visited_rooms[level_id] = {}
+	var map: Dictionary = level_visited_rooms[level_id]
+	if not bool(map.get(room_idx, false)):
+		map[room_idx] = true
+		save_game()
+
+
+func taken_instance_ids(level_id: String) -> Array[String]:
+	var list: Array = level_taken_items.get(level_id, [])
+	if typeof(list) != TYPE_ARRAY:
+		return []
+	var out: Array[String] = []
+	for v in list:
+		if typeof(v) == TYPE_STRING:
+			out.append(str(v))
+	return out
+
+
+func is_item_taken(level_id: String, instance_id: String) -> bool:
+	return instance_id in taken_instance_ids(level_id)
+
+
+func mark_item_taken(level_id: String, instance_id: String) -> void:
+	if instance_id.is_empty():
+		return
+	if not level_taken_items.has(level_id):
+		level_taken_items[level_id] = []
+	var list: Array = level_taken_items[level_id]
+	if not list.has(instance_id):
+		list.append(instance_id)
+		save_game()
 
 
 ## --- 文物志（器灵对谈 / 端详）---------------------------------------------
@@ -994,12 +1169,18 @@ func _restore_bag(saved: Variant) -> void:
 		var x := _as_int(entry.get("x", -1), -1)
 		var y := _as_int(entry.get("y", -1), -1)
 		var rot := posmod(_as_int(entry.get("rot", 0)), 4)
+		var instance_id := str(entry.get("instance_id", ""))
+		var placed := {}
 		if x >= 0 and y >= 0 and bag_can_place(id, rot, x, y):
-			bag_items.append({"id": id, "x": x, "y": y, "rot": rot})
+			placed = {"id": id, "x": x, "y": y, "rot": rot}
 		else:
 			var fit := bag_auto_fit(id)
 			if fit["x"] >= 0:
-				bag_items.append({"id": id, "x": fit["x"], "y": fit["y"], "rot": fit["rot"]})
+				placed = {"id": id, "x": fit["x"], "y": fit["y"], "rot": fit["rot"]}
+		if not placed.is_empty():
+			if not instance_id.is_empty():
+				placed["instance_id"] = instance_id
+			bag_items.append(placed)
 		if item_is_target(id):
 			mission_complete = true
 
@@ -1014,8 +1195,11 @@ func reset_progress() -> void:
 	lore_found.clear()
 	loot_stash.clear()
 	archive_seen.clear()
+	pending_mission_level = ""
 	story_flags.clear()
 	bm_selected_target = "ram_zun"
+	level_visited_rooms.clear()
+	level_taken_items.clear()
 	reset_run()
 
 

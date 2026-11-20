@@ -172,6 +172,22 @@ func _check_invariants(step: int) -> void:
 
 	# 5) 路线预演系统状态一致性
 	if m != null:
+		if m.planning_mode and (m.executing_plan or m.failure_replay):
+			_fail(step, "规划、执行、失败回放状态互斥被破坏")
+			return
+		for cop in m.police:
+			if is_instance_valid(cop) and cop.world_frozen != m.is_world_frozen():
+				_fail(step, "守卫冻结状态与世界状态不一致，可能发生永久定身")
+				return
+		if m.is_world_frozen() and m.player != null and m.player.auto_moving:
+			_fail(step, "世界冻结时玩家仍在自动移动")
+			return
+		if m.is_world_frozen() and m.player != null and m.player.can_process():
+			_fail(step, "世界冻结时玩家节点仍在处理输入/物理")
+			return
+		if not m.is_world_frozen() and not m._frozen_process_modes.is_empty():
+			_fail(step, "世界恢复后仍残留冻结节点")
+			return
 		if m.planned_points.size() > m.MAX_PLAN_POINTS:
 			_fail(step, "规划节点数超过上限：%d > %d" % [m.planned_points.size(), m.MAX_PLAN_POINTS])
 			return
@@ -181,8 +197,8 @@ func _check_invariants(step: int) -> void:
 		if m.failure_replay and m.player != null and m.player.controls_enabled:
 			_fail(step, "失败回放中玩家控制未冻结")
 			return
-		if m.executing_plan and m.player != null and not m.player.auto_moving and not m.player.controls_enabled:
-			# 执行模式中被玩家接管后 auto_moving 会停，controls_enabled 应为 true；
+		if m.executing_plan and m.player != null and not m.player.auto_moving and not m.player.sim_driven and not m.player.controls_enabled:
+			# 执行模式中被玩家接管后 auto_moving/sim_driven 会停，controls_enabled 应为 true；
 			# 若 controls_enabled 为 false 却仍然停在执行态，说明控制被异常冻结。
 			_fail(step, "执行模式玩家控制被异常冻结")
 			return
@@ -244,7 +260,7 @@ func _ready() -> void:
 			and not _any_overlay_open()
 			and not main._busy
 		):
-			main.show_menu()
+			main.show_safehouse()
 			await _frames(2)
 			await _enter_level(true)
 		# 定期：如果已经不在关卡里（被逮/撤离进入结算或菜单），换一关保持覆盖

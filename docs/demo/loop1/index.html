@@ -1,0 +1,240 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>小偷模拟器 · Loop 1 课堂展示</title>
+<style>
+  * { box-sizing: border-box; }
+  html, body {
+    margin: 0; padding: 0;
+    background: #0b0f17;
+    color: #e5e9f0;
+    font-family: "Noto Sans CJK SC", "Microsoft YaHei", "PingFang SC", sans-serif;
+    line-height: 1.6;
+  }
+  body { padding: 24px; max-width: 1200px; margin: 0 auto; }
+  header { margin-bottom: 18px; }
+  h1 { font-size: 24px; margin: 0 0 6px; color: #f4d48a; }
+  .sub { font-size: 13px; color: #9aa7bb; }
+  nav {
+    display: flex;
+    gap: 8px;
+    margin-bottom: 18px;
+    border-bottom: 1px solid #293d59;
+    padding-bottom: 8px;
+  }
+  nav button {
+    background: #141f31;
+    border: 1px solid #293d59;
+    color: #aebcd2;
+    padding: 8px 18px;
+    cursor: pointer;
+    border-radius: 6px 6px 0 0;
+    font-size: 14px;
+  }
+  nav button.active {
+    background: #1e324d;
+    color: #f4d48a;
+    border-color: #b49a64;
+    border-bottom-color: #1e324d;
+  }
+  .page { display: none; }
+  .page.active { display: block; }
+  .card {
+    background: #141f31;
+    border: 1px solid #293d59;
+    border-radius: 10px;
+    padding: 18px 22px;
+    margin-bottom: 16px;
+  }
+  .card h2 { font-size: 18px; color: #f4d48a; margin-top: 0; }
+  .card h3 { font-size: 15px; color: #c9d6ec; margin: 16px 0 6px; }
+  .quote {
+    border-left: 3px solid #b49a64;
+    padding-left: 12px;
+    color: #d7e0f0;
+    margin: 10px 0;
+  }
+  .meta { font-size: 12px; color: #7a8aa8; margin-top: 8px; }
+  table { width: 100%; border-collapse: collapse; font-size: 13px; }
+  th, td { border: 1px solid #293d59; padding: 8px 10px; text-align: left; vertical-align: top; }
+  th { background: #1a2638; color: #f4d48a; }
+  svg, .schematic { max-width: 100%; height: auto; display: block; }
+  .hint {
+    margin-top: 18px;
+    font-size: 12px;
+    color: #7a8aa8;
+  }
+  a { color: #8ab4c7; }
+  body { font-size: 15px; }
+  #qa.active { display: grid; grid-template-columns: repeat(3,minmax(0,1fr)); gap: 16px; }
+  #qa .hint { grid-column: 1 / -1; }
+  #qa .quote { font-size: 18px; }
+  #qa .card { margin-bottom: 0; }
+  #goal .card { padding: 12px 18px; margin-bottom: 12px; }
+  #goal p { margin: 8px 0; }
+  #goal table { font-size: 12px; }
+  #goal td, #goal th { padding: 5px 8px; }
+  .schematic { max-height: calc(100vh - 260px); width: 100%; object-fit: contain; }
+  @media(max-width:800px) { #qa.active { grid-template-columns: 1fr; } }
+</style>
+</head>
+<body>
+<header>
+  <h1>小偷模拟器 · Loop 1：从需求到模块结构</h1>
+  <div class="sub">离线展示页 · 点击页签或按 ← → 方向键切换</div>
+</header>
+
+<nav id="tabs">
+  <button class="active" data-page="qa" aria-selected="true">需求讨论</button>
+  <button data-page="goal" aria-selected="false">目标与计划</button>
+  <button data-page="schema" aria-selected="false">项目结构图</button>
+  <button data-page="agents" aria-selected="false">Agent 协作进展</button>
+</nav>
+
+<main>
+  <section id="qa" class="page active">
+    <div class="card">
+      <h2>1. 如何控制范围与开工时机？</h2>
+      <div class="quote">“先plan一下吧，目前没多少额度了，提出方案直到是我想要的，先不开始实际开发”</div>
+      <p>决策：先讨论并确认方案，再同步 <a href="../../CONFIRMED_DESIGN.md">CONFIRMED_DESIGN</a> 与 <a href="../../../GDD.md">GDD</a>；后续开发按 <a href="../../ROADMAP.md">ROADMAP</a> 认领，一次只推进明确主线，避免继续旧实现方向。</p>
+      <div class="meta">证据：CONFIRMED_DESIGN.md、ROADMAP.md、plan.md。课堂可另开原始聊天定位“先plan一下吧”进行对照。</div>
+    </div>
+
+    <div class="card">
+      <h2>2. 三件主要文物和普通战利品如何区分？</h2>
+      <div class="quote">“三件主要文物是走剧情的，要么上交给恶魔要么给对应国家，其他普通文物app上即可出售”</div>
+      <p>决策：主要三文物保持剧情交付；普通文物采用“存箱 → 预约 → 取出 → 门口交付”的目标设计。箱子、门外交易等仍按 ROADMAP 待实施。</p>
+      <div class="meta">证据：CONFIRMED_DESIGN.md 中的文物箱、普通交易与主线交付。原始聊天可定位“三件主要文物是走剧情的”。</div>
+    </div>
+
+    <div class="card">
+      <h2>3. 开场如何兼顾演出与玩家控制？</h2>
+      <div class="quote">“每隔5秒自动出现下一部分的，也可以玩家自己按space操控，也要有skip键”</div>
+      <p>决策：用户指定 q6 六格图补短对白；每格 5 秒自动推进，Space / E / 点击推进，Skip 直接进入教学。已接入代码并有独立真实输入测试与时长记录。</p>
+      <div class="meta">证据：<a href="../../art_direction/storyboard/OPENING_CG_HANDOFF.md">开场交接</a>、src/ui/contract_intro.gd、tests/test_opening_cg.gd。原始聊天可定位“每隔5秒”。</div>
+    </div>
+
+    <div class="hint">本页是事后整理的决策索引，不是 Plan-mode 导出。展示时请同时打开原始聊天窗口，至少展示一条用户原话及附近上下文。</div>
+  </section>
+
+  <section id="goal" class="page">
+    <div class="card">
+      <h2>项目目标声明</h2>
+      <p>用 Godot 制作一个以文物调查与路线预演为核心的中文潜行游戏：玩家查阅可追溯资料、区分史实与虚构，规划并执行潜入路线，再作出剧情交付选择。</p>
+      <p>本次课堂展示实际桌面试玩版本，以及需求讨论 → 确认方案 → 实现计划 → 模块图的过程。后续自动测试与反馈属于 Loop 2–4，不把计划中的功能称为已经完成。</p>
+    </div>
+
+    <div class="card">
+      <h2>展示目标与核验依据</h2>
+      <table>
+        <tr><th>展示目标</th><th>可核验依据</th><th>范围边界</th></tr>
+        <tr>
+          <td>从用户讨论形成设计决策</td>
+          <td>原始聊天、docs/demo/loop1/QA.md、docs/CONFIRMED_DESIGN.md</td>
+          <td>QA.md 是回溯摘录，不是完整 Plan-mode 导出</td>
+        </tr>
+        <tr>
+          <td>明确开发次序</td>
+          <td>plan.md、docs/ROADMAP.md、docs/DETERMINISTIC_PREVIEW.md</td>
+          <td>先验证确定性预演，再逐项完善房间与设备</td>
+        </tr>
+        <tr>
+          <td>可解释的路线预演</td>
+          <td>src/sim/sim_preview.gd、tests/test_sim_preview.gd</td>
+          <td>灰盒一致性测试不等于整个游戏全部行为已验证</td>
+        </tr>
+        <tr>
+          <td>真实资料与虚构剧情分界</td>
+          <td>docs/CONTENT_REVIEW.md、docs/SOURCES.md、tests/demo/test_history.py</td>
+          <td>自动检查不替代人工史料审阅</td>
+        </tr>
+        <tr>
+          <td>展示 agent 生成的项目图</td>
+          <td>docs/demo/loop1/schematic.svg 及 schematic.mmd</td>
+          <td>图中虚线是待实现设计，不能称为当前已玩到的流程</td>
+        </tr>
+      </table>
+    </div>
+
+    <div class="card">
+      <h2>本轮不作完成声明的项目</h2>
+      <p>独立安全屋、实体电脑、手机接任务后走门出发、箱子预约交易，按 ROADMAP 逐项实施与验收。</p>
+      <div class="meta">完整计划见根目录 <a href="../../../plan.md">plan.md</a>；目标声明见 <a href="../../../goal.md">goal.md</a>。</div>
+    </div>
+  </section>
+
+  <section id="schema" class="page">
+    <div class="card">
+      <h2>项目结构图（agent 生成）</h2>
+      <img class="schematic" src="schematic.svg" alt="agent生成的项目结构图：玩法模块、共享内容、确定性模拟、存档与自动测试；虚线为待实现的安全屋与设备。">
+    </div>
+    <div class="hint">图中实线仅表示存在代码模块，不代表所有关卡和全部剧情已验收；虚线区域为待实现的完整安全屋、手机门口出发与箱子交易。</div>
+  </section>
+
+  <section id="agents" class="page">
+    <div class="card">
+      <h2>Agent 协作与显著进展</h2>
+      <p>以下内容来自 <code>#thief</code> 共享频道的真实历史消息（通过 <code>agentchattr</code> 读取），展示 plan / code / test / art / codex / opencode 并行完成的设计决策、实现批次与验收结果。</p>
+    </div>
+
+    <div class="card">
+      <h2>关键设计决策</h2>
+      <div class="quote">plan #463：彻底移除文物幽灵 / 鬼魂哀嚎 / 器灵对谈机制；核心玩法锁定为「路线预演（规划—执行—失败回放）」+「零倒计时」。</div>
+      <div class="quote">用户原话：三件主要文物是走剧情的，要么上交给恶魔要么给对应国家，其他普通文物 app 上即可出售。</div>
+      <div class="meta">这些决策被同步进 <a href="../../CONFIRMED_DESIGN.md">CONFIRMED_DESIGN.md</a> 与 <a href="../../../plan.md">plan.md</a>，并驱动后续 R 任务拆分。</div>
+    </div>
+
+    <div class="card">
+      <h2>已交付批次（节选）</h2>
+      <table>
+        <tr><th>版本</th><th>负责人</th><th>内容</th><th>验收</th></tr>
+        <tr><td>v0.20.0</td><td>code</td><td>移除幽灵/器灵系统 + Batch 1 叙事闭环（开场、推理板、三结局、三目标注册）</td><td>--fast 13 / --visual 17 全绿</td></tr>
+        <tr><td>v0.20.1</td><td>code</td><td>路线预演系统 P1：蹲下、Tab/R 规划节点、Space 执行、失败红线回放</td><td>--fast 13 / --visual 17 全绿</td></tr>
+        <tr><td>v0.20.2/3</td><td>code + test</td><td>零器灵残留、鼠标坐标转换、安全回退点、展签卡全解锁</td><td>test_input_flow 157/157、test_content 491/491、--visual 17/17</td></tr>
+        <tr><td>v0.22.0/1</td><td>plan + code + test</td><td>确定性预演灰盒：固定 tick 内核、同快照、34 项一致性/压力测试</td><td>test_sim_preview 34/34、--fast 14/14</td></tr>
+        <tr><td>v0.22.4–7</td><td>plan / code</td><td>预演接入真实关卡、桌面包导出、pytest 自动化、Excalidraw 分镜</td><td>对应测试与导出验证通过</td></tr>
+        <tr><td>v0.23.0</td><td>codex</td><td>q6 六格开场 CG：5 秒自动/Space/E/点击推进、Skip、结束直连教学</td><td>test_opening_cg 15/15、自动播完 29.933 秒</td></tr>
+        <tr><td>v0.23.1</td><td>opencode</td><td>标题 UI 移到封面右侧黑色区域、规划冻结修复、重新打包</td><td>--visual 18/18 全绿</td></tr>
+      </table>
+    </div>
+
+    <div class="card">
+      <h2>真实协作模式</h2>
+      <p>plan 派发任务 → code 实现 → test 独立复核并发现缺陷 → code 修复 → test 再验证 → art 待命配合。例如 v0.20.3 流程：</p>
+      <ol>
+        <li>plan #508 列出必须修复的 5 项细节。</li>
+        <li>code #511 回复“收到，开始执行”。</li>
+        <li>test #513 提前补上红测试，明确验收标准。</li>
+        <li>code #515 提交修复，跑 <code>--visual</code> 更新基线。</li>
+        <li>test #517 独立复核，确认核心 P0/P1 通过，并提出 P2 细节建议。</li>
+      </ol>
+    </div>
+
+    <div class="card">
+      <h2>未实现部分</h2>
+      <p>独立可走动安全屋、房内实体电脑、手机接任务后走到门口才出发、箱子预约交易、三件主文物完整剧情交付分支、固定结局声明，仍按 <a href="../../docs/ROADMAP.md">ROADMAP</a> 逐项推进。</p>
+      <div class="meta">完整 agent 协作记录见 <a href="agent_progress.md">agent_progress.md</a>。</div>
+    </div>
+  </section>
+</main>
+
+<script>
+  const tabs = document.querySelectorAll('#tabs button');
+  const pages = document.querySelectorAll('.page');
+  function showPage(id) {
+    tabs.forEach(t => { t.classList.toggle('active', t.dataset.page === id); t.setAttribute('aria-selected', String(t.dataset.page === id)); });
+    pages.forEach(p => p.classList.toggle('active', p.id === id));
+  }
+  tabs.forEach(btn => btn.addEventListener('click', () => showPage(btn.dataset.page)));
+  document.addEventListener('keydown', e => {
+    const active = document.querySelector('#tabs button.active');
+    const idx = Array.from(tabs).indexOf(active);
+    if (e.key === 'ArrowLeft' || e.key === 'ArrowRight') e.preventDefault();
+    if (e.key === 'ArrowLeft' && idx > 0) showPage(tabs[idx - 1].dataset.page);
+    if (e.key === 'ArrowRight' && idx < tabs.length - 1) showPage(tabs[idx + 1].dataset.page);
+  });
+</script>
+</body>
+</html>

@@ -16,7 +16,7 @@
 | assets/models/ | 离线建模储备 | tools/blender/build_ram_zun.py；说明见 assets/models/README.md | 程序模型待项目许可确认；原始混元 GLB 不入库 | 运行时排除 |
 | assets/sfx/*.wav | 脚步、拾取、警觉、撤离、界面等 | tools/gen_sfx.py，项目程序合成 | 仓库未声明统一素材许可，待作者确认 | 合成音效 |
 | assets/arti-01/ | 文物参考图 | 文件名不能证明作者、来源或许可 | 未知；不能当作可自由分发素材 | 待核实引用及导出排除策略 |
-| src/ui/contract_intro.gd | 开场漫画格、剪影与字幕 | 本次新增代码绘制，无新增位图 | 随项目源码；项目总许可待作者确认 | 可替换的演出占位 |
+| assets/art/opening/q6_chibi_storyboard_dialogue.png | 实际开场六格CG；运行时按区域显示 | 用户指定q6原图，经OpenAI内置imagegen补四个短对白；作者与原图生成条款待核实 | 不声明公有领域；原图许可/署名要求待用户确认 | 源图、完整提示词与导入工具见开场CG交接；底部字幕由代码绘制 |
 
 完整文件名与哈希见 [素材文件清单](docs/ASSET_FILES.tsv)，用于审计实际文件，包含未必运行时加载的储备资源。`.import` 为引擎元数据，未列入。历史事实与参考来源见 [史料登记](docs/SOURCES.md)。
 

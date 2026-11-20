@@ -1,0 +1,8 @@
+test_history_is_scoped_and_read_without_contents (test_join_claude_chat.JoinTests.test_history_is_scoped_and_read_without_contents) ... ok
+test_project_directory_override_without_global_mutation (test_join_claude_chat.JoinTests.test_project_directory_override_without_global_mutation) ... ok
+test_resume_and_restart_arguments (test_join_claude_chat.JoinTests.test_resume_and_restart_arguments) ... ok
+
+----------------------------------------------------------------------
+Ran 3 tests in 0.001s
+
+OK

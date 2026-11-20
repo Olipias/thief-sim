@@ -2,7 +2,7 @@ class_name Museum
 extends Node2D
 ## Builds and runs the museum heist level from src/levels/museum_map.json.
 
-signal escaped
+signal escaped(outcome: String)
 signal caught
 signal toast(text: String)
 signal prompt_changed(text: String)
@@ -25,6 +25,24 @@ const TALK_COOLDOWN := 0.25
 const WALKABLE := ".~TapXP123456789"
 const NIGHT_TINT := Color(0.33, 0.37, 0.55)
 const NIGHT_TINT_BM := Color(0.46, 0.50, 0.66)  ## 大英博物馆：冷夜但保留展厅可读性
+## 大英博物馆六厅色温表（CanvasModulate 目标色）。切房间时一次性平滑插值，纯画面。
+const BM_ROOM_TINTS := {
+	0: Color(0.48, 0.50, 0.64),  # 入口：中性偏暖冷
+	1: Color(0.43, 0.50, 0.68),  # 瓷器：冷青
+	2: Color(0.49, 0.50, 0.62),  # 玉器书画：暖
+	3: Color(0.46, 0.50, 0.66),  # 青铜礼器厅：基准
+	4: Color(0.51, 0.50, 0.60),  # 丝路：沙暖
+	5: Color(0.44, 0.51, 0.68),  # 装卸区：冷白
+}
+const TINT_LERP_RATE := 3.0
+## V-01 T1/T2：外部素材（EXTERNAL_ART_REQUEST_P0）。文件不存在时整段跳过，纯画面。
+const BM_WALL_TRIM_PATH := "res://assets/sprites/bm/bm_wall_trim.png"  # 64×64，4×4 格；实测第 1 列（索引 1/5/9/13）为底边踢脚线条
+const BM_FLOOR_WEAR_PATH := "res://assets/sprites/bm/bm_floor_wear.png"  # 64×32，4×2 格
+const BM_ROOM_DECOR_KEYS := ["china", "egypt", "greek", "silk", "jade", "dock"]  # 房间序号 0..5 对应 decor_bm_<key>.png
+const BM_ROOM_DECOR_COUNT := 3
+const BM_FLOOR_WEAR_ENABLED := false  # 素材每格带不透明格线，叠在地面像深色方块；待 art 重做无框/透明版后再开
+const BM_FLOOR_WEAR_RATE := 5  # 约 1/5 的地砖叠磨损
+const SHADOW_NO_OCCLUDER := " LTa"  ## 虚空/壁灯格/文物格不放遮光体（灯与发光点在其中）
 const ARTIFACT_POOL: Array[String] = ["vase", "gem", "scroll", "ingot", "jade"]
 ## BM Room 3 剧情触发器：馆方标签与观众留言。
 ## 贴左右墙边，避免与双羊尊展台（T≈(152,296)）的交互半径重叠导致无法拾取。
@@ -201,11 +219,13 @@ const TEX_LIGHT_SOFT := preload("res://assets/sprites/light_soft.png")
 const BM_TILES := preload("res://assets/sprites/bm/bm_tiles_noir.png")
 const BM_PROPS := preload("res://assets/sprites/bm/bm_props.png")
 const BM_CASE := preload("res://assets/sprites/bm/bm_case_noir.png")
+const BM_CASE_HIGHLIGHT := preload("res://assets/sprites/bm/case_glass_highlight.png")  # 32×32 斜向玻璃高光（C3，纯画面）
 const BM_ZUN_ICON := preload("res://assets/sprites/bm/bm_zun_32.png")
 const PLAYER_SCENE := preload("res://src/actors/player.tscn")
 const POLICE_SCENE := preload("res://src/actors/police.tscn")
 const ARTIFACT_SCENE := preload("res://src/world/artifact.tscn")
 const SMOKE_SCENE := preload("res://src/world/smoke_puff.tscn")
+const SmokePuffClass := preload("res://src/world/smoke_puff.gd")
 
 var tiles: Array = []
 var patrols: Dictionary = {}
@@ -227,12 +247,17 @@ var visited_rooms := {}
 var target_room := -1
 var exit_room := -1
 var _room_of_tile: Array = []
+## 每个格子的迷雾分区索引：房间优先，再按 floors（走廊）补齐；未分区为 -1。
+var _zone_of_tile: Array = []
+## 已揭示分区（房间/走廊）。key = zone_index。
+var _visited_zones := {}
 var bm_decor_count := 0
 var _bm_time := 0.0
 var _bm_cameras: Array[Node2D] = []
 var _bm_beacons: Array[Node2D] = []
 var _bm_skylights: Array[Node2D] = []
 var _bm_glints: Array[Node2D] = []
+var _bm_case_highlights: Array[Node2D] = []
 var bm_solid_decor_count := 0
 
 ## 路线预演系统（P1）：规划节点、自动执行、失败回放。
@@ -241,6 +266,9 @@ var executing_plan := false
 var _drag_plan_index := -1
 var planned_points: Array[Vector2] = []
 var plan_point_index := 0
+## 只暂停世界子节点；Museum保留输入处理，让规划和失败回放仍可操作。
+var _frozen_process_modes: Dictionary = {}
+var _frozen_collision_modes: Dictionary = {}
 const MAX_PLAN_POINTS := 5
 const PLAN_POINT_RADIUS := 5.0
 const CAMERA_VISION_RANGE := 112.0
@@ -258,23 +286,55 @@ var _mouse_left_was_pressed := false
 var _mouse_right_was_pressed := false
 var _room_entry_pos: Vector2 = Vector2.ZERO
 
+## 节点动作：与 planned_points 一一对应；""/wait/crouch/stand/unlock/take/sprint。
+var _plan_node_actions: Array[String] = []
+var _selected_plan_index := -1
+var _plan_drag_start := Vector2.ZERO
+
+## R-02b 确定性执行：从同一起始快照驱动真实场景。
+var _run_start_snapshot: Dictionary = {}
+var _run_start_planned_points: Array[Vector2] = []
+var _run_start_node_actions: Array[String] = []
+var _sim_snapshot: Dictionary = {}
+var _sim_route: Array = []
+var _sim_index: Dictionary = {"i": 0}
+var _sim_time := 0.0
+var _sim_context: Dictionary = {}
+var _pre_exec_ai_states: Dictionary = {}
+
 ## BM Room 3 的剧情触发器（馆方标签 / 观众留言）。
 var _story_triggers: Array[Area2D] = []
 ## 本局已读过的剧情触发器：group -> true。
 var _story_trigger_read: Dictionary = {}
 ## 上一次响应的剧情触发器；离开其范围后才允许再次按 E 重读（防止 _finish_story_tree 反复打开）。
 var _last_story_trigger: Area2D = null
+var _night_tint: CanvasModulate = null
+var _tex_wall_trim: Texture2D = null
+var _tex_floor_wear: Texture2D = null
+## 画面层开关：灯光阴影（测试/低配可关）。
+var shadows_enabled := true
 
 
 func _ready() -> void:
 	y_sort_enabled = true
+	_tex_wall_trim = _load_optional(BM_WALL_TRIM_PATH)
+	_tex_floor_wear = _load_optional(BM_FLOOR_WEAR_PATH)
 	_load_map()
 	_build_room_lookup()
 	_build_level()
+	_sync_visited_zones()
+	if _night_tint != null:
+		_night_tint.color = _target_tint()  # 开场直接落在起始房间色温，不从基准色滑入
 	_build_bm_decor()
 	_build_bm_atmosphere()
 	add_to_group("active_heist")
 	_build_failure_overlay()
+	# 关卡入口相机就位：上一个场景（如安全屋）的相机可能处于不同世界位置，
+	# 关闭平滑让视角立即落在入口房间，避免开场镜头从别处滑入。
+	if player != null:
+		var entry_cam: Camera2D = player.get_node_or_null("Camera2D")
+		if entry_cam != null:
+			entry_cam.reset_smoothing()
 
 
 func _load_map() -> void:
@@ -298,12 +358,28 @@ func _load_map() -> void:
 
 func _build_room_lookup() -> void:
 	_room_of_tile.clear()
+	_zone_of_tile.clear()
 	for y in tiles.size():
 		var row: Array = []
 		var line: String = tiles[y]
 		for x in line.length():
 			row.append(room_index_at(_cell_center(x, y)))
 		_room_of_tile.append(row)
+
+	# zone = 房间优先；未命中房间的走廊按 floors 顺序编号。
+	for y in tiles.size():
+		var line: String = tiles[y]
+		var zrow: Array = []
+		for x in line.length():
+			var zone := int(_room_of_tile[y][x])
+			if zone < 0:
+				var p := _cell_center(x, y)
+				for i in floors.size():
+					if floors[i].has_point(p):
+						zone = rooms.size() + i
+						break
+			zrow.append(zone)
+		_zone_of_tile.append(zrow)
 
 
 func _map_path() -> String:
@@ -374,8 +450,22 @@ func _bm_lamp_config(pos: Vector2) -> Dictionary:
 func _add_night_tint() -> void:
 	var modulate := CanvasModulate.new()
 	modulate.name = "NightTint"
-	modulate.color = NIGHT_TINT_BM if level_id == "british_museum" else NIGHT_TINT
+	modulate.color = _target_tint()
 	add_child(modulate)
+	_night_tint = modulate
+
+
+## 当前房间的目标色温；非大英关卡沿用单一夜色。
+func _target_tint() -> Color:
+	if level_id != "british_museum":
+		return NIGHT_TINT
+	return BM_ROOM_TINTS.get(current_room, NIGHT_TINT_BM)
+
+
+func _update_night_tint(delta: float) -> void:
+	if _night_tint == null:
+		return
+	_night_tint.color = _night_tint.color.lerp(_target_tint(), 1.0 - exp(-TINT_LERP_RATE * delta))
 
 
 func _add_light(pos: Vector2, color: Color, energy: float, scale: float) -> PointLight2D:
@@ -385,6 +475,9 @@ func _add_light(pos: Vector2, color: Color, energy: float, scale: float) -> Poin
 	light.energy = energy
 	light.texture_scale = scale
 	light.position = pos
+	if level_id == "british_museum" and shadows_enabled:
+		light.shadow_enabled = true  # 只画面：遮光体不参与任何判定
+		light.shadow_color = Color(0, 0, 0, 0.55)
 	add_child(light)
 	return light
 
@@ -418,11 +511,38 @@ func _build_collision() -> void:
 			shape.shape = rect
 			shape.position = _cell_center(x, y)
 			body.add_child(shape)
+	_build_light_occluders()
+
+
+## 墙/展柜遮光体：同行连续格合并成一个矩形，只属画面层（无碰撞、不进模拟）。
+func _build_light_occluders() -> void:
+	if level_id != "british_museum" or not shadows_enabled:
+		return
+	var holder := Node2D.new()
+	holder.name = "LightOccluders"
+	add_child(holder)
+	for y in tiles.size():
+		var row: String = tiles[y]
+		var x := 0
+		while x < row.length():
+			if not is_cell_blocked(x, y) or SHADOW_NO_OCCLUDER.contains(row[x]):
+				x += 1
+				continue
+			var x0 := x
+			while x < row.length() and is_cell_blocked(x, y) and not SHADOW_NO_OCCLUDER.contains(row[x]):
+				x += 1
+			var occ := LightOccluder2D.new()
+			var poly := OccluderPolygon2D.new()
+			var r := Rect2(x0 * TILE, y * TILE, (x - x0) * TILE, TILE)
+			poly.polygon = PackedVector2Array([r.position, Vector2(r.end.x, r.position.y), r.end, Vector2(r.position.x, r.end.y)])
+			occ.occluder = poly
+			holder.add_child(occ)
 
 
 func _spawn_player(pos: Vector2) -> void:
 	player = PLAYER_SCENE.instantiate() as Player
 	player.position = pos
+	ContactShadow.attach(player)
 	player.used_item.connect(_on_player_used_item)
 	player.made_noise.connect(_on_player_made_noise)
 	player.inspect_requested.connect(func(item_id: String) -> void: closeup_requested.emit(item_id))
@@ -432,10 +552,18 @@ func _spawn_player(pos: Vector2) -> void:
 
 
 func _spawn_artifact(item_id: String, pos: Vector2) -> void:
+	var cell := _world_to_cell(pos)
+	var instance_id := _make_instance_id(item_id, cell)
+	# 已带出的普通战利品不再刷新；已完成关卡的主目标也不再刷新。
+	if Game.is_item_taken(level_id, instance_id):
+		return
+	if item_id == target_item_id() and Game.story_flag("completed_" + level_id):
+		return
 	if item_id == target_item_id() and level_id == "british_museum":
 		_add_bm_display_case(pos)
 	var artifact := ARTIFACT_SCENE.instantiate() as Artifact
 	artifact.item_id = item_id
+	artifact.instance_id = instance_id
 	artifact.position = pos
 	artifact.picked.connect(_on_artifact_picked)
 	artifact.pickup_blocked.connect(_on_pickup_blocked)
@@ -449,6 +577,12 @@ func _spawn_artifact(item_id: String, pos: Vector2) -> void:
 				glow.texture_scale = 0.0
 
 
+func _make_instance_id(item_id: String, cell: Vector2i) -> String:
+	if item_id == target_item_id():
+		return "%s:target:%d,%d" % [level_id, cell.x, cell.y]
+	return "%s:%d,%d" % [level_id, cell.x, cell.y]
+
+
 ## Room 3 的玻璃展柜 + 暖光，只做一次（目标被丢下再拾取时不重复生成）。
 func _add_bm_display_case(pos: Vector2) -> void:
 	if has_node("BMDisplayCase"):
@@ -458,6 +592,15 @@ func _add_bm_display_case(pos: Vector2) -> void:
 	display_case.texture = BM_CASE
 	display_case.position = pos + Vector2(0, -10)
 	add_child(display_case)
+	# C3 玻璃高光：作为展柜子节点，排序紧随展柜，文物本体（后加入、y 更大）画在其上，不会被遮。
+	var highlight := Sprite2D.new()
+	highlight.name = "BMCaseHighlight"
+	highlight.texture = BM_CASE_HIGHLIGHT
+	highlight.position = Vector2(0, -6)
+	highlight.z_index = 1  # 压在文物之上才看得见；贴图是细斜纹，不挡文物主体
+	highlight.modulate.a = 0.5
+	display_case.add_child(highlight)
+	_bm_case_highlights.append(highlight)
 	_add_light(pos + Vector2(0, -6), Color(1.0, 0.72, 0.42), 0.45, 0.45)
 
 
@@ -558,6 +701,7 @@ func _spawn_police(id: String, pos: Vector2) -> void:
 	var cop := POLICE_SCENE.instantiate() as Police
 	cop.museum = self
 	cop.position = pos
+	ContactShadow.attach(cop)
 	var path: Array = patrols.get(id, [])
 	var points: Array[Vector2] = []
 	for p in path:
@@ -598,11 +742,65 @@ func _setup_camera() -> void:
 		_apply_camera_limits(rooms[idx])
 
 
+func _is_zone_revealed(zone: int) -> bool:
+	return zone >= 0 and bool(_visited_zones.get(zone, false))
+
+
+func _is_adjacent_to_revealed_zone(x: int, y: int) -> bool:
+	for dy in [-1, 0, 1]:
+		for dx in [-1, 0, 1]:
+			if dx == 0 and dy == 0:
+				continue
+			var nx: int = x + int(dx)
+			var ny: int = y + int(dy)
+			if ny < 0 or ny >= _zone_of_tile.size() or nx < 0 or nx >= _zone_of_tile[ny].size():
+				continue
+			if _is_zone_revealed(int(_zone_of_tile[ny][nx])):
+				return true
+	return false
+
+
 func room_index_at(pos: Vector2) -> int:
 	for i in rooms.size():
 		if rooms[i].has_point(pos):
 			return i
 	return -1
+
+
+## 从跨次存档同步当前关卡的已探分区（房间+走廊）。
+func _sync_visited_zones() -> void:
+	visited_rooms.clear()
+	_visited_zones.clear()
+	var saved: Dictionary = Game.level_visited_rooms.get(level_id, {})
+	for idx in saved:
+		if bool(saved[idx]):
+			_visited_zones[int(idx)] = true
+			var room_idx := int(idx)
+			if room_idx >= 0 and room_idx < rooms.size():
+				visited_rooms[room_idx] = true
+	# 当前分区立即标记（玩家一定从入口开始，入口属于已探）。
+	if player != null:
+		var z := _zone_at(player.global_position)
+		if z >= 0:
+			_mark_zone_visited(z)
+
+
+func _zone_at(pos: Vector2) -> int:
+	var tx := int(pos.x / TILE)
+	var ty := int(pos.y / TILE)
+	if ty < 0 or ty >= _zone_of_tile.size() or tx < 0 or tx >= _zone_of_tile[ty].size():
+		return -1
+	return int(_zone_of_tile[ty][tx])
+
+
+func _mark_zone_visited(zone: int) -> void:
+	if zone < 0:
+		return
+	if not _visited_zones.has(zone):
+		_visited_zones[zone] = true
+		Game.mark_room_visited(level_id, zone)
+		if zone < rooms.size():
+			visited_rooms[zone] = true
 
 
 func _apply_camera_limits(room: Rect2) -> void:
@@ -627,23 +825,38 @@ func _cell_center(x: int, y: int) -> Vector2:
 	return Vector2(x * TILE + TILE * 0.5, y * TILE + TILE * 0.5)
 
 
-func _physics_process(_delta: float) -> void:
+func _physics_process(delta: float) -> void:
 	# 自动路线：在物理帧尾立即推进到下一节点，避免 process 顺序导致
 	# 执行态与 auto_moving 不同步的瞬态被 monkey 不变量抓到。
-	if executing_plan and player != null and not player.auto_moving:
-		_advance_plan_step()
+	_update_plan_execution()
+	if executing_plan and not failure_replay and not _ended:
+		_sim_time += delta
+		var step_seconds := 1.0 / SimPreview.TICK_RATE
+		var guard := 0
+		while _sim_time >= step_seconds and guard < 4:
+			_sim_time -= step_seconds
+			_sim_step()
+			guard += 1
+			if not executing_plan:
+				break
 
 
 func _process(delta: float) -> void:
-	_bm_time += delta
-	_animate_bm_decor()
-	# 对谈打开期间游戏暂停、_process 不跑，冷却正好冻结到关闭那一帧，拦下同一次按键。
-	_talk_cooldown = maxf(0.0, _talk_cooldown - delta)
+	_update_night_tint(delta)
+	if not is_world_frozen() and not executing_plan:
+		# 执行模式由确定性内核统一推进装饰动画时间，避免渲染帧率影响规则状态。
+		_bm_time += delta
+		_animate_bm_decor()
+		# 世界暂停时，交互冷却也保持不变。
+		_talk_cooldown = maxf(0.0, _talk_cooldown - delta)
 	if failure_replay:
 		_process_failure_replay(delta)
 		return
 	if player == null or _ended:
 		return
+	var z := _zone_at(player.global_position)
+	if z != -1:
+		_mark_zone_visited(z)
 	var idx := room_index_at(player.global_position)
 	if idx != -1 and idx != current_room:
 		current_room = idx
@@ -653,16 +866,14 @@ func _process(delta: float) -> void:
 		if not _patrol_hint_shown and _room_has_police(idx):
 			_patrol_hint_shown = true
 			toast.emit("前面有守卫在巡逻——先看清手电光锥的方向，再贴着边走。")
-	_check_camera_detection()
+	# 规划/执行模式：监控由内核统一检测；规划模式世界冻结不推进感知。
+	if not planning_mode and not executing_plan:
+		_check_camera_detection()
 	_process_planning_input()
-	if executing_plan and player != null and not player.auto_moving:
-		if Input.get_vector("move_left", "move_right", "move_up", "move_down") != Vector2.ZERO:
-			cancel_plan()
-		else:
-			_advance_plan_step()
+	_update_plan_execution()
 	var prompt := ""
 	if planning_mode:
-		prompt = "规划：左键加节点 · 右键删 · 空格执行 · Tab/R 退出"
+		prompt = "规划：左键加/选节点（点选切动作）· 右键删 · 空格执行 · Tab/R 退出"
 	elif executing_plan:
 		prompt = "执行中：按方向键或 E 接管"
 	elif player != null and player.crouching:
@@ -734,18 +945,26 @@ func _unhandled_input(event: InputEvent) -> void:
 		if event.button_index == MOUSE_BUTTON_LEFT:
 			if event.pressed:
 				_drag_plan_index = -1
+				_selected_plan_index = -1
 				for i in planned_points.size():
 					if planned_points[i].distance_to(mouse_position) < 7.0:
 						_drag_plan_index = i
+						_selected_plan_index = i
+						_plan_drag_start = mouse_position
 						break
 				if _drag_plan_index < 0 and planned_points.size() < MAX_PLAN_POINTS and _is_walkable_world(mouse_position):
 					_add_plan_point(mouse_position)
 					_drag_plan_index = planned_points.size() - 1
 			else:
+				if _selected_plan_index >= 0 and _selected_plan_index < planned_points.size() and _plan_drag_start.distance_to(mouse_position) < 3.0:
+					_cycle_node_action(_selected_plan_index)
 				_drag_plan_index = -1
+				_selected_plan_index = -1
 		elif event.button_index == MOUSE_BUTTON_RIGHT and event.pressed:
 			_remove_last_plan_point()
 	elif event is InputEventMouseMotion and _drag_plan_index >= 0 and _drag_plan_index < planned_points.size():
+		if _plan_drag_start.distance_to(mouse_position) >= 3.0:
+			_selected_plan_index = -1
 		if _is_walkable_world(mouse_position):
 			planned_points[_drag_plan_index] = mouse_position
 			queue_redraw()
@@ -757,22 +976,59 @@ func _is_walkable_world(pos: Vector2) -> bool:
 	return _is_walkable_at(cx, cy)
 
 
+func is_world_frozen() -> bool:
+	return planning_mode or failure_replay or _ended
+
+
+## 所有规划/执行/接管/回放/结束路径共用的恢复入口，不改守卫原AI开关或巡逻进度。
+func _sync_world_freeze() -> void:
+	var frozen := is_world_frozen()
+	if player != null:
+		player.controls_enabled = not frozen
+		if frozen:
+			player.auto_moving = false
+			player.velocity = Vector2.ZERO
+	for cop in police:
+		if is_instance_valid(cop):
+			cop.set_frozen(frozen)
+	if frozen:
+		for child in get_children():
+			if child == _failure_overlay or _frozen_process_modes.has(child):
+				continue
+			_keep_frozen_collisions(child)
+			_frozen_process_modes[child] = child.process_mode
+			child.process_mode = Node.PROCESS_MODE_DISABLED
+	else:
+		for child in _frozen_process_modes:
+			if is_instance_valid(child):
+				child.process_mode = _frozen_process_modes[child]
+		_frozen_process_modes.clear()
+		for body in _frozen_collision_modes:
+			if is_instance_valid(body):
+				body.disable_mode = _frozen_collision_modes[body]
+		_frozen_collision_modes.clear()
+	queue_redraw()
+
+
+func _keep_frozen_collisions(node: Node) -> void:
+	# 暂停处理不能把CharacterBody/Area移出物理世界；感知触发时可能还在当前物理回调中。
+	if node is CollisionObject2D and not _frozen_collision_modes.has(node):
+		_frozen_collision_modes[node] = node.disable_mode
+		node.disable_mode = CollisionObject2D.DISABLE_MODE_KEEP_ACTIVE
+	for child in node.get_children():
+		_keep_frozen_collisions(child)
+
+
 func toggle_planning_mode(on: bool) -> void:
+	if _ended or failure_replay:
+		return
 	planning_mode = on
 	executing_plan = false
 	if player != null:
 		player.auto_moving = false
 		if on:
-			player.controls_enabled = false
-			player.velocity = Vector2.ZERO
 			player.set_crouch(false)
-		else:
-			player.controls_enabled = true
-	for cop in police:
-		if is_instance_valid(cop):
-			cop.set_ai_enabled(not on)
-			if not on:
-				cop._enter_patrol()
+	_sync_world_freeze()
 	queue_redraw()
 
 
@@ -780,6 +1036,7 @@ func _add_plan_point(pos: Vector2) -> void:
 	if planned_points.size() >= MAX_PLAN_POINTS:
 		return
 	planned_points.append(pos)
+	_plan_node_actions.append("")
 	queue_redraw()
 
 
@@ -787,37 +1044,117 @@ func _remove_last_plan_point() -> void:
 	if planned_points.is_empty():
 		return
 	planned_points.pop_back()
+	if _plan_node_actions.size() > planned_points.size():
+		_plan_node_actions.pop_back()
 	queue_redraw()
+
+
+const _ACTION_CYCLE: Array[String] = ["", "wait", "crouch", "unlock", "take", "sprint"]
+
+
+func _cycle_node_action(index: int) -> void:
+	if index < 0 or index >= _plan_node_actions.size():
+		return
+	var current := _plan_node_actions[index]
+	var next := ""
+	var found := false
+	for action in _ACTION_CYCLE:
+		if found:
+			next = action
+			break
+		if action == current:
+			found = true
+	if not found:
+		next = ""
+	var cell := Vector2i(int(planned_points[index].x / TILE), int(planned_points[index].y / TILE))
+	match next:
+		"unlock":
+			if not _is_door_cell(cell):
+				toast.emit("此位置没有门锁，无法设置开锁。")
+				next = ""
+		"take":
+			if not _is_target_cell(cell):
+				toast.emit("此位置没有任务目标，无法设置拿取。")
+				next = ""
+	_plan_node_actions[index] = next
+	queue_redraw()
+
+
+func _is_door_cell(cell: Vector2i) -> bool:
+	# 当前地图未配置独立门锁格；预留门字符 'D' 与显式 doors 注册。
+	return _tile_char(cell.x, cell.y) == "D" or false
+
+
+func _is_target_cell(cell: Vector2i) -> bool:
+	for child in get_children():
+		if child is Artifact and child.item_id == target_item_id():
+			var item_cell := Vector2i(int(child.global_position.x / TILE), int(child.global_position.y / TILE))
+			return item_cell == cell
+	return false
 
 
 func execute_plan() -> void:
-	if planned_points.is_empty() or player == null:
+	if planned_points.is_empty() or player == null or _ended or failure_replay:
 		return
+	_run_start_snapshot = _build_sim_snapshot()
+	_run_start_planned_points = planned_points.duplicate()
+	_run_start_node_actions = _plan_node_actions.duplicate()
+	_sim_snapshot = SimPreview.copy_snapshot(_run_start_snapshot)
+	_sim_route = _planned_sim_route()
+	_sim_index = {"i": 0}
+	_sim_time = 0.0
+	_sim_context = _build_sim_context()
+	_pre_exec_ai_states.clear()
+	for cop in police:
+		if is_instance_valid(cop):
+			_pre_exec_ai_states[cop] = cop.ai_enabled
+			cop.ai_enabled = false
 	planning_mode = false
 	executing_plan = true
 	plan_point_index = 0
-	player.controls_enabled = true
-	player.start_auto_move(planned_points[0])
+	# 进入执行态后、第一个内核 tick 应用新目标之前，player 的 sim 驱动分支
+	# 会按 sim_target_pos 瞬移；旧值（上次执行残留或默认 (0,0)）可能落在墙体里，
+	# 去穿透会把玩家顶出地图。先把目标钉在快照位置并清空方向，等待首个 tick。
+	player.sim_target_pos = player.global_position
+	player.sim_dir = Vector2.ZERO
+	player.sim_driven = true
+	_sync_world_freeze()
 	queue_redraw()
 
 
-func _advance_plan_step() -> void:
+func _update_plan_execution() -> void:
 	if not executing_plan or player == null:
 		return
-	plan_point_index += 1
-	if plan_point_index >= planned_points.size():
-		executing_plan = false
-		player.auto_moving = false
-		return
-	player.start_auto_move(planned_points[plan_point_index])
+	# 手动接管优先于内核推进；任何方向键、交互、使用道具都立即取消执行。
+	if Input.get_vector("move_left", "move_right", "move_up", "move_down") != Vector2.ZERO or Input.is_action_just_pressed("interact") or Input.is_action_just_pressed("use_item"):
+		cancel_plan()
 
 
 func cancel_plan() -> void:
+	_finish_plan_execution(true)
+
+
+func _finish_plan_execution(clear_route: bool = false) -> void:
 	executing_plan = false
-	planned_points.clear()
+	planning_mode = false
 	plan_point_index = 0
+	_preview_active = false
 	if player != null:
 		player.auto_moving = false
+		player.sim_driven = false
+		player.velocity = Vector2.ZERO
+	for cop in _pre_exec_ai_states:
+		if is_instance_valid(cop):
+			cop.ai_enabled = _pre_exec_ai_states[cop]
+	_pre_exec_ai_states.clear()
+	# 不清理 _sim_snapshot：失败后回退与测试都需要读取最终 tick 的事件与状态。
+	# 下一次 execute_plan() 会重新构建新快照。
+	_run_start_snapshot.clear()
+	# 保留 _run_start_planned_points / _run_start_node_actions，供失败回退时还原路线。
+	if clear_route:
+		planned_points.clear()
+		_plan_node_actions.clear()
+	_sync_world_freeze()
 	queue_redraw()
 
 
@@ -833,38 +1170,320 @@ func _check_camera_detection() -> void:
 			return
 
 
-## R-02 预演：把真实世界状态转成 SimPreview 灰盒快照（规划模式下用）。
-## 灰盒范围：最近守卫一名 + 单台监控枢轴（BM 视觉摄像头，无则用默认）。
+## 把真实世界状态转成 SimPreview 全快照（规划/执行/回退共用）。
 func _build_sim_snapshot() -> Dictionary:
 	var snap := SimPreview.default_snapshot()
+	snap["decor_time"] = _bm_time
 	if player != null:
-		snap["player"]["pos"] = Vector2i(
-			int(player.global_position.x / TILE),
-			int(player.global_position.y / TILE))
-	if not police.is_empty() and is_instance_valid(police[0]):
-		var cop: Police = police[0]
-		snap["guard"]["pos"] = Vector2i(int(cop.global_position.x / TILE), int(cop.global_position.y / TILE))
-		var wps: Array = []
+		var p: Dictionary = snap["player"]
+		p["pos"] = _world_to_cell(player.global_position)
+		p["crouch"] = player.crouching
+		p["move_interval"] = _ticks_per_cell(Player.WALK_SPEED)
+		p["crouch_move_interval"] = _ticks_per_cell(Player.WALK_SPEED * Player.CROUCH_SPEED_MULTIPLIER)
+		p["sprint_move_interval"] = _ticks_per_cell(Player.SPRINT_SPEED)
+
+	snap["guards"] = []
+	for cop in police:
+		if not is_instance_valid(cop):
+			continue
+		var g := {
+			"id": String(cop.name),
+			"pos": _world_to_cell(cop.global_position),
+			"waypoints": [],
+			"wp_index": cop._patrol_index,
+			"move_interval": _ticks_per_cell(Police.PATROL_SPEED),
+			"move_counter": 0,
+			"investigate_interval": _ticks_per_cell(Police.INVESTIGATE_SPEED),
+			"chase_interval": _ticks_per_cell(Police.CHASE_SPEED),
+			"wait_left": int(round(cop._wait_timer * SimPreview.TICK_RATE)),
+			"facing": _facing_to_cell(cop._facing),
+			"investigate_pos": _world_to_cell(cop._investigate_pos) if cop._investigate_pos != Vector2.ZERO else Vector2i(-1, -1),
+			"investigate_left": int(round(cop._investigate_timer * SimPreview.TICK_RATE)),
+			"alert": _state_to_alert(cop.state),
+			"spot_timer": int(round(cop._spot_timer * SimPreview.TICK_RATE)),
+			"spot_delay": int(round(cop._spot_delay() * SimPreview.TICK_RATE)),
+			"blind_timer": int(round(cop._blind_timer * SimPreview.TICK_RATE)),
+			"ai_enabled": cop.ai_enabled,
+		}
 		for pt in cop.patrol_points:
-			wps.append(Vector2i(int(pt.x / TILE), int(pt.y / TILE)))
-		snap["guard"]["waypoints"] = wps
-	if not _bm_cameras.is_empty() and is_instance_valid(_bm_cameras[0]):
-		var cam: Node2D = _bm_cameras[0]
-		snap["camera"]["pivot"] = Vector2i(int(cam.global_position.x / TILE), int(cam.global_position.y / TILE))
+			g["waypoints"].append(_world_to_cell(pt))
+		snap["guards"].append(g)
+
+	snap["cameras"] = []
+	for i in _bm_cameras.size():
+		var cam: Node2D = _bm_cameras[i]
+		if not is_instance_valid(cam):
+			continue
+		snap["cameras"].append({
+			"id": String(cam.name),
+			"pos": _world_to_cell(cam.global_position),
+			"phase": _bm_time * 0.5 + i * 1.7,
+			"sweep_speed": 0.5 * SimPreview.SECONDS_PER_TICK,
+			"sweep_amp": 0.35,
+			"range_cells": int(round(CAMERA_VISION_RANGE / TILE)),
+			"half_angle": CAMERA_VISION_HALF_ANGLE,
+		})
+
+	snap["doors"] = {}  # 当前关卡未配置门锁，留空字典保持结构。
+	snap["items"] = []
+	for child in get_children():
+		if child is Artifact:
+			snap["items"].append({"id": child.item_id, "pos": _world_to_cell(child.global_position), "taken": false})
+
+	snap["bag_items"] = Game.bag_items.duplicate(true)
+	snap["smoke_count"] = Game.smoke_count
+	snap["smoke_puffs"] = []
+	for child in get_children():
+		if child is SmokePuffClass:
+			snap["smoke_puffs"].append({"pos": _world_to_cell(child.global_position), "time": child._t})
 	return snap
 
 
-## 已规划节点 → SimPreview 路线（像素坐标转格坐标；移动段 action 留空）。
+func _world_to_cell(pos: Vector2) -> Vector2i:
+	return Vector2i(int(pos.x / TILE), int(pos.y / TILE))
+
+
+func _cell_to_world(cell: Vector2i) -> Vector2:
+	return Vector2(cell.x * TILE + TILE * 0.5, cell.y * TILE + TILE * 0.5)
+
+
+func _ticks_per_cell(speed_px_per_sec: float) -> int:
+	if speed_px_per_sec <= 0.0:
+		return 1
+	var tpc := SimPreview.TICK_RATE * TILE / speed_px_per_sec
+	return clampi(int(round(tpc)), 1, 60)
+
+
+func _facing_to_cell(facing: Vector2) -> Vector2i:
+	if facing == Vector2.ZERO:
+		return Vector2i(1, 0)
+	var cell := Vector2i(signi(int(facing.x)), signi(int(facing.y)))
+	if cell == Vector2i.ZERO:
+		return Vector2i(1, 0)
+	return cell
+
+
+func _state_to_alert(state: Police.State) -> int:
+	match state:
+		Police.State.PATROL:
+			return 0
+		Police.State.INVESTIGATE:
+			return 1
+		Police.State.CHASE:
+			return 2
+	return 0
+
+
+func _alert_to_state(alert: int) -> Police.State:
+	match alert:
+		1:
+			return Police.State.INVESTIGATE
+		2:
+			return Police.State.CHASE
+	return Police.State.PATROL
+
+
+## 已规划节点 → SimPreview 路线（像素坐标转格坐标；每个节点附带动作）。
+## 动作语义：wait/unlock/take 是到达后执行；crouch/sprint/stand 是到该节点的移动模式。
 func _planned_sim_route() -> Array:
 	var route: Array = []
-	var last: Vector2i = Vector2i(
-		int(player.global_position.x / TILE), int(player.global_position.y / TILE)) if player != null else Vector2i.ZERO
-	for pt in planned_points:
-		var cell := Vector2i(int(pt.x / TILE), int(pt.y / TILE))
+	var last: Vector2i = _world_to_cell(player.global_position) if player != null else Vector2i.ZERO
+	for i in planned_points.size():
+		var cell := _world_to_cell(planned_points[i])
+		var action := _plan_node_actions[i] if i < _plan_node_actions.size() else ""
 		if cell != last:
-			route.append({"pos": cell, "action": "", "ticks": 0, "done": 0})
+			# 移动模式动作直接附加到移动段；姿态/停留动作在到达后执行。
+			var move_action := action if action in ["crouch", "sprint", "stand"] else ""
+			route.append({"pos": cell, "action": move_action, "ticks": 0, "done": 0})
 			last = cell
+			if move_action != "":
+				continue
+		if action != "" and action not in ["crouch", "sprint", "stand"]:
+			route.append({"pos": cell, "action": action, "ticks": _default_action_ticks(action), "done": 0})
 	return route
+
+
+func _default_action_ticks(action: String) -> int:
+	match action:
+		"wait":
+			return SimPreview.TICK_RATE  # 1 秒
+		"crouch", "stand", "sprint":
+			return SimPreview.TICK_RATE
+		"unlock":
+			return SimPreview.UNLOCK_TICKS + 5
+		"take":
+			return SimPreview.TAKE_TICKS + 5
+	return 1
+
+
+func _build_sim_context() -> Dictionary:
+	return {
+		"los_blocked": _sim_los_blocked,
+		"same_room": _sim_same_room,
+		"is_cell_blocked": _sim_is_cell_blocked,
+	}
+
+
+func _sim_is_cell_blocked(cell: Vector2i) -> bool:
+	return is_cell_blocked(cell.x, cell.y)
+
+
+func _sim_los_blocked(a: Vector2i, b: Vector2i) -> bool:
+	var from := _cell_to_world(a)
+	var to := _cell_to_world(b)
+	var query := PhysicsRayQueryParameters2D.create(from, to, 1)
+	var hit := get_world_2d().direct_space_state.intersect_ray(query)
+	return not hit.is_empty()
+
+
+func _sim_same_room(a: Vector2i, b: Vector2i) -> bool:
+	return Police.same_room(room_index_at(_cell_to_world(a)), room_index_at(_cell_to_world(b)))
+
+
+func _sim_step() -> void:
+	if _sim_snapshot.is_empty() or not executing_plan:
+		return
+	SimPreview.tick(_sim_snapshot, _sim_route, _sim_index, _sim_context)
+	_apply_sim_state(_sim_snapshot)
+	# 先处理本 tick 事件（拿取/开门必须在完成检测之前应用）。
+	for e in _sim_snapshot["events"]:
+		if int(e["tick"]) != int(_sim_snapshot["tick"]):
+			continue
+		match String(e["kind"]):
+			"spotted":
+				var reason := String(e.get("reason", ""))
+				var detector := _detector_for_event(e)
+				enter_failure_replay(detector, reason)
+				return
+			"target_taken":
+				_apply_target_taken(String(e.get("detail", target_item_id())))
+			"door_unlocked":
+				pass  # 当前关卡无门锁，结构保留。
+	# 路线/动作全部完成后退出执行态。
+	if int(_sim_index.get("i", 0)) >= _sim_route.size():
+		_finish_plan_execution()
+
+
+func _apply_sim_state(snap: Dictionary) -> void:
+	# 1) 装饰时间与监控角度由内核统一推进。
+	_bm_time = float(snap.get("decor_time", _bm_time))
+	_animate_bm_decor()
+
+	# 2) 玩家：直接同步到内核算出的像素位置，避免渲染层物理滑动导致漂移。
+	if player != null:
+		var p: Dictionary = snap["player"]
+		var target_pos := _cell_to_world(Vector2i(p["pos"]))
+		var dir := (target_pos - player.global_position).normalized()
+		player.global_position = target_pos
+		player.sim_target_pos = target_pos
+		player.sim_dir = dir
+		player.crouching = bool(p.get("crouch", false))
+
+	# 3) 守卫（由内核驱动位置与朝向；内部计时器在执行结束/回退时统一恢复）
+	var guard_map := {}
+	for g in snap.get("guards", []):
+		guard_map[g.get("id", "")] = g
+	for cop in police:
+		if not is_instance_valid(cop):
+			continue
+		var g: Dictionary = guard_map.get(String(cop.name), {})
+		if g.is_empty():
+			continue
+		cop.global_position = _cell_to_world(Vector2i(g["pos"]))
+		cop.state = _alert_to_state(int(g.get("alert", 0)))
+		cop._facing = Vector2(g.get("facing", Vector2i(1, 0)))
+		cop._alert_level = 1 if int(g.get("alert", 0)) == 1 or float(g.get("spot_timer", 0.0)) > 0.05 else (2 if int(g.get("alert", 0)) == 2 else 0)
+
+	# 4) 监控角度（装饰动画已处理）
+	# _animate_bm_decor 在 _bm_time 更新后自动运行。
+
+
+func _detector_for_event(e: Dictionary) -> Node2D:
+	var detail := String(e.get("detail", ""))
+	var id := String(e.get("id", ""))
+	if detail == "camera":
+		for cam in _bm_cameras:
+			if is_instance_valid(cam) and String(cam.name) == id:
+				return cam
+	elif detail == "guard":
+		for cop in police:
+			if is_instance_valid(cop) and String(cop.name) == id:
+				return cop
+	return null
+
+
+func _apply_target_taken(item_id: String) -> void:
+	if Game.try_pickup(item_id):
+		for child in get_children():
+			if child is Artifact and child.item_id == item_id:
+				child.picked.emit(item_id)
+				child.queue_free()
+				break
+		toast.emit("拿到任务目标：%s！\n快从出口撤离。" % Game.item_name(item_id))
+	else:
+		toast.emit("拿取失败：背包已满。")
+
+
+## 完整快照回退：还原玩家、全部守卫状态与计时、监控、门锁、物品、背包、烟雾与消耗量。
+func _restore_full_snapshot(snap: Dictionary) -> void:
+	if snap.is_empty():
+		return
+	_bm_time = float(snap.get("decor_time", _bm_time))
+	_animate_bm_decor()
+
+	if player != null:
+		var p: Dictionary = snap["player"]
+		player.global_position = _cell_to_world(Vector2i(p["pos"]))
+		player.crouching = bool(p.get("crouch", false))
+		player.sim_driven = false
+		player.sim_dir = Vector2.ZERO
+		player.velocity = Vector2.ZERO
+
+	var guard_map := {}
+	for g in snap.get("guards", []):
+		guard_map[g.get("id", "")] = g
+	for cop in police:
+		if not is_instance_valid(cop):
+			continue
+		var g: Dictionary = guard_map.get(String(cop.name), {})
+		if g.is_empty():
+			continue
+		cop.global_position = _cell_to_world(Vector2i(g["pos"]))
+		cop._patrol_index = int(g.get("wp_index", 0))
+		cop._wait_timer = float(g.get("wait_left", 0)) / SimPreview.TICK_RATE
+		cop._investigate_pos = _cell_to_world(Vector2i(g["investigate_pos"])) if Vector2i(g.get("investigate_pos", Vector2i(-1, -1))).x >= 0 else Vector2.ZERO
+		cop._investigate_timer = float(g.get("investigate_left", 0)) / SimPreview.TICK_RATE
+		cop._spot_timer = float(g.get("spot_timer", 0)) / SimPreview.TICK_RATE
+		cop._blind_timer = float(g.get("blind_timer", 0)) / SimPreview.TICK_RATE
+		cop._facing = Vector2(g.get("facing", Vector2i(1, 0)))
+		cop.state = _alert_to_state(int(g.get("alert", 0)))
+		cop.ai_enabled = bool(g.get("ai_enabled", true))
+		cop._alert_level = 1 if int(g.get("alert", 0)) == 1 or float(g.get("spot_timer", 0.0)) > 0.05 else (2 if int(g.get("alert", 0)) == 2 else 0)
+
+	# 物品：按快照增删
+	for child in get_children():
+		if child is Artifact:
+			child.queue_free()
+	for item in snap.get("items", []):
+		if not bool(item.get("taken", false)):
+			_spawn_artifact(String(item["id"]), _cell_to_world(Vector2i(item["pos"])))
+
+	# 背包与消耗品
+	Game.bag_items = snap.get("bag_items", []).duplicate(true)
+	Game.smoke_count = int(snap.get("smoke_count", Game.smoke_count))
+	Game._recompute_mission()
+	Game.backpack_changed.emit()
+	Game.items_changed.emit()
+
+	# 烟雾 puff
+	for child in get_children():
+		if child is SmokePuffClass:
+			child.queue_free()
+	for puff in snap.get("smoke_puffs", []):
+		var node := SMOKE_SCENE.instantiate() as SmokePuffClass
+		node.position = _cell_to_world(Vector2i(puff["pos"]))
+		node._t = float(puff.get("time", 0.0))
+		add_child(node)
 
 
 var _preview_active := false
@@ -898,7 +1517,11 @@ func run_preview() -> void:
 		SimPreview.tick(replay, replay_route, idx)
 		t = int(replay["tick"])
 		_preview_cells.append(replay["player"]["pos"])
-		_preview_guard_cells.append(replay["guard"]["pos"])
+		var guards: Array = replay.get("guards", [])
+		if guards.is_empty():
+			_preview_guard_cells.append(Vector2i(-1, -1))
+		else:
+			_preview_guard_cells.append(guards[0]["pos"])
 		if result.first_spotted != -1 and int(replay["tick"]) >= result.first_spotted:
 			break
 	_preview_spotted_pos = Vector2i(-1, -1)
@@ -940,26 +1563,21 @@ func _draw_preview_overlay() -> void:
 
 
 func _on_player_detected(detector: Node2D, reason: String) -> void:
-	if failure_replay or _ended:
+	if is_world_frozen():
 		return
 	enter_failure_replay(detector, reason)
 
 
 func enter_failure_replay(detector: Node2D, reason: String) -> void:
 	failure_replay = true
+	_failure_replay_timer = 0.0
 	failure_detector = detector
 	failure_reason = reason
 	failure_line_start = detector.global_position if detector != null else player.global_position
 	failure_line_end = player.global_position
 	executing_plan = false
 	planning_mode = false
-	if player != null:
-		player.auto_moving = false
-		player.controls_enabled = false
-		player.velocity = Vector2.ZERO
-	for cop in police:
-		cop.set_ai_enabled(false)
-		cop.velocity = Vector2.ZERO
+	_sync_world_freeze()
 	prompt_changed.emit("按 E / 空格 重新规划")
 	failure_banner_changed.emit(failure_reason)
 	if _failure_overlay != null:
@@ -982,16 +1600,22 @@ func _rewind_and_replan() -> void:
 	failure_replay = false
 	failure_detector = null
 	failure_reason = ""
-	planned_points.clear()
 	plan_point_index = 0
+	# 完整回退到执行开始时的快照：保留路线和动作，还原全部实体状态。
+	_restore_full_snapshot(_run_start_snapshot)
+	for cop in _pre_exec_ai_states:
+		if is_instance_valid(cop):
+			cop.ai_enabled = _pre_exec_ai_states[cop]
+	_pre_exec_ai_states.clear()
+	# 还原执行开始时的规划路线与节点动作（即使手动接管曾清空当前路线）。
+	if not _run_start_planned_points.is_empty():
+		planned_points = _run_start_planned_points.duplicate()
+		_plan_node_actions = _run_start_node_actions.duplicate()
+	executing_plan = false
+	planning_mode = true
 	if player != null:
-		player.global_position = _room_entry_pos
-		player.controls_enabled = false
-		player.velocity = Vector2.ZERO
-	for cop in police:
-		cop.set_ai_enabled(true)
-		cop._enter_patrol()
-	toggle_planning_mode(true)
+		player.sim_driven = false
+	_sync_world_freeze()
 	failure_banner_changed.emit("")
 	if _failure_overlay != null:
 		_failure_overlay.visible = false
@@ -1057,8 +1681,9 @@ func _on_story_trigger_exited(body: Node2D, trigger: Area2D) -> void:
 
 func end_game() -> void:
 	_ended = true
-	if player != null:
-		player.controls_enabled = false
+	planning_mode = false
+	executing_plan = false
+	_sync_world_freeze()
 	for cop in police:
 		cop.deactivate()
 	prompt_changed.emit("")
@@ -1066,6 +1691,8 @@ func end_game() -> void:
 
 ## 供特写层“拾取”按钮调用：拾取指定文物（返回是否成功）。
 func pickup_artifact(item_id: String) -> bool:
+	if is_world_frozen():
+		return false
 	for child in get_children():
 		if child is Artifact and child.item_id == item_id:
 			return child.try_pickup()
@@ -1106,7 +1733,7 @@ func _on_pickup_blocked(item_id: String) -> void:
 
 
 func _on_player_used_item(item_id: String) -> void:
-	if _ended or item_id != "smoke":
+	if is_world_frozen() or item_id != "smoke":
 		return
 	if not Game.use_smoke():
 		Audio.play("denied", -8.0)
@@ -1128,7 +1755,7 @@ func _on_player_used_item(item_id: String) -> void:
 
 
 func _on_player_made_noise(pos: Vector2, radius: float) -> void:
-	if _ended:
+	if is_world_frozen():
 		return
 	var src_room := room_index_at(pos)
 	var heard := false
@@ -1143,19 +1770,21 @@ func _on_player_made_noise(pos: Vector2, radius: float) -> void:
 
 
 func _on_exit_body_entered(body: Node2D) -> void:
-	if _ended or body != player:
+	if is_world_frozen() or body != player:
 		return
-	if not Game.mission_complete:
+	# 面具教学关仍要求完成教学目标；大英博物馆允许侦察撤离。
+	if not Game.mission_complete and level_id == "museum":
 		Audio.play("denied", -8.0)
 		toast.emit("出口还锁着：必须带上任务目标才能撤离。")
 		return
-	_end_escape()
+	var outcome := Game.OUTCOME_SUCCESS if Game.mission_complete else Game.OUTCOME_RECON
+	_end_escape(outcome)
 
 
-func _end_escape() -> void:
-	_ended = true
+func _end_escape(outcome: String) -> void:
+	end_game()
 	Audio.play("escape", -5.0)
-	escaped.emit()
+	escaped.emit(outcome)
 
 
 func _on_police_spotted(_reason: String, cop: Police) -> void:
@@ -1221,6 +1850,15 @@ func _is_bm_room(x: int, y: int) -> bool:
 	return BM_THEMES.has(int(row[x]))
 
 
+func _load_optional(path: String) -> Texture2D:
+	return load(path) as Texture2D if ResourceLoader.exists(path) else null
+
+
+## 固定哈希（房间+格坐标），保证每次进房/读档画面一致，不用随机数。
+func _cell_hash(room: int, x: int, y: int, salt: int) -> int:
+	return absi((x * 73856093) ^ (y * 19349663) ^ (room * 83492791) ^ (salt * 2654435761))
+
+
 func _bm_rect(index: int) -> Rect2:
 	return Rect2((index % BM_COLS) * TILE, (index / BM_COLS) * TILE, TILE, TILE)
 
@@ -1241,6 +1879,9 @@ func _draw_bm_tile(ch: String, x: int, y: int, rect: Rect2, room: int) -> bool:
 	match ch:
 		".", "P", "X", "1", "2", "3", "4", "5", "6", "7", "8", "9":
 			draw_texture_rect_region(BM_TILES, rect, _bm_rect(floor_index))
+			if BM_FLOOR_WEAR_ENABLED and _tex_floor_wear != null and ch == "." and _cell_hash(room, x, y, 1) % BM_FLOOR_WEAR_RATE == 0:
+				var wi := _cell_hash(room, x, y, 2) % 8
+				draw_texture_rect_region(_tex_floor_wear, rect, Rect2((wi % 4) * TILE, (wi / 4) * TILE, TILE, TILE))
 			_draw_wall_shadow_on_floor(x, y, rect)
 			if ch == "X":
 				draw_texture_rect(TEX_EXIT, rect, false)
@@ -1265,6 +1906,9 @@ func _draw_bm_tile(ch: String, x: int, y: int, rect: Rect2, room: int) -> bool:
 			draw_texture_rect_region(BM_TILES, rect, _bm_rect(int(walls[(x + y) % walls.size()])))
 			if _is_walkable_at(x, y + 1):
 				draw_texture_rect_region(BM_TILES, rect, _bm_rect(int(theme["trim"])))
+				if _tex_wall_trim != null:
+					var ti := 1 + 4 * (_cell_hash(room, x, y, 3) % 4)
+					draw_texture_rect_region(_tex_wall_trim, rect, Rect2((ti % 4) * TILE, (ti / 4) * TILE, TILE, TILE))
 			# 墙底阴影：让墙看起来是“立起来的”，地面是平的
 			draw_rect(Rect2(rect.position + Vector2(0, TILE - 2), Vector2(TILE, 2)), Color(0, 0, 0, 0.32), true)
 			return true
@@ -1356,6 +2000,55 @@ func _build_bm_decor() -> void:
 				"skylight_panel":
 					_bm_skylights.append(spr)
 			bm_decor_count += 1
+	_build_room_theme_decor()
+
+
+## T2：六厅主题装饰（decor_bm_*.png，每张 4 件 32×32）。只在素材存在时挂载；
+## 选位固定哈希：贴北墙的空地，远离展台/文物/出口/玩家出生点与守卫格，纯视觉无碰撞。
+func _build_room_theme_decor() -> void:
+	for room in BM_ROOM_DECOR_KEYS.size():
+		var tex := _load_optional("res://assets/sprites/bm/decor_bm_%s.png" % BM_ROOM_DECOR_KEYS[room])
+		if tex == null or room >= rooms.size():
+			continue
+		var candidates: Array[Vector2i] = []
+		var r: Rect2 = rooms[room]
+		var x0 := int(r.position.x / TILE)
+		var y0 := int(r.position.y / TILE)
+		for y in range(y0, y0 + int(r.size.y / TILE)):
+			for x in range(x0, x0 + int(r.size.x / TILE)):
+				if _decor_cell_ok(x, y):
+					candidates.append(Vector2i(x, y))
+		var placed: Array[Vector2i] = []
+		var start := _cell_hash(room, 0, 0, 4)
+		for k in candidates.size():
+			if placed.size() >= BM_ROOM_DECOR_COUNT:
+				break
+			var c: Vector2i = candidates[(start + k * 7) % candidates.size()]
+			var far := true
+			for q in placed:
+				if absi(q.x - c.x) < 5:
+					far = false
+			if not far:
+				continue
+			var spr := Sprite2D.new()
+			spr.name = "BMThemeDecor_%d_%d" % [room, placed.size()]
+			spr.texture = tex
+			spr.region_enabled = true
+			spr.region_rect = Rect2(32 * placed.size(), 0, 32, 32)
+			spr.position = _cell_center(c.x, c.y) + Vector2(0, -8)
+			add_child(spr)
+			placed.append(c)
+
+
+func _decor_cell_ok(x: int, y: int) -> bool:
+	if _tile_char(x, y) != "." or _tile_char(x, y - 1) != "#":
+		return false
+	for dy in range(-2, 4):
+		for dx in range(-3, 4):
+			var ch := _tile_char(x + dx, y + dy)
+			if "pTaXP123456789dLWr".contains(ch) and ch != " ":
+				return false
+	return _tile_char(x - 1, y) == "." and _tile_char(x + 1, y) == "."
 
 
 ## Room 3 光影收口：尘埃、展柜玻璃高光、双羊尊地面倒影。
@@ -1367,6 +2060,26 @@ func _build_bm_atmosphere() -> void:
 		if child is Artifact and child.item_id == target_item_id():
 			target_pos = child.position
 			break
+	for i in rooms.size():
+		if i == 3 or not BM_THEMES.has(i):
+			continue
+		var room_dust := CPUParticles2D.new()
+		room_dust.name = "BMDust%d" % i
+		room_dust.position = rooms[i].get_center()
+		room_dust.amount = 14
+		room_dust.lifetime = 7.0
+		room_dust.preprocess = 7.0
+		room_dust.emission_shape = CPUParticles2D.EMISSION_SHAPE_RECTANGLE
+		room_dust.emission_rect_extents = rooms[i].size * 0.45
+		room_dust.direction = Vector2(0, -1)
+		room_dust.spread = 30.0
+		room_dust.gravity = Vector2.ZERO
+		room_dust.initial_velocity_min = 2.0
+		room_dust.initial_velocity_max = 6.0
+		room_dust.scale_amount_min = 0.5
+		room_dust.scale_amount_max = 1.0
+		room_dust.color = Color(1.0, 0.9, 0.72, 0.28)
+		add_child(room_dust)
 	var dust := CPUParticles2D.new()
 	dust.name = "BMDust"
 	dust.position = target_pos
@@ -1429,13 +2142,25 @@ func _draw_planning_overlay() -> void:
 	# 节点与预测标签
 	for i in planned_points.size():
 		var p := planned_points[i]
-		draw_circle(p, PLAN_POINT_RADIUS, Color(0.35, 0.78, 0.92, 0.9))
+		var selected := (i == _selected_plan_index)
+		draw_circle(p, PLAN_POINT_RADIUS, Color(0.35, 0.78, 0.92, 0.9) if not selected else Color(1.0, 0.85, 0.35, 0.95))
 		draw_arc(p, PLAN_POINT_RADIUS + 2.0, 0.0, TAU, 12, Color(0.15, 0.35, 0.45, 0.6), 1.0)
+		var action := _plan_node_actions[i] if i < _plan_node_actions.size() else ""
+		var action_label := ""
+		match action:
+			"wait": action_label = "等待"
+			"crouch": action_label = "蹲下"
+			"stand": action_label = "站立"
+			"unlock": action_label = "开锁"
+			"take": action_label = "拿取"
+			"sprint": action_label = "疾跑"
 		var eta := _estimate_guard_eta_to_point(p)
-		var label := "安全" if eta < 0.0 else "守卫 ~%.1fs" % eta
+		var label := action_label
+		if label != "":
+			label += " · "
+		label += "安全" if eta < 0.0 else "守卫 ~%.1fs" % eta
 		if _is_in_camera_vision(p):
 			label += " · 监控"
-		label += " · 跑动有声"
 		var text_size: Vector2 = font.get_string_size(label, HORIZONTAL_ALIGNMENT_LEFT, -1, 9)
 		var backing := Rect2(p + Vector2(4, -20), text_size + Vector2(4, 4))
 		draw_rect(backing, Color(0.05, 0.06, 0.08, 0.72), true)
@@ -1480,19 +2205,28 @@ func _animate_bm_decor() -> void:
 		_bm_skylights[i].modulate.a = 0.78 + 0.16 * sin(t * 0.9 + i * 0.8)
 	for glint in _bm_glints:
 		glint.modulate.a = 0.25 + 0.35 * absf(sin(t * 1.4))
+	for hl in _bm_case_highlights:
+		hl.modulate.a = 0.5 + 0.12 * sin(t * TAU / 3.5)  # 约 3.5 秒一个呼吸周期
 
 
 func _draw() -> void:
 	var map_size := Vector2(tiles[0].length() * TILE, tiles.size() * TILE)
 	draw_rect(Rect2(Vector2.ZERO, map_size), Color(0.03, 0.035, 0.05), true)
 	for floor_rect in floors:
-		draw_texture_rect(TEX_FLOOR_A, floor_rect, true)
+		var zone := _zone_at(floor_rect.get_center())
+		if _is_zone_revealed(zone):
+			draw_texture_rect(TEX_FLOOR_A, floor_rect, true)
 	for y in tiles.size():
 		var row: String = tiles[y]
 		for x in row.length():
 			var ch := row[x]
 			if ch == " ":
 				continue
+			var zone: int = int(_zone_of_tile[y][x])
+			if not _is_zone_revealed(zone):
+				# 墙/门框如果邻接已探分区，仍显示（不然门会悬空）。
+				if not _is_adjacent_to_revealed_zone(x, y):
+					continue
 			var rect := Rect2(Vector2(x * TILE, y * TILE), Vector2(TILE, TILE))
 			if _is_bm_room(x, y) and _draw_bm_tile(ch, x, y, rect, int(_room_of_tile[y][x])):
 				continue

@@ -1,0 +1,17 @@
+flowchart TB
+  subgraph PLAY[玩法模块：已有代码，不代表全部流程已验收]
+    A[签约CG / 教学] --> B[调查线索]
+    B --> C[路线规划 / 预演]
+    C --> D[潜入执行]
+    D --> E[剧情交付 / 分支]
+  end
+  H[共享内容：evidence / lore / story] --> B
+  S[共享模拟：SimPreview / 固定tick] --> C
+  S --> D
+  G[进度与存档：Game] --> E
+  H --> T[pytest + Godot：逻辑 / 历史边界 / 真实输入 / 截图]
+  S --> T
+  G --> T
+  F[目标设计：独立安全屋 / 实体电脑 / 手机与门 / 箱子交易]
+  classDef future stroke:#9aa7bb,stroke-dasharray:6 4,fill:#141c2c,color:#e5e9f0
+  class F future

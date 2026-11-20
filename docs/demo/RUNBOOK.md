@@ -2,6 +2,10 @@
 
 > 现场命令与流程（课前预检过一遍即可，勿临时摸索）。所有命令在仓库根目录执行。
 
+## Loop 1（约50秒，先展示）
+
+提前打开 [离线展示页](loop1/index.html)、原始聊天、根目录goal.md与plan.md。顺序：需求原话→目标与计划→agent生成结构图，详见 [逐句讲稿](loop1/README.md)。本地页面离线可用；原始聊天另开窗口，不用回溯摘录冒充Plan-mode记录。
+
 ## 0. 环境（课前已固定，勿重装）
 
 - Godot：`~/.local/bin/godot`（4.7.2，防弹窗包装器；`GODOT_ALLOW_GUI=1 ~/.local/bin/godot .` 才弹真窗口）

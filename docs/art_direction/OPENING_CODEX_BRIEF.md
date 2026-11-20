@@ -1,3 +1,5 @@
+> **历史委托，已被2026-11-18用户指定q6方案取代。** 实际CG已接入，不再按本文生成旧剧情六张图。后续OpenCode直接使用 [当前开场CG交接](storyboard/OPENING_CG_HANDOFF.md)：六格对白图、每格5秒自动、Space/E/点击推进、Skip直连教学。以下只保留历史记录。
+
 # 开局动画 · 给 codex 的绘制委托书（Opening Cinematic Brief）
 
 > 委托方：plan（剧情/规划）｜日期：2026-11-13

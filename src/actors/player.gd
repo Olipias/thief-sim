@@ -30,6 +30,10 @@ var facing_row := 0
 var crouching := false
 var auto_moving := false
 var auto_target: Vector2 = Vector2.ZERO
+## 由确定性内核驱动时：渲染层只读位置/朝向，不处理输入。
+var sim_driven := false
+var sim_target_pos: Vector2 = Vector2.ZERO
+var sim_dir: Vector2 = Vector2.ZERO
 var _walk_time := 0.0
 var _sprinting := false
 var _sprint_speed := SPRINT_SPEED
@@ -46,6 +50,14 @@ func _physics_process(delta: float) -> void:
 	# 冷却在这里递减：对谈打开期间游戏暂停、本函数不跑，冷却正好冻结到关闭那一帧，
 	# 用于拦下“关闭界面的同一次按键”。
 	_interact_cooldown = maxf(0.0, _interact_cooldown - delta)
+	if sim_driven:
+		# 确定性执行：内核已经算出精确目标像素，渲染层直接瞬移，
+		# 避免 move_and_slide 把玩家滑进墙体或滑出地图。
+		global_position = sim_target_pos
+		velocity = Vector2.ZERO
+		move_and_slide()
+		_update_visual(sim_dir, delta)
+		return
 	if not controls_enabled:
 		velocity = Vector2.ZERO
 		move_and_slide()

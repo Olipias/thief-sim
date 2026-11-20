@@ -1,11 +1,10 @@
 class_name TitleScreen
 extends Control
-## 标题界面：整幅立绘 + 场景化菜单（选项贴在画面里的“手”和博物馆入口上）。
+## 标题界面：用户指定封面 `assets/art/CPy0UzlakIPj0kfwMuVCR.png`（1376×768，雨夜恶魔与博物馆）
+## + 居中集中菜单（CONFIRMED_DESIGN §9：不再依封面人物手部/建筑入口散落按钮）。
 ##
-## 立绘优先使用作者提供的 `assets/art/title_key_art.png`（任意尺寸、自动 cover 裁切）；
-## 没有时回退到 `title_key_art_placeholder.png`。
-## 选项是“错开放置”的：开始/继续在屋顶小偷按着的手边，商店在博物馆正门台阶上，
-## 声明/退出缩在右下角。带入场、悬停、呼吸光框与指针标记等动效。
+## 菜单固定排列：继续游戏 / 新游戏 / 文物档案 / 制作人员与声明 / 退出游戏。
+## 有效存档突出继续；覆盖旧档需确认。保存摘要移到左上角存档信息行，不放技术性信息。
 
 signal continue_requested
 signal new_game_requested
@@ -14,15 +13,12 @@ signal statements_requested
 signal collection_requested
 
 const ART_CANDIDATES := [
+	"res://assets/art/CPy0UzlakIPj0kfwMuVCR.png",  # 用户指定封面（1376×768，雨夜恶魔与博物馆）
 	"res://assets/art/title_key_art.png",
 	"res://assets/art/title_key_art.jpg",
 	"res://assets/art/title_key_art.jpeg",
 	"res://assets/art/title_key_art_placeholder.png",
 ]
-
-const PRIMARY_RECT := Rect2(190, 298, 120, 26)
-const SECONDARY_RECT := Rect2(190, 330, 120, 24)
-const GLOW_RECT := Rect2(185, 293, 130, 36)
 
 @onready var art: TextureRect = $Art
 @onready var shade_top: TextureRect = $ShadeTop
@@ -33,10 +29,7 @@ const GLOW_RECT := Rect2(185, 293, 130, 36)
 @onready var subtitle: Label = $Subtitle
 @onready var title_rule: ColorRect = $TitleRule
 @onready var seal: PanelContainer = $Seal
-@onready var primary_hint: Label = $PrimaryHint
-@onready var collection_hint: Label = $CollectionHint
-@onready var primary_glow: Panel = $PrimaryGlow
-@onready var collection_marker: Panel = $CollectionMarker
+@onready var menu_panel: PanelContainer = $MenuPanel
 @onready var continue_button: Button = $ContinueButton
 @onready var new_game_button: Button = $NewGameButton
 @onready var collection_button: Button = $CollectionButton
@@ -54,7 +47,7 @@ func _ready() -> void:
 	shade_top.texture = load("res://assets/art/shade_top.png")
 	shade_bottom.texture = load("res://assets/art/shade_bottom.png")
 	art.texture = _load_key_art()
-	hint_label.text = "立绘占位图 · 将作者立绘放到 assets/art/title_key_art.png 即可自动替换" if _using_placeholder else ""
+	hint_label.text = "" if not _using_placeholder else "封面缺省 · 放入 assets/art/CPy0UzlakIPj0kfwMuVCR.png 自动替换"
 	continue_button.pressed.connect(_on_continue)
 	new_game_button.pressed.connect(_on_new_game)
 	collection_button.pressed.connect(func() -> void: collection_requested.emit())
@@ -75,38 +68,38 @@ func _load_key_art() -> Texture2D:
 	return null
 
 
-## 场景化布局：主行动放在角色手边；商店贴在博物馆正门台阶上。
+const MENU_X := 424.0
+const MENU_W := 192.0
+const MENU_SLOT_H := 34.0
+const MENU_CENTER_Y := 245.0
+
+
+## 集中菜单：继续突出（有效存档）；新游戏覆盖确认。
 func _layout_buttons() -> void:
-	continue_button.position = PRIMARY_RECT.position
-	continue_button.size = PRIMARY_RECT.size
-	new_game_button.size = SECONDARY_RECT.size
 	if Game.has_save():
 		continue_button.visible = true
 		continue_button.text = "继续游戏"
-		new_game_button.visible = true
-		new_game_button.position = SECONDARY_RECT.position
 		new_game_button.text = "新游戏"
 		_set_font_size(new_game_button, 11)
 		_primary = continue_button
 	else:
 		continue_button.visible = false
-		new_game_button.visible = true
-		new_game_button.position = PRIMARY_RECT.position
 		new_game_button.text = "开始游戏"
 		_set_font_size(new_game_button, 14)
 		_primary = new_game_button
-	primary_glow.position = GLOW_RECT.position
-	primary_glow.size = GLOW_RECT.size
-	primary_hint.text = "从这儿开始 ▼"
-	collection_hint.text = "收集册 · %d / %d" % [Game.archived_count(), Collection.IDS.size()]
+	var order: Array[Button] = [continue_button, new_game_button, collection_button, statements_button, quit_button]
+	var visible_buttons: Array[Button] = []
+	for btn in order:
+		if btn.visible:
+			visible_buttons.append(btn)
+	var total_h := visible_buttons.size() * MENU_SLOT_H
+	var start_y := MENU_CENTER_Y - total_h * 0.5
+	for i in range(visible_buttons.size()):
+		var btn: Button = visible_buttons[i]
+		btn.position = Vector2(MENU_X, start_y + i * MENU_SLOT_H)
+		btn.size = Vector2(MENU_W, MENU_SLOT_H - 4.0)
 	if Game.has_save():
-		save_label.text = "金币 %d · 背包 %d×%d · 烟雾弹 x%d%s" % [
-			Game.money,
-			Game.bag_cells().x,
-			Game.bag_cells().y,
-			Game.smoke_count,
-			" · 跑鞋已购" if Game.has_sneakers else "",
-		]
+		save_label.text = "有存档 · 继续上次行动"
 	else:
 		save_label.text = "尚无存档 · 开始新的行动"
 	if _primary != null:
@@ -124,7 +117,6 @@ func _setup_animations() -> void:
 		button.mouse_exited.connect(func() -> void: _hover(button, 1.0, false))
 		button.focus_entered.connect(func() -> void: _hover(button, 1.04, false))
 		button.focus_exited.connect(func() -> void: _hover(button, 1.0, false))
-	collection_marker.pivot_offset = collection_marker.size * 0.5
 	seal.pivot_offset = seal.size * 0.5
 	art.pivot_offset = size * 0.5
 	resized.connect(func() -> void: art.pivot_offset = size * 0.5)
@@ -149,15 +141,15 @@ func _play_intro() -> void:
 	fade_tween.tween_property(fade, "color:a", 0.0, 0.45)
 	fade_tween.tween_callback(func() -> void: fade.visible = false)
 
-	# 标题从左侧滑入
+	# 标题从右侧滑入（菜单位于右侧黑色区域）
 	var title_home := title_label.position
-	title_label.position = title_home + Vector2(-16, 0)
+	title_label.position = title_home + Vector2(16, 0)
 	title_label.modulate.a = 0.0
 	var title_tween := create_tween().set_parallel(true)
 	title_tween.tween_property(title_label, "modulate:a", 1.0, 0.4)
 	title_tween.tween_property(title_label, "position", title_home, 0.5).set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_OUT)
 
-	for label in [subtitle, title_rule, save_label, primary_hint, collection_hint]:
+	for label in [subtitle, title_rule, save_label]:
 		label.modulate.a = 0.0
 		var label_tween := create_tween()
 		label_tween.tween_property(label, "modulate:a", 1.0, 0.3).set_delay(0.12)
@@ -185,12 +177,6 @@ func _play_intro() -> void:
 
 func _process(delta: float) -> void:
 	_t += delta
-	# 主按钮的呼吸光框
-	primary_glow.modulate.a = 0.45 + 0.25 * sin(_t * 2.2)
-	# 场景标记的呼吸
-	var pulse := 0.5 + 0.5 * sin(_t * 2.6)
-	collection_marker.modulate.a = 0.45 + 0.45 * pulse
-	collection_marker.scale = Vector2.ONE * (0.85 + 0.25 * pulse)
 	# 立绘极慢的推近，让静态图“活着”
 	art.scale = Vector2.ONE * (1.0 + 0.006 * sin(_t * 0.25))
 

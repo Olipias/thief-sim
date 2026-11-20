@@ -1,0 +1,18 @@
+Godot Engine v4.7.2.stable.official.ed1daf0bf - https://godotengine.org
+
+PASS - 新游戏先播q6图片分镜
+PASS - 六格每格5秒，自动总长30秒
+PASS - 开场从第一格开始
+PASS - 真实Space推进一格
+PASS - 手动推进后重新开始5秒计时
+PASS - 按住Space的重复事件不会连续跳格
+PASS - 达到5秒自动切换下一格
+PASS - 真实鼠标点击画面推进一格
+PASS - E兼容推进一格
+PASS - CG期间B不打开背包干扰播放
+PASS - 真实Skip只发出一次结束信号
+PASS - 跳过演出后契约进度落档
+PASS - Skip直接进入教学而非栏目页
+PASS - 最后一格自动结束也落档
+PASS - 自动播完直接进入教学
+OPENING_CG: 15/15 PASSED

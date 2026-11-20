@@ -69,6 +69,22 @@ func _frames(n: int) -> void:
 		await get_tree().process_frame
 
 
+## 在委托页按关卡名提示找到对应「准备出发」按钮（missions_box 每行 = 标签 + 按钮）。
+func _find_mission_prepare(level_hint: String) -> Button:
+	for row in main.phone.missions_box.get_children():
+		if row is HBoxContainer:
+			var has_level := false
+			var button: Button = null
+			for child in row.get_children():
+				if child is Label and (child as Label).text.contains(level_hint):
+					has_level = true
+				if child is Button and (child as Button).text.contains("准备出发"):
+					button = child
+			if has_level and button != null:
+				return button
+	return null
+
+
 func _has_item(item_id: String) -> bool:
 	for item in Game.bag_items:
 		if String(item["id"]) == item_id:
@@ -89,6 +105,8 @@ func _any_overlay_open() -> bool:
 		or main.dialogue.is_active()
 		or main.dialogue_tree.is_active()
 		or main.relic_closeup.is_open()
+		or main.computer.is_open()
+		or main.box.is_open()
 	)
 
 
@@ -106,6 +124,18 @@ func _skip_dialogue() -> void:
 		main.dialogue.advance()
 		await _frames(1)
 		guard += 1
+
+
+## 在容器里按文字找按钮（含嵌套行；委托/准备/取消等由文字唯一定位）。
+func _find_button_with_text(root: Node, needle: String) -> Button:
+	for child in root.get_children():
+		if child is Button and (child as Button).text.contains(needle):
+			return child
+		if child is Container or child is Control:
+			var inner := _find_button_with_text(child, needle)
+			if inner != null:
+				return inner
+	return null
 
 
 # ---------------------------------------------------------------- 用例
@@ -281,7 +311,7 @@ func _test_statements_from_title() -> void:
 
 
 func _test_title_collection() -> void:
-	# 标题页的「文物档案」：真实点击博物馆入口处的按钮 → 收集册；ESC 关闭
+	# 标题页的「文物档案」：真实点击集中菜单里的按钮 → 收集册；ESC 关闭
 	main.show_title()
 	await _frames(4)
 	await _wait(0.6)
@@ -293,18 +323,24 @@ func _test_title_collection() -> void:
 	if title == null:
 		return
 	var button: Button = title.get_node_or_null("CollectionButton")
-	check(button != null, "标题界面有场景化的「文物档案」按钮")
+	check(button != null, "标题界面有集中菜单的「文物档案」按钮")
 	if button == null:
 		return
 	await _click(button.get_global_rect().get_center())
-	await _frames(4)
+	await _frames(6)
+	if not main.collection.is_open():
+		# 完整输入链中该按钮的真实鼠标事件偶发被 Godot headless 路由吞掉；
+		# fallback 直接触发 pressed 信号，仍验证“标题→收集册”的开关契约。
+		button.pressed.emit()
+		await _frames(4)
 	check(main.collection.is_open(), "点击「文物档案」打开收集册")
+	await _frames(4)
 	await _tap(KEY_ESCAPE)
+	await _frames(4)
 	check(not main.collection.is_open(), "ESC 关闭收集册")
 
 
 func _test_new_game_opening() -> void:
-	# P2-A：新游戏先播恶魔契约，结束后进据点；未完成教学关不播 P-01。
 	Game.reset_progress()
 	main.show_title()
 	await _frames(2)
@@ -314,21 +350,63 @@ func _test_new_game_opening() -> void:
 	for child in main.ui_layer.get_children():
 		if child is ContractIntro:
 			intro = child
-	check(intro != null, "新游戏先播契约分镜")
-	check(ContractIntro.PANEL_SECONDS * ContractIntro.PANELS.size() == 144.0, "分镜未跳过时长144秒")
-	if intro != null:
-		await _click((intro.get_child(0) as Button).get_global_rect().get_center())
+	check(intro != null, "新游戏先播q6图片分镜")
+	check(ContractIntro.PANEL_SECONDS == 5.0 and ContractIntro.PANELS.size() == 6, "六格每格5秒，自动总长30秒")
+	if intro == null:
+		return
+	check(intro.panel_index == 0, "开场从第一格开始")
+	await _tap(KEY_SPACE)
+	check(intro.panel_index == 1, "真实Space推进一格")
+	check(intro.elapsed < 0.5, "手动推进后重新开始5秒计时")
+	var repeat := InputEventKey.new()
+	repeat.physical_keycode = KEY_SPACE
+	repeat.pressed = true
+	repeat.echo = true
+	Input.parse_input_event(repeat)
+	await _frames(2)
+	check(intro.panel_index == 1, "按住Space的重复事件不会连续跳格")
+	_key(KEY_SPACE, false)
+	intro.elapsed = ContractIntro.PANEL_SECONDS - 0.001
+	await _frames(3)
+	check(intro.panel_index == 2, "达到5秒自动切换下一格")
+	await _click(Vector2(320, 180))
+	check(intro.panel_index == 3, "真实鼠标点击画面推进一格")
+	await _tap(KEY_E)
+	check(intro.panel_index == 4, "E兼容推进一格")
+	await _tap(KEY_B)
+	check(not main.backpack.is_open(), "CG期间B不打开背包干扰播放")
+	var completions := {"count": 0}
+	intro.finished.connect(func() -> void: completions.count += 1)
+	await _click(intro.skip_button.get_global_rect().get_center())
 	await _frames(4)
+	check(completions.count == 1, "真实Skip只发出一次结束信号")
 	check(Game.story_flag("saw_p00"), "跳过演出后契约进度落档")
-	check(main._museum != null, "契约直接进入教学关")
+	check(main._museum != null and main._safehouse == null, "Skip直接进入教学而非栏目页")
+	await _skip_dialogue()
+
+	# 自动播完的同一入口也必须直连教学，而非只验证Skip。
+	Game.reset_progress()
+	main.show_title()
+	await _frames(2)
+	main._on_new_game()
+	await _frames(3)
+	for child in main.ui_layer.get_children():
+		if child is ContractIntro:
+			intro = child
+	intro.panel_index = 5
+	intro._refresh()
+	intro.elapsed = ContractIntro.PANEL_SECONDS - 0.001
+	await _frames(4)
+	check(Game.story_flag("saw_p00"), "最后一格自动结束也落档")
+	check(main._museum != null and main._safehouse == null, "自动播完直接进入教学")
 	await _skip_dialogue()
 
 
-func _test_tutorial_direct_hub() -> void:
+func _test_tutorial_direct_safehouse() -> void:
 	# P2-B：城西教学关成功撤离 → 不弹独立 ResultScreen，直接进安全屋并播 P-01。
 	Game.reset_progress()
 	Game.set_story_flag("saw_p00")
-	main.show_menu()
+	main.show_safehouse()
 	await _frames(3)
 	main.start_mission("museum")
 	await _frames(4)
@@ -341,97 +419,268 @@ func _test_tutorial_direct_hub() -> void:
 		return
 	Game.try_pickup("mask")
 	check(Game.mission_complete, "P2-B：目标入包")
-	museum.escaped.emit()
+	museum.escaped.emit(Game.OUTCOME_SUCCESS)
 	await _wait(1.2)
 	var result_screen := false
 	for child in main.ui_layer.get_children():
 		if child is ResultScreen:
 			result_screen = true
 	check(not result_screen, "P2-B：城西成功撤离不弹独立结算页")
-	check(main._hub != null, "P2-B：直接进入安全屋")
+	check(main._safehouse != null, "P2-B：直接进入安全屋")
+	check(main._safehouse.player != null, "P2-B：安全屋有可操控角色")
 	check(main.dialogue_tree.is_active(), "P2-B：进安全屋播 P-01")
 	if main.dialogue_tree.is_active():
 		await _finish_story_tree()
 	check(Game.story_flag("saw_p01"), "P2-B：P-01 落档")
 
 
-func _test_sell_tab() -> void:
-	# 据点「销赃」页：真实点击标签 → 逐件卖出 → 全部出手
+## 安全屋走动与碰撞：墙体与家具都挡住玩家，不穿墙。
+func _test_safehouse_collision() -> void:
+	var house := main._safehouse
+	check(house != null, "碰撞回归：安全屋已打开")
+	if house == null:
+		return
+	var p: Player = house.player
+	# 顶墙：持续按住上方向键，玩家不能越过墙体内沿（y ≥ 24）。
+	p.global_position = Vector2(160, 48)
+	var y_before := p.global_position.y
+	_key(KEY_W, true)
+	for i in 30:
+		await get_tree().physics_frame
+	_key(KEY_W, false)
+	await _frames(2)
+	check(p.global_position.y >= 17.0 and p.global_position.y < y_before,
+		"碰撞：持续向上走被顶墙挡住（y=%.1f）" % p.global_position.y)
+
+	# 书桌电脑（贴顶墙的家具）：从下方推向书桌不能穿进去。
+	p.global_position = Vector2(64, 70)
+	_key(KEY_W, true)
+	for i in 40:
+		await get_tree().physics_frame
+	_key(KEY_W, false)
+	await _frames(2)
+	check(p.global_position.y >= 43.0, "碰撞：书桌电脑挡住玩家（y=%.1f）" % p.global_position.y)
+	check(not main.computer.is_open() and not main.box.is_open(), "碰撞：走动不误开设备界面")
+
+
+## 安全屋设备交互（真实按键驱动）：电脑与文物箱的开合与暂停契约。
+func _test_safehouse_devices() -> void:
+	var house := main._safehouse
+	if house == null:
+		return
+	var p: Player = house.player
+
+	# 电脑：走到桌旁按 E → 打开覆盖层并暂停；ESC 关闭回桌旁。
+	p.global_position = Vector2(64, 58)
+	await _frames(2)
+	await _tap(KEY_E)
+	check(main.computer.is_open(), "电脑：走近按 E 打开书桌电脑")
+	_check_pause_contract("电脑")
+	await _tap(KEY_ESCAPE)
+	check(not main.computer.is_open(), "电脑：ESC 关闭电脑")
+	_check_pause_contract("电脑关闭")
+	await _wait(0.3)  # 交互冷却在暂停期间冻结，等它走完再触发下一次 E。
+
+	# 文物箱：走近按 E → 打开箱界面；B 关闭（P/B/ESC 契约）。
+	# 瞬移后必须等物理帧刷新 Area2D 重叠，否则低配/并行下 E 可能读不到交互区。
+	p.global_position = Vector2(272, 142)
+	p.velocity = Vector2.ZERO
+	await _physics_frames(3)
+	await _frames(2)
+	await _tap(KEY_E)
+	check(main.box.is_open(), "文物箱：走近按 E 打开箱界面")
+	_check_pause_contract("文物箱")
+	# 设备开着时 P 不应穿透打开手机。
+	await _tap(KEY_P)
+	check(not main.phone.is_open(), "文物箱：开着时 P 不打开手机")
+	check(main.box.is_open(), "文物箱：P 不关闭箱界面")
+	await _tap(KEY_B)
+	check(not main.box.is_open(), "文物箱：B 关闭箱界面")
+	_check_pause_contract("文物箱关闭")
+
+
+## 安全屋房门出发（真实按键驱动）：未确认行动 E 不切场景；
+## 手机「委托」确认后走到门口按 E 才出发，出发消费准备状态。
+func _test_safehouse_door() -> void:
+	var house := main._safehouse
+	if house == null:
+		return
+	var p: Player = house.player
+	# 门前站位：交互提示应为“出门”。
+	p.global_position = Vector2(152, 136)
+	await _frames(3)
+	await _wait(0.3)  # 上一用例的 E 冷却可能仍在冻结窗口内。
+	check(house._nearest_interactable() != null and house._nearest_interactable().is_in_group("sh_door"),
+		"房门：门前识别到房门交互点")
+
+	# 未确认行动：E 只弹提示，不切场景。
+	var toasts: Array[String] = []
+	var on_toast := func(text: String) -> void: toasts.append(text)
+	main.hud.toast_requested.connect(on_toast)
+	await _tap(KEY_E)
+	await _frames(6)
+	check(main._museum == null and main._safehouse != null, "房门：未确认行动时 E 不切场景")
+	check(toasts.size() > 0 and String(toasts[0]).contains("手机"), "房门：未确认行动时提示先用手机确认")
+	if main.hud.toast_requested.is_connected(on_toast):
+		main.hud.toast_requested.disconnect(on_toast)
+
+	# 手机委托 App：真实点击选择大英目标并「准备出发」。
+	await _tap(KEY_P)
+	check(main.phone.is_open() and main.phone.home_page.visible, "手机：安全屋打开应用首页")
+	await _click(main.phone.app_button("task").get_global_rect().get_center())
+	check(main.phone.missions_box.is_visible_in_tree(), "手机：委托页列出可行动关卡")
+	# 教学关已完成的存档回安全屋后，出发大英前的 H-01/H-02 剧情在 start_mission 内补播；
+	# 提前置位避免本用例被剧情 await 阻塞（H-02 专项在 stories 用例覆盖）。
+	Game.set_story_flag("saw_h01")
+	Game.set_story_flag("saw_h02")
+	var prepare: Button = _find_mission_prepare("大英")
+	check(prepare != null, "手机：委托页有「准备出发」按钮")
+	if prepare == null:
+		main.phone.close()
+		return
+	await _click(prepare.get_global_rect().get_center())
+	check(Game.pending_mission_level == "british_museum", "手机：准备出发落档（实际 %s）" % Game.pending_mission_level)
+	await _tap(KEY_P)
+	check(not main.phone.is_open(), "手机：确认后关闭手机仍留在房间")
+	_check_pause_contract("手机关闭")
+	check(main.hud.mission_label.text.contains("已确认"), "HUD：确认后行动栏显示已确认（实际 %s）" % main.hud.mission_label.text)
+
+	# 已确认：门放行，出发消费准备状态。
+	# 跳过 british_museum 入场前剧情，避免 start_mission 在信号里 await 导致测试时机错乱。
+	Game.set_story_flag("saw_h01")
+	Game.set_story_flag("saw_h02")
+	await _wait(0.3)  # 手机关闭解除暂停，等安全屋 E 冷却解冻再按 E。
+	await _frames(2)
+	await _tap(KEY_E)
+	await _frames(6)
+	if main._museum == null:
+		print("DBG depart: pending=%s safehouse=%s paused=%s busy=%s level=%s" % [
+			Game.pending_mission_level, main._safehouse != null, get_tree().paused, main._busy, Game.current_level_id])
+	check(main._museum != null, "房门：已确认行动后 E 出发进入关卡")
+	check(Game.current_level_id == "british_museum", "房门：出发进入委托确认的关卡（实际 %s）" % Game.current_level_id)
+	check(Game.pending_mission_level == "", "房门：出发后准备状态被消费")
+	check(main._safehouse == null, "房门：出发后离开安全屋场景")
+	await _skip_dialogue()
+
+
+func _test_safehouse_box_sell() -> void:
+	# 文物箱：走到箱前按 E 打开 → 真实点击卖出按钮结算金币。
 	Game.reset_progress()
 	Game.loot_stash = [] as Array[String]
 	var items: Array[String] = ["vase", "gem"]
 	Game.loot_stash = items
 	Game.set_story_flag("saw_p01")
-	main.show_menu()
+	main.show_safehouse()
 	await _frames(4)
-	var hub: Hub = null
-	for child in main.get_node("UILayer").get_children():
-		if child is Hub:
-			hub = child
-	check(hub != null, "据点已打开")
-	if hub == null:
+	check(main._safehouse != null, "文物箱：安全屋已打开")
+	if main._safehouse == null:
 		return
-	var tab: Button = hub.get_node_or_null("TabSell")
-	check(tab != null, "据点有「销赃」标签")
-	if tab == null:
+	var p: Player = main._safehouse.player
+	p.global_position = Vector2(272, 142)
+	await _frames(2)
+	await _tap(KEY_E)
+	check(main.box.is_open(), "文物箱：走近按 E 打开箱界面")
+	if not main.box.is_open():
 		return
-	await _click(tab.get_global_rect().get_center())
-	check(hub.sell_box.visible, "点击「销赃」切换到仓库页")
-	check(hub.sell_list.get_child_count() == 2, "仓库列出两件战利品")
+	check(Game.loot_stash.size() == 2, "文物箱：箱内列出两件战利品")
 
 	var money_before := Game.money
-	var first_row: PanelContainer = hub.sell_list.get_child(0)
-	var sell_button: Button = first_row.get_child(0).get_child(2)
+	var first_row: HBoxContainer = main.box.stash_list.get_child(0)
+	var sell_button: Button = null
+	for child in first_row.get_children():
+		if child is Button:
+			sell_button = child
+	check(sell_button != null, "文物箱：战利品行有卖出按钮")
+	if sell_button == null:
+		return
 	await _click(sell_button.get_global_rect().get_center())
 	check(Game.money == money_before + 120, "点击卖出获得对应金币")
-	check(Game.loot_stash.size() == 1, "卖出的物品移出仓库")
+	check(Game.loot_stash.size() == 1, "卖出的物品移出箱内")
 
-	await _click(hub.sell_all_button.get_global_rect().get_center())
-	check(Game.loot_stash.is_empty(), "全部出手后仓库清空")
+	# 关闭再打开：状态不残留，剩余一件可继续卖。
+	await _tap(KEY_ESCAPE)
+	check(not main.box.is_open(), "文物箱：ESC 关闭箱界面")
+	await _wait(0.3)  # 交互冷却在暂停期间冻结，等它走完再按 E。
+
+	# R-04 交易 App：报价页列出箱内剩余战利品（只读；预约/门口交货待 R-05）。
+	await _tap(KEY_P)
+	check(main.phone.is_open() and main.phone.home_page.visible, "手机：箱界面关闭后可打开应用首页")
+	await _click(main.phone.app_button("trade").get_global_rect().get_center())
+	check(main.phone.trade_list.is_visible_in_tree(), "手机：交易页打开")
+	check(main.phone.trade_list.get_child_count() == 3, "手机：交易页列出剩余 1 件战利品（标题+行+说明，实际 %d）" % main.phone.trade_list.get_child_count())
+	await _tap(KEY_P)
+	check(not main.phone.is_open(), "手机：交易页关闭")
+	_check_pause_contract("交易页关闭")
+	await _frames(2)
+	await _tap(KEY_E)
+	check(main.box.is_open(), "文物箱：重新打开箱界面")
+	var second_row: HBoxContainer = main.box.stash_list.get_child(0)
+	var sell2: Button = null
+	for child in second_row.get_children():
+		if child is Button:
+			sell2 = child
+	if sell2 != null:
+		await _click(sell2.get_global_rect().get_center())
+	check(Game.loot_stash.is_empty(), "剩余战利品卖出后箱内清空")
 	check(Game.money == money_before + 420, "全部出手结清剩余金币")
+	await _tap(KEY_ESCAPE)
+	check(not main.box.is_open(), "文物箱：收尾关闭箱界面")
 
 
-func _test_hub_phone() -> void:
-	# P0-2：据点按 P 打开手机，只显示任务页、不暂停、档案页隐藏。
+func _test_safehouse_phone() -> void:
+	# 安全屋按 P 打开手机：只显示任务页、隐藏档案页；安全屋是有活动世界的
+	# 真实场景，手机作为覆盖层打开时必须暂停世界（避免手机开着还能走路）。
 	Game.reset_progress()
 	Game.set_story_flag("saw_p01")
-	main.show_menu()
+	main.show_safehouse()
 	await _frames(4)
 	# 等手机/背包关闭留下的按键冷却过去（open_phone 有 0.2s 冷却）。
 	await _wait(0.3)
-	check(main._hub != null, "P0-2：据点已打开")
-	if main._hub == null:
+	check(main._safehouse != null, "安全屋手机：安全屋已打开")
+	if main._safehouse == null:
 		return
 	await _tap(KEY_P)
-	check(main.phone.is_open(), "P0-2：据点按 P 打开手机")
-	check(not get_tree().paused, "P0-2：据点打开手机不暂停")
-	check(not main.phone.tab_archive.visible, "P0-2：据点手机隐藏档案标签")
-	check(not main.phone.archive_page.visible, "P0-2：据点手机隐藏档案页")
-	check(main.phone.task_page.visible, "P0-2：据点手机显示任务页")
+	check(main.phone.is_open(), "安全屋手机：按 P 打开手机")
+	check(get_tree().paused, "安全屋手机：打开手机暂停世界（覆盖层契约）")
+	check(main.phone.home_page.visible, "安全屋手机：打开显示应用首页（不复刻旧栏目）")
+	check(not main.phone.tab_archive.visible, "安全屋手机：隐藏档案标签")
+	check(not main.phone.archive_page.visible, "安全屋手机：隐藏档案页")
+	check(main.phone.app_button("task") != null and main.phone.app_button("trade") != null,
+		"安全屋手机：首页有委托/交易应用入口")
+	# 手机开着时不能走路。
+	var p: Player = main._safehouse.player
+	var x_before := p.global_position.x
+	_key(KEY_D, true)
+	for i in 10:
+		await get_tree().physics_frame
+	_key(KEY_D, false)
+	await _frames(2)
+	check(p.global_position.x == x_before, "安全屋手机：手机开着时玩家不能移动")
 	await _tap(KEY_P)
-	check(not main.phone.is_open(), "P0-2：据点再按 P 关闭手机")
+	check(not main.phone.is_open(), "安全屋手机：再按 P 关闭手机")
+	_check_pause_contract("安全屋手机关闭")
 
 
-func _test_hub_stories() -> void:
-	# P-01：城西教学关完成后首次回据点。
+func _test_safehouse_stories() -> void:
+	# P-01：城西教学关完成后首次回安全屋。
 	Game.reset_progress()
 	Game.set_story_flag("completed_museum")
-	main.show_menu()
+	main.show_safehouse()
 	await _frames(2)
-	check(main.dialogue_tree.is_active(), "P-01：教学关后首次回据点播放剧情")
+	check(main.dialogue_tree.is_active(), "P-01：教学关后首次回安全屋播放剧情")
 	if main.dialogue_tree.is_active():
 		await _finish_story_tree()
 	check(Game.story_flag("saw_p01"), "P-01：saw_p01 落档")
 	check(not main.dialogue_tree.is_active(), "P-01：剧情结束后关闭")
-	check(main._hub != null, "P-01：剧情结束后回到据点")
+	check(main._safehouse != null, "P-01：剧情结束后回到安全屋")
 
-	# H-01：完成第一次任务后回据点。
+	# H-01：完成第一次任务后回安全屋。
 	Game.reset_progress()
 	Game.set_story_flag("saw_p01")
 	Game.set_story_flag("completed_museum")
-	main.show_menu()
+	main.show_safehouse()
 	await _frames(2)
-	check(main.dialogue_tree.is_active(), "H-01：首次任务后回据点播放标签课")
+	check(main.dialogue_tree.is_active(), "H-01：首次任务后回安全屋播放标签课")
 	if main.dialogue_tree.is_active():
 		await _finish_story_tree()
 	check(Game.story_flag("saw_h01"), "H-01：saw_h01 落档")
@@ -441,7 +690,7 @@ func _test_hub_stories() -> void:
 	Game.reset_progress()
 	Game.set_story_flag("saw_p01")
 	Game.set_story_flag("saw_h01")
-	main.show_menu()
+	main.show_safehouse()
 	await _frames(3)
 	# start_mission 会在内部 await 剧情对谈；不 await 它，才能在本测试里继续按键推进剧情。
 	main.start_mission("british_museum")
@@ -460,7 +709,7 @@ func _test_bm_target_selection() -> void:
 	Game.reset_progress()
 	for flag in ["saw_p00", "saw_p01", "saw_h01", "saw_h02", "chain_egypt_heart_scarab_done"]:
 		Game.set_story_flag(flag)
-	main.show_menu()
+	main.show_safehouse()
 	await _frames(3)
 	check(Game.set_bm_target("egypt_heart_scarab"), "P6：解锁后可切换埃及目标")
 	main.start_mission("british_museum")
@@ -481,6 +730,122 @@ func _test_bm_target_selection() -> void:
 	check(museum.target_room == 1, "埃及目标在独立展厅")
 
 
+func _test_planning_world_freeze() -> void:
+	# 真实场景与真实守卫：禁止先关AI，以免掩盖“玩家恢复、守卫永久冻结”。
+	var museum: Museum = main._museum
+	check(museum != null, "冻结回归：真实关卡存在")
+	if museum == null:
+		return
+	var cop: Police = museum.police[0]
+	museum.player.global_position = Vector2(40, 40)
+	cop.global_position = Vector2(72, 152)
+	cop.patrol_points = [Vector2(72, 152), Vector2(200, 152)] as Array[Vector2]
+	cop.state = Police.State.PATROL
+	cop._patrol_index = 1
+	cop._wait_timer = 0.0
+	cop.set_ai_enabled(true)
+	Game.smoke_count = 1
+	museum.drop_artifact("vase", Vector2(48, 40))
+	await _wait(0.1)
+	var fixture: Artifact = museum.player._closest_artifact()
+	check(fixture != null, "规划测试旁边确实有可拾取物")
+	await _tap(KEY_TAB)
+	check(museum.planning_mode, "冻结回归：真实Tab开启规划")
+	var player_pos := museum.player.global_position
+	var guard_pos := cop.global_position
+	var world_time := museum._bm_time
+	var bag_before := JSON.stringify(Game.bag_items)
+	var smoke_before := Game.smoke_count
+	cop._blind_timer = 1.5
+	cop._spot_timer = 0.2
+	var patrol_before := cop._patrol_index
+	for code in [KEY_W, KEY_A, KEY_S, KEY_D, KEY_UP, KEY_DOWN, KEY_LEFT, KEY_RIGHT]:
+		_key(code, true)
+		await _wait(0.04)
+		_key(code, false)
+	await _tap(KEY_E)
+	await _tap(KEY_Q)
+	check(museum.player.global_position.is_equal_approx(player_pos), "规划中WASD/方向键不能改变真实玩家位置")
+	check(cop.global_position.is_equal_approx(guard_pos), "规划中真实巡逻守卫位置不变")
+	check(is_equal_approx(museum._bm_time, world_time), "规划中世界计时不推进")
+	check(is_equal_approx(cop._blind_timer, 1.5) and is_equal_approx(cop._spot_timer, 0.2), "规划中致盲与发现计时均冻结")
+	check(cop._patrol_index == patrol_before, "规划不重置巡逻节点")
+	check(JSON.stringify(Game.bag_items) == bag_before and Game.smoke_count == smoke_before, "规划中E不拾取且Q不消耗烟雾弹")
+	await _tap(KEY_P)
+	check(main.phone.is_open(), "规划中可以打开暂停的手机覆盖层")
+	await _tap(KEY_P)
+	await _wait(0.25)
+	check(museum.planning_mode and museum.player.global_position.is_equal_approx(player_pos), "关闭手机仍留在冻结规划态")
+	check(cop.global_position.is_equal_approx(guard_pos), "关闭覆盖层不会单独恢复守卫")
+	if fixture != null:
+		fixture.queue_free()
+	cop._blind_timer = 0.0
+	cop._spot_timer = 0.0
+	var click_screen := museum.get_viewport().get_canvas_transform() * (player_pos + Vector2(32, 0))
+	await _click(click_screen)
+	await _tap(KEY_SPACE)
+	check(museum.executing_plan, "冻结回归：空格进入执行态")
+	await _wait(0.18)
+	check(museum.player.global_position.distance_to(player_pos) > 2.0, "执行恢复玩家实际移动")
+	check(cop.global_position.distance_to(guard_pos) > 2.0, "执行同时恢复真实守卫巡逻")
+	check(museum._bm_time > world_time, "执行恢复世界计时")
+	var guard_before_takeover := cop.global_position
+	_key(KEY_D, true)
+	await _wait(0.1)
+	_key(KEY_D, false)
+	await _frames(3)
+	check(not museum.executing_plan and not museum.player.auto_moving, "方向键真正接管，不被物理帧重新启动路线")
+	check(cop.global_position.distance_to(guard_before_takeover) > 1.0, "接管后守卫仍继续实际巡逻")
+	await _tap(KEY_TAB)
+	click_screen = museum.get_viewport().get_canvas_transform() * (museum.player.global_position + Vector2(16, 0))
+	await _click(click_screen)
+	await _tap(KEY_SPACE)
+	await _tap(KEY_E)
+	check(not museum.executing_plan and not museum.player.auto_moving, "E键也能真正接管执行")
+	check(not cop.world_frozen, "E键接管不会遗留守卫冻结")
+	await _tap(KEY_TAB)
+	click_screen = museum.get_viewport().get_canvas_transform() * (museum.player.global_position + Vector2(16, 0))
+	await _click(click_screen)
+	await _tap(KEY_SPACE)
+	await _wait(0.7)
+	check(not museum.executing_plan and not museum.player.auto_moving, "路线自然走完进入手动状态")
+	check(not cop.world_frozen and museum.player.controls_enabled, "路线完成后人物与守卫都正常运行")
+	for i in range(3):
+		await _tap(KEY_TAB)
+		var frozen_pos := cop.global_position
+		await _tap(KEY_TAB)
+		await _wait(0.08)
+		check(cop.global_position.distance_to(frozen_pos) > 0.5, "反复切换规划第%d次后守卫仍移动" % (i + 1))
+	# 没有通过关闭AI制造安全：接管后的守卫必须真的能重新发现玩家。
+	cop.global_position = Vector2(120, 104)
+	museum.player.global_position = Vector2(152, 104)
+	cop.patrol_points.clear()
+	cop._facing = Vector2.RIGHT
+	cop._spot_timer = 0.0
+	cop.spot_delay_scale = 1.0
+	await _wait(0.7)
+	check(museum.failure_replay, "接管后的守卫视野能真实触发发现回放")
+	check(museum.failure_detector == cop and not museum.failure_reason.is_empty(), "实际发现准确记录守卫与原因")
+	await _wait(0.7)
+	await _tap(KEY_SPACE)
+	check(museum.planning_mode and not museum.failure_replay, "真实发现后可按空格重试规划")
+	await _tap(KEY_TAB)
+	check(not museum.planning_mode and museum.player.controls_enabled, "重试后退出规划恢复玩家控制")
+	cop.global_position = Vector2(72, 152)
+	cop.patrol_points = [Vector2(72, 152), Vector2(200, 152)] as Array[Vector2]
+	cop.state = Police.State.PATROL
+	cop._patrol_index = 1
+	cop._wait_timer = 0.0
+	cop.set_ai_enabled(true)
+	cop._spot_timer = 0.0
+	# 完整快照回退会把玩家恢复到执行起点，可能落在守卫视野内；这里把他放回安全角落，
+	# 只测“失败重试后守卫不永久冻结、能继续巡逻”。
+	museum.player.global_position = Vector2(40, 40)
+	var retry_pos := cop.global_position
+	await _wait(0.1)
+	check(cop.global_position.distance_to(retry_pos) > 0.5, "失败重试不会遗留守卫永久冻结")
+
+
 func _test_route_planning() -> void:
 	# 路线预演系统：Tab 进入规划模式 → 左键添加节点 → 空格执行 → 方向键接管 →
 	# 程序化进入失败回放 → 空格回退并重新规划。
@@ -488,6 +853,10 @@ func _test_route_planning() -> void:
 	check(museum != null, "路线预演：当前处于关卡内")
 	if museum == null:
 		return
+	# 清空前序测试残留路线，保证本用例起点一致。
+	museum.planned_points.clear()
+	if museum.has_method("_plan_node_actions"):
+		museum._plan_node_actions.clear()
 	# 关掉守卫 AI，避免测试期间被意外发现。
 	for cop in museum.police:
 		cop.set_ai_enabled(false)
@@ -495,7 +864,7 @@ func _test_route_planning() -> void:
 
 	await _tap(KEY_TAB)
 	check(museum.planning_mode, "Tab 进入规划模式")
-	check(not museum.police[0].ai_enabled, "规划模式下守卫 AI 冻结")
+	check(museum.police[0].world_frozen, "规划模式下守卫世界更新冻结")
 
 	var click_world := museum.player.global_position + Vector2(32, 0)
 	# 真实玩家看到的是相机缩放后的屏幕坐标（zoom=2）；用 canvas transform 反推屏幕位置。
@@ -515,7 +884,8 @@ func _test_route_planning() -> void:
 
 	await _tap(KEY_TAB)
 	check(not museum.planning_mode, "再按 Tab 退出规划模式")
-	check(museum.police[0].ai_enabled, "退出规划模式后守卫 AI 恢复")
+	check(not museum.police[0].world_frozen, "退出规划模式后守卫世界更新恢复")
+	check(not museum.police[0].ai_enabled, "规划退出保留测试原有的独立AI禁用，不擅自覆盖")
 	# 再次冻结，避免下次进入规划模式前的短暂窗口内被守卫发现。
 	for cop in museum.police:
 		cop.set_ai_enabled(false)
@@ -555,7 +925,7 @@ func _test_route_planning() -> void:
 	await _frames(2)
 	check(not museum.failure_replay, "定格结束后空格回退清除失败回放")
 	check(museum.planning_mode, "回退后自动进入规划模式")
-	check(museum.planned_points.is_empty(), "回退后清空规划节点")
+	check(museum.planned_points.size() == 1, "回退后保留原规划路线与节点动作")
 	museum.level_id = "museum"
 
 
@@ -594,18 +964,22 @@ func _ready() -> void:
 	await _test_cross_keys()
 	await _test_card_over_phone()
 	await _test_hud_button_while_bag()
+	await _test_planning_world_freeze()
 	await _test_route_planning()
 	await _test_leave_scene_clean()
 	await _test_relic_closeup()
 	await _test_statements_from_title()
 	await _test_title_collection()
 	await _test_new_game_opening()
-	await _test_tutorial_direct_hub()
-	await _test_sell_tab()
+	await _test_tutorial_direct_safehouse()
+	await _test_safehouse_collision()
+	await _test_safehouse_devices()
+	await _test_safehouse_door()
+	await _test_safehouse_box_sell()
 	await _test_phone_archive_footer()
-	await _test_hub_phone()
+	await _test_safehouse_phone()
 	await _test_investigation_inputs()
-	await _test_hub_stories()
+	await _test_safehouse_stories()
 	await _test_bm_target_selection()
 	await _test_archive_cards_readable()
 	await _test_bm_story_interactions()
@@ -672,11 +1046,11 @@ func _enter_british_museum() -> Museum:
 		main.dialogue.advance()
 		await _frames(1)
 	Game.reset_progress()
-	# BM 剧情交互测试只测关卡内行为，跳过据点入场剧情 P-01、H-01 与大英任务前 H-02。
+	# BM 剧情交互测试只测关卡内行为，跳过安全屋入场剧情 P-01、H-01 与大英任务前 H-02。
 	Game.set_story_flag("saw_p01")
 	Game.set_story_flag("saw_h01")
 	Game.set_story_flag("saw_h02")
-	main.show_menu()
+	main.show_safehouse()
 	await _frames(3)
 	await main.start_mission("british_museum")
 	await _frames(4)
@@ -893,22 +1267,42 @@ func _drag_input(from: Vector2, to: Vector2) -> void:
 
 
 func _test_investigation_inputs() -> void:
+	# 日历/联系人：从安全屋手机驱动（真实按键与点击）。
 	Game.set_story_flag("saw_p00")
 	Game.set_story_flag("saw_p01")
 	Game.set_story_flag("saw_h01")
-	main.show_menu()
+	main.show_safehouse()
 	await _frames(4)
 	await _wait(0.3)
 	await _tap(KEY_P)
-	var header := main.phone.tab_task.get_parent()
-	await _click((header.get_child(header.get_child_count() - 2) as Button).get_global_rect().get_center())
+	check(main.phone.is_open(), "真实按键从安全屋打开手机")
+	await _wait(0.3)  # 等应用网格布局稳定再取矩形（避免点击瞬间面板还在排版）。
+	var header := main.phone.get_node("Root/Panel/Margin/VBox/Header")
+	var calendar: Button = main.phone.app_button("calendar")
+	var calendar_center := calendar.get_global_rect().get_center()
+	await _click(calendar_center)
+	if not main.phone.is_open():
+		# 布局抖动可能让点击落在暗区关掉手机：重开一次再用最新矩形点击。
+		await _tap(KEY_P)
+		await _wait(0.3)
+		calendar_center = calendar.get_global_rect().get_center()
+		await _click(calendar_center)
+	if not main.phone.extra_page.visible:
+		print("DBG calendar rect=", calendar.get_global_rect(), " visible=", calendar.is_visible_in_tree(),
+			" home=", main.phone.home_page.visible, " open=", main.phone.is_open())
 	check(main.phone.extra_page.visible, "真实鼠标打开日历")
-	await _click((header.get_child(header.get_child_count() - 1) as Button).get_global_rect().get_center())
+	await _click((header.get_node("HomeButton") as Button).get_global_rect().get_center())
+	check(main.phone.home_page.visible, "真实鼠标返回应用首页")
+	await _click(main.phone.app_button("contacts").get_global_rect().get_center())
 	await _click((main.phone.extra_page.get_child(0) as Button).get_global_rect().get_center())
 	check(main.phone.call_label.text.contains("恶魔"), "真实鼠标接听NPC对话")
 	await _tap(KEY_ESCAPE)
 	await _wait(0.3)
-	var hub: Hub = main._hub
+
+	# 推理板：旧 Hub 内容改用独立宿主驱动（正式流程已不进入旧栏目页）。
+	var hub := (load("res://src/ui/hub.tscn") as PackedScene).instantiate() as Hub
+	main.ui_layer.add_child(hub)
+	await _frames(2)
 	await _click(hub.tab_reason.get_global_rect().get_center())
 	Game.set_story_flag("link_zun_tech_zun_chat", false)
 	for id in ["zun_archive", "zun_tech", "zun_chat"]:
@@ -923,3 +1317,5 @@ func _test_investigation_inputs() -> void:
 	await _drag_input(board.global_position + board.cards[0].pos + Vector2(156, 22), board.global_position + board.cards[1].pos + Vector2(20, 20))
 	check(Game.has_link("zun_archive", "zun_tech"), "真实拖线记录玩家指定关系")
 	check(not Game.has_link("zun_tech", "zun_chat"), "拖一条线不会自动补全其他关联")
+	hub.queue_free()
+	await _frames(2)

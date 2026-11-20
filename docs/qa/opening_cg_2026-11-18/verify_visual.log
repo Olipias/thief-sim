@@ -1,0 +1,320 @@
+
+==> 文档自检（链接 / CHANGELOG 格式）
+check_docs OK（链接 63 条可达；CHANGELOG 59 个版本条目）
+
+==> 关卡数据自检（生成物与脚本同步）
+check_level OK（2 个关卡：生成物与脚本同步）
+
+==> 资源导入（新增/改动贴图与音效）
+Godot Engine v4.7.2.stable.official.ed1daf0bf - https://godotengine.org
+
+[   0% ] [90m[1mfirst_scan_filesystem[22m | Started Project initialization (5 steps)[39m[0m
+[   0% ] [90m[1mfirst_scan_filesystem[22m | Scanning file structure...[39m[0m
+[  16% ] [90m[1mfirst_scan_filesystem[22m | Loading global class names...[39m[0m
+[  33% ] [90m[1mfirst_scan_filesystem[22m | Verifying GDExtensions...[39m[0m
+[  50% ] [90m[1mfirst_scan_filesystem[22m | Creating autoload scripts...[39m[0m
+[  66% ] [90m[1mfirst_scan_filesystem[22m | Initializing plugins...[39m[0m
+[  83% ] [90m[1mfirst_scan_filesystem[22m | Starting file scan...[39m[0m
+[92m[ DONE ][39m [1mfirst_scan_filesystem[22m
+[0m
+[   0% ] [90m[1mupdate_scripts_classes[22m | Started Registering global classes... (4 steps)[39m[0m
+[   0% ] [90m[1mupdate_scripts_classes[22m | OpeningCG[39m[0m
+[  20% ] [90m[1mupdate_scripts_classes[22m | [39m[0m
+[  40% ] [90m[1mupdate_scripts_classes[22m | [39m[0m
+[  60% ] [90m[1mupdate_scripts_classes[22m | [39m[0m
+[92m[ DONE ][39m [1mupdate_scripts_classes[22m
+[0m
+[   0% ] [90m[1m_update_scan_actions[22m | Started Scanning actions... (7 steps)[39m[0m
+[   0% ] [90m[1m_update_scan_actions[22m | shot_contract_intro.png[39m[0m
+[  12% ] [90m[1m_update_scan_actions[22m | shot_contract_intro_01.png[39m[0m
+[  25% ] [90m[1m_update_scan_actions[22m | shot_contract_intro_02.png[39m[0m
+[  37% ] [90m[1m_update_scan_actions[22m | shot_contract_intro_03.png[39m[0m
+[  50% ] [90m[1m_update_scan_actions[22m | shot_contract_intro_04.png[39m[0m
+[  62% ] [90m[1m_update_scan_actions[22m | shot_contract_intro_05.png[39m[0m
+[  75% ] [90m[1m_update_scan_actions[22m | shot_contract_intro_06.png[39m[0m
+[92m[ DONE ][39m [1m_update_scan_actions[22m
+[0m
+[   0% ] [90m[1mreimport[22m | Started (Re)Importing Assets (7 steps)[39m[0m
+[   0% ] [90m[1mreimport[22m | Preparing files to reimport...[39m[0m
+[  12% ] [90m[1mreimport[22m | Preparing files to reimport...[39m[0m
+[  25% ] [90m[1mreimport[22m | Preparing files to reimport...[39m[0m
+[  37% ] [90m[1mreimport[22m | Preparing files to reimport...[39m[0m
+[  50% ] [90m[1mreimport[22m | Preparing files to reimport...[39m[0m
+[  62% ] [90m[1mreimport[22m | Preparing files to reimport...[39m[0m
+[  75% ] [90m[1mreimport[22m | Preparing files to reimport...[39m[0m
+[   0% ] [90m[1mreimport[22m | Executing pre-reimport operations...[39m[0m
+[   0% ] [90m[1mreimport[22m | shot_contract_intro.png[39m[0m
+[  12% ] [90m[1mreimport[22m | shot_contract_intro_01.png[39m[0m
+[  25% ] [90m[1mreimport[22m | shot_contract_intro_02.png[39m[0m
+[  37% ] [90m[1mreimport[22m | shot_contract_intro_03.png[39m[0m
+[  50% ] [90m[1mreimport[22m | shot_contract_intro_04.png[39m[0m
+[  62% ] [90m[1mreimport[22m | shot_contract_intro_05.png[39m[0m
+[  75% ] [90m[1mreimport[22m | shot_contract_intro_06.png[39m[0m
+[  87% ] [90m[1mreimport[22m | Finalizing Asset Import...[39m[0m
+[92m[ DONE ][39m [1mreimport[22m
+[0m
+[   0% ] [90m[1mreimport[22m | Started (Re)Importing Assets (7 steps)[39m[0m
+[   0% ] [90m[1mreimport[22m | Executing post-reimport operations...[39m[0m
+[92m[ DONE ][39m [1mreimport[22m
+[0m
+[   0% ] [90m[1mloading_editor_layout[22m | Started Loading editor (5 steps)[39m[0m
+[   0% ] [90m[1mloading_editor_layout[22m | Loading editor layout...[39m[0m
+[  16% ] [90m[1mloading_editor_layout[22m | Loading docks...[39m[0m
+[  33% ] [90m[1mloading_editor_layout[22m | Reopening scenes...[39m[0m
+[  50% ] [90m[1mloading_editor_layout[22m | Loading central editor layout...[39m[0m
+[  66% ] [90m[1mloading_editor_layout[22m | Loading plugin window layout...[39m[0m
+[  83% ] [90m[1mloading_editor_layout[22m | Editor layout ready.[39m[0m
+[92m[ DONE ][39m [1mloading_editor_layout[22m
+[0m
+
+==> GDScript 编译检查（src + tests）
+Godot Engine v4.7.2.stable.official.ed1daf0bf - https://godotengine.org
+
+SCRIPT ERROR: Parse Error: Invalid argument for "disconnect()" function: argument 1 should be "Callable" but is "int".
+          at: GDScript::reload (res://tests/test_input_flow.gd:315)
+          GDScript backtrace (most recent call first):
+              [0] _check (res://tests/test_scripts.gd:65)
+              [1] _ready (res://tests/test_scripts.gd:36)
+ERROR: Failed to load script "res://tests/test_input_flow.gd" with error "Parse error".
+   at: load (modules/gdscript/gdscript_resource_format.cpp:46)
+   GDScript backtrace (most recent call first):
+       [0] _check (res://tests/test_scripts.gd:65)
+       [1] _ready (res://tests/test_scripts.gd:36)
+SCRIPT ERROR: Parse Error: Invalid argument for "disconnect()" function: argument 1 should be "Callable" but is "int".
+          at: GDScript::reload (res://tests/test_input_flow.gd:315)
+          GDScript backtrace (most recent call first):
+              [0] _check (res://tests/test_scripts.gd:69)
+              [1] _ready (res://tests/test_scripts.gd:36)
+FAIL - 可编译：res://tests/test_input_flow.gd（错误码 43）
+FAILED 1 / 45 checks
+
+==> 逻辑单测
+Godot Engine v4.7.2.stable.official.ed1daf0bf - https://godotengine.org
+
+ALL 2545 CHECKS PASSED
+
+==> 内容一致性测试
+Godot Engine v4.7.2.stable.official.ed1daf0bf - https://godotengine.org
+
+ALL 591 CHECKS PASSED
+
+==> 输入流自检（真实按键驱动 UI 覆盖层）
+Terminated                 "$@" > "$log" 2>&1
+Godot Engine v4.7.2.stable.official.ed1daf0bf - https://godotengine.org
+
+SCRIPT ERROR: Parse Error: Invalid argument for "disconnect()" function: argument 1 should be "Callable" but is "int".
+          at: GDScript::reload (res://tests/test_input_flow.gd:315)
+ERROR: Failed to load script "res://tests/test_input_flow.gd" with error "Parse error".
+   at: load (modules/gdscript/gdscript_resource_format.cpp:46)
+
+==> 存档兼容自检（老档 / 脏档 / 未来档）
+Godot Engine v4.7.2.stable.official.ed1daf0bf - https://godotengine.org
+
+ERROR: Parse JSON failed. Error at line 0: Expected key
+   at: parse_string (core/io/json.cpp:629)
+   GDScript backtrace (most recent call first):
+       [0] _read_save_dict (res://src/autoload/game_state.gd:645)
+       [1] load_game (res://src/autoload/game_state.gd:716)
+       [2] _test_corrupt_json (res://tests/test_save_compat.gd:95)
+       [3] _initialize (res://tests/test_save_compat.gd:28)
+ALL 98 CHECKS PASSED
+
+==> 玩家进度自检（结算 / 仓库 / 收集册 / 存档健壮性）
+Godot Engine v4.7.2.stable.official.ed1daf0bf - https://godotengine.org
+
+ERROR: Parse JSON failed. Error at line 0: Expected ']'
+   at: parse_string (core/io/json.cpp:629)
+   GDScript backtrace (most recent call first):
+       [0] _read_save_dict (res://src/autoload/game_state.gd:645)
+       [1] has_save (res://src/autoload/game_state.gd:389)
+       [2] _test_save_robustness (res://tests/test_progression.gd:204)
+       [3] _initialize (res://tests/test_progression.gd:31)
+ERROR: Parse JSON failed. Error at line 0: Expected ']'
+   at: parse_string (core/io/json.cpp:629)
+   GDScript backtrace (most recent call first):
+       [0] _read_save_dict (res://src/autoload/game_state.gd:645)
+       [1] load_game (res://src/autoload/game_state.gd:716)
+       [2] _reload (res://tests/test_progression.gd:67)
+       [3] _test_save_robustness (res://tests/test_progression.gd:205)
+       [4] _initialize (res://tests/test_progression.gd:31)
+ALL 48 CHECKS PASSED
+
+==> 剧情自检（story_flags / 双羊尊文物志）
+Godot Engine v4.7.2.stable.official.ed1daf0bf - https://godotengine.org
+
+ALL 30 CHECKS PASSED
+
+==> 确定性预演自检（R-02 灰盒一致性）
+Godot Engine v4.7.2.stable.official.ed1daf0bf - https://godotengine.org
+
+PASS - 预演与执行 tick 数一致（23 vs 23）
+PASS - 逐 tick 状态摘要完全一致
+PASS - 事件序列一致
+PASS - 首次发现 tick 一致（23 vs 23）
+PASS - 风险路线确实触发了发现（灰盒有效性）
+PASS - 重复执行事件一致（帧率无关）
+PASS - 修改路线后预演/执行仍一致
+PASS - 预演不污染源快照（整份深比较）
+PASS - 失败场景触发发现
+PASS - 恢复快照逐字段一致
+PASS - 失败恢复后重跑同路线仍逐 tick 一致
+PASS - 噪音触发守卫调查事件
+PASS - 守卫朝噪音源移动
+PASS - 站立距离 4 被发现
+PASS - 蹲下距离 4 未被发现
+PASS - 开锁动作 40 tick 后门解锁
+PASS - 拿取动作 20 tick 后目标入包
+PASS - 执行也不污染源快照（整份深比较）
+PASS - batch=1 逐 tick 轨迹与执行一致
+PASS - batch=3 逐 tick 轨迹与执行一致
+PASS - batch=7 逐 tick 轨迹与执行一致
+PASS - batch=20 逐 tick 轨迹与执行一致
+PASS - 多噪音并发两次预演逐 tick 一致
+PASS - 多噪音并发事件序列一致
+PASS - 多噪音触发调查
+PASS - 最近噪音 (5,5) 优先（实际 (5, 5)）
+PASS - 长路线产生了足够 tick（5000）
+PASS - 长路线两次预演逐 tick 一致
+PASS - 长路线事件序列一致
+PASS - restore_full 完整还原（含 tick/守卫等待/监控相位/噪音）
+PASS - 非门口执行 unlock 不应开门
+PASS - 噪音调查结束后守卫回到巡逻态（实际 alert=0）
+PASS - TICK_RATE 固定 20
+PASS - sim_preview.gd 不调用随机数
+ALL 34 CHECKS PASSED
+
+==> 剧情验收（独立：隐藏条件 / 双羊全分支播放）
+Godot Engine v4.7.2.stable.official.ed1daf0bf - https://godotengine.org
+
+ALL 30 CHECKS PASSED
+
+==> 推理数据自检（三链 / 线索数据边界 / 恶魔分支）
+Godot Engine v4.7.2.stable.official.ed1daf0bf - https://godotengine.org
+
+ALL 144 CHECKS PASSED
+
+==> 场景实例化自检（src/*.tscn）
+Godot Engine v4.7.2.stable.official.ed1daf0bf - https://godotengine.org
+
+ALL 146 SCENES OK
+
+==> 随机操作自检（monkey，规则不变量）
+Godot Engine v4.7.2.stable.official.ed1daf0bf - https://godotengine.org
+
+覆盖统计：背包 47 步 / 手机 55 步 / 对话框 260 步 / 对话树 13 步 / 开局 2 次
+ALL 600 步随机操作通过（seed=20261020）
+
+==> 冒烟测试（场景集成）
+Godot Engine v4.7.2.stable.official.ed1daf0bf - https://godotengine.org
+
+FAIL - primary action is placed in the scene (rooftop ledge)
+SCRIPT ERROR: Invalid access to property or key 'primary_hint' on a base object of type 'Control (TitleScreen)'.
+          at: _test_title_screen (res://tests/smoke_test.gd:419)
+          GDScript backtrace (most recent call first):
+              [0] _test_title_screen (res://tests/smoke_test.gd:419)
+FAILED 1 / 155 checks
+
+==> 截图（视觉回归素材 · 屏外静默）
+Godot Engine v4.7.2.stable.official.ed1daf0bf - https://godotengine.org
+WARNING: Could not set V-Sync mode, as changing V-Sync mode is not supported by the graphics driver.
+     at: set_use_vsync (platform/linuxbsd/x11/gl_manager_x11.cpp:372)
+OpenGL API 4.5 (Core Profile) Mesa 26.0.8-1ubuntu0.3 - Compatibility - Using Device: Mesa - llvmpipe (LLVM 21.1.8, 256 bits)
+
+saved /tmp/shot_title.png
+saved /tmp/shot_statements.png
+saved /tmp/shot_collection.png
+saved /tmp/shot_hub.png
+saved /tmp/shot_contract_intro.png
+saved /tmp/shot_contract_intro_01.png
+saved /tmp/shot_contract_intro_02.png
+saved /tmp/shot_contract_intro_03.png
+saved /tmp/shot_contract_intro_04.png
+saved /tmp/shot_contract_intro_05.png
+saved /tmp/shot_contract_intro_06.png
+saved /tmp/shot_evidence_board.png
+saved /tmp/shot_contacts.png
+saved /tmp/shot_calendar.png
+saved /tmp/shot_pack_egypt_heart_scarab.png
+saved /tmp/shot_pack_akrotiri_askos.png
+saved /tmp/shot_dialogue.png
+saved /tmp/shot_room0.png
+saved /tmp/shot_gallery.png
+saved /tmp/shot_alert.png
+saved /tmp/shot_smoke.png
+saved /tmp/shot_planning.png
+saved /tmp/shot_phone.png
+saved /tmp/shot_room3.png
+saved /tmp/shot_inspect.png
+saved /tmp/shot_backpack.png
+saved /tmp/shot_failure_replay.png
+saved /tmp/shot_bm_room0.png
+saved /tmp/shot_bm_room1.png
+saved /tmp/shot_bm_room2.png
+saved /tmp/shot_bm_room3.png
+saved /tmp/shot_bm_room4.png
+saved /tmp/shot_bm_room5.png
+saved /tmp/shot_bm_zun.png
+saved /tmp/shot_bm_closeup.png
+saved /tmp/shot_bm_phone.png
+saved /tmp/shot_bm_backpack.png
+saved /tmp/shot_bm_archive.png
+saved /tmp/shot_bm_label.png
+saved /tmp/shot_bm_note.png
+saved /tmp/shot_bm_both.png
+saved /tmp/shot_sell.png
+
+==> 视觉回归（对比 tests/visual_baseline）
+截图                                 差异       阈值  结果
+----------------------------------------------------------
+shot_alert.png                  2.19%    20.0%  ok
+shot_backpack.png               0.24%     2.0%  ok
+shot_bm_archive.png             0.00%     2.0%  ok
+shot_bm_backpack.png            0.03%     2.0%  ok
+shot_bm_both.png                0.37%     2.0%  ok
+shot_bm_closeup.png             0.17%     2.0%  ok
+shot_bm_label.png               0.34%     2.0%  ok
+shot_bm_note.png                0.32%     2.0%  ok
+shot_bm_phone.png               0.00%     2.0%  ok
+shot_bm_room0.png               0.00%     2.0%  ok
+shot_bm_room1.png               0.11%     2.0%  ok
+shot_bm_room2.png               0.00%     2.0%  ok
+shot_bm_room3.png               0.07%     2.0%  ok
+shot_bm_room4.png               0.00%     2.0%  ok
+shot_bm_room5.png               0.00%     2.0%  ok
+shot_bm_zun.png                 0.82%     2.0%  ok
+shot_calendar.png               0.00%     2.0%  ok
+shot_collection.png             0.83%     2.0%  ok
+shot_contacts.png               0.00%     2.0%  ok
+shot_contract_intro.png         0.00%     2.0%  ok
+shot_contract_intro_01.png      0.00%     2.0%  ok
+shot_contract_intro_02.png      0.00%     2.0%  ok
+shot_contract_intro_03.png      0.00%     2.0%  ok
+shot_contract_intro_04.png      0.00%     2.0%  ok
+shot_contract_intro_05.png      0.00%     2.0%  ok
+shot_contract_intro_06.png      0.00%     2.0%  ok
+shot_dialogue.png               0.05%     2.0%  ok
+shot_evidence_board.png         0.00%     2.0%  ok
+shot_failure_replay.png         0.72%     5.0%  ok
+shot_gallery.png                0.00%     2.0%  ok
+shot_hub.png                    0.00%     2.0%  ok
+shot_inspect.png                0.00%     2.0%  ok
+shot_pack_akrotiri_askos.png    0.01%     2.0%  ok
+shot_pack_egypt_heart_scarab.png    0.02%     2.0%  ok
+shot_phone.png                  0.00%     2.0%  ok
+shot_planning.png               1.50%     5.0%  ok
+shot_room0.png                  0.00%     2.0%  ok
+shot_room3.png                  1.46%     5.0%  ok
+shot_sell.png                   0.00%     2.0%  ok
+shot_smoke.png                  0.55%     6.0%  ok
+shot_statements.png             1.48%     2.0%  ok
+shot_title.png                 67.23%     2.0%  FAIL
+  差异图：/tmp/opencode/visual_diff/shot_title.png
+
+视觉回归失败：1 项。请查看 /tmp/opencode/visual_diff/ 的红色标记图。
+若是预期内的画面改动：人眼确认后运行 python3 tools/check_visual.py --update
+
+❌ 失败 4 项（通过 14 项）：
+   - GDScript 编译检查（src + tests）
+   - 输入流自检（真实按键驱动 UI 覆盖层）
+   - 冒烟测试（场景集成）
+   - 视觉回归（对比 tests/visual_baseline）
