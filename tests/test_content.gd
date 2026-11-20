@@ -381,6 +381,15 @@ func _test_explore_art_assets() -> void:
 		"res://assets/sprites/safehouse/exit_door_24x40.png": Vector2i(24, 40),
 		"res://assets/sprites/explore/fog_room_16.png": Vector2i(16, 16),
 		"res://assets/sprites/explore/door_unknown_16.png": Vector2i(16, 16),
+		"res://assets/sprites/safehouse/home_floor_16.png": Vector2i(64, 16),
+		"res://assets/sprites/safehouse/home_floor2_16.png": Vector2i(64, 16),
+		"res://assets/sprites/safehouse/home_wall_16.png": Vector2i(64, 16),
+		"res://assets/sprites/safehouse/home_trim_16.png": Vector2i(64, 16),
+		"res://assets/sprites/safehouse/home_shelf_32x48.png": Vector2i(32, 48),
+		"res://assets/sprites/safehouse/home_basket_24x20.png": Vector2i(24, 20),
+		"res://assets/sprites/safehouse/home_lantern_16x24.png": Vector2i(16, 24),
+		"res://assets/sprites/safehouse/home_cabinet_32x20.png": Vector2i(32, 20),
+		"res://assets/sprites/bm/case_glass_highlight.png": Vector2i(32, 32),
 	}
 	for path in specs:
 		check(FileAccess.file_exists(path), "A-01 素材存在：%s" % path)
@@ -390,7 +399,8 @@ func _test_explore_art_assets() -> void:
 		check(tex != null, "A-01 素材可加载：%s" % path)
 		if tex != null:
 			var want: Vector2i = specs[path]
-			check(tex.get_size() == Vector2(want), "A-01 尺寸 %d×%d：%s" % [want.x, want.y, path])
+			var size := tex.get_size()
+			check(int(size.x) == want.x and int(size.y) == want.y, "A-01 尺寸 %d×%d：%s" % [want.x, want.y, path])
 
 	# 迷雾必须是无边界线的均匀纹理（允许 4×4 抖动），不能出现整行/整列高亮描边。
 	var fog_tex := load("res://assets/sprites/explore/fog_room_16.png") as Texture2D
