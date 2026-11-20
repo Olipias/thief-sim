@@ -18,6 +18,7 @@ func check(cond: bool, msg: String) -> void:
 
 
 func _ready() -> void:
+	_test_opening_cg()
 	_test_catalog()
 	_test_shapes()
 	_test_sprites()
@@ -30,6 +31,7 @@ func _ready() -> void:
 	_test_collection()
 	_test_statements()
 	_test_no_ghost_residual()
+	_test_explore_art_assets()
 	if _failures > 0:
 		print("FAILED %d / %d checks" % [_failures, _checks])
 		get_tree().quit(1)
@@ -371,6 +373,48 @@ func _test_no_ghost_residual() -> void:
 	check(not museum_src.contains("左羊") and not museum_src.contains("右羊"), "museum.gd 无左羊/右羊台词")
 
 
+## A-01 安全屋道具/探索迷雾尺寸与“无边界线”约束。
+func _test_explore_art_assets() -> void:
+	var specs := {
+		"res://assets/sprites/safehouse/desk_computer_32x24.png": Vector2i(32, 24),
+		"res://assets/sprites/safehouse/storage_box_24x20.png": Vector2i(24, 20),
+		"res://assets/sprites/safehouse/exit_door_24x40.png": Vector2i(24, 40),
+		"res://assets/sprites/explore/fog_room_16.png": Vector2i(16, 16),
+		"res://assets/sprites/explore/door_unknown_16.png": Vector2i(16, 16),
+	}
+	for path in specs:
+		check(FileAccess.file_exists(path), "A-01 素材存在：%s" % path)
+		if not FileAccess.file_exists(path):
+			continue
+		var tex := load(path) as Texture2D
+		check(tex != null, "A-01 素材可加载：%s" % path)
+		if tex != null:
+			var want: Vector2i = specs[path]
+			check(tex.get_size() == Vector2(want), "A-01 尺寸 %d×%d：%s" % [want.x, want.y, path])
+
+	# 迷雾必须是无边界线的均匀纹理（允许 4×4 抖动），不能出现整行/整列高亮描边。
+	var fog_tex := load("res://assets/sprites/explore/fog_room_16.png") as Texture2D
+	check(fog_tex != null, "A-01 迷雾可加载")
+	if fog_tex != null:
+		var img := fog_tex.get_image()
+		if img != null:
+			if img.is_compressed():
+				img.decompress()
+			var base := img.get_pixel(1, 1)
+			var max_run := 0
+			for y in img.get_height():
+				var run := 0
+				for x in img.get_width():
+					run = run + 1 if img.get_pixel(x, y) != base else 0
+					max_run = maxi(max_run, run)
+			for x in img.get_width():
+				var run := 0
+				for y in img.get_height():
+					run = run + 1 if img.get_pixel(x, y) != base else 0
+					max_run = maxi(max_run, run)
+			check(max_run < 8, "A-01 迷雾无连续边界线（最长高亮段 %d）" % max_run)
+
+
 func _test_statements() -> void:
 	var sections: Array = _consts("res://src/data/statements.gd").get("SECTIONS", [])
 	check(not sections.is_empty(), "声明页至少有一条")
@@ -381,3 +425,14 @@ func _test_statements() -> void:
 		all_text += String(section.get("title", "")) + String(section.get("body", ""))
 	for keyword in ["双羊尊", "青铜人面饰", "虚构", "docs/SOURCES.md", "Fusion Pixel", "3D"]:
 		check(all_text.contains(keyword), "声明页提到「%s」" % keyword)
+
+
+func _test_opening_cg() -> void:
+	check(FileAccess.file_exists(OpeningCG.ART_PATH), "开场CG位于可导出的assets而非docs")
+	var texture := load(OpeningCG.ART_PATH) as Texture2D
+	check(texture != null and texture.get_size() == OpeningCG.SOURCE_SIZE, "开场CG原图尺寸与裁切坐标一致")
+	check(OpeningCG.PANELS.size() == 6 and OpeningCG.PANEL_SECONDS == 5.0, "六格5秒播放规格")
+	for panel in OpeningCG.PANELS:
+		check(not String(panel.caption).is_empty() and String(panel.caption).length() <= 40, "开场字幕简短非空")
+		for point in panel.points:
+			check(point.x >= 0 and point.y >= 0 and point.x <= OpeningCG.SOURCE_SIZE.x and point.y <= OpeningCG.SOURCE_SIZE.y, "开场多边形不越出原图")
