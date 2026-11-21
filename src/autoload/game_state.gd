@@ -203,6 +203,11 @@ var backpack_level := 0
 var has_sneakers := false
 var smoke_count := 0
 
+## R-12a 备货库存：手机「采购」买下的烟雾弹数量（只增字段，老档默认 0）。
+## 库存与携带分离：购买入备货，不改变携带数；出发（start_mission）时备货并入
+## 携带 smoke_count 并清空——进馆后 Q 消耗只影响携带数。回放/失败恢复不改备货。
+var smoke_stock := 0
+
 ## 文物志进度：item_id → 下一段序号（0 = 还没聊过）；端详已发现热点：item_id → [索引]
 var lore_stage: Dictionary = {}
 var lore_found: Dictionary = {}
@@ -624,12 +629,18 @@ var loot_reserved: Dictionary = {}
 
 
 ## 预约一件箱内战利品（index 对应 loot_stash）：不扣货不发钱，买家到门外等待。
-## 主目标（含教学 mask）不可进入普通交易。
+## 主目标（含教学 mask）不可进入普通交易；同一 id 的预约数不得超过箱内存量。
 func reserve_loot(index: int) -> bool:
 	if index < 0 or index >= loot_stash.size():
 		return false
 	var id := loot_stash[index]
 	if not CATALOG.has(id) or item_is_target(id):
+		return false
+	var stock := 0
+	for stash_id in loot_stash:
+		if stash_id == id:
+			stock += 1
+	if int(loot_reserved.get(id, 0)) >= stock:
 		return false
 	loot_reserved[id] = int(loot_reserved.get(id, 0)) + 1
 	save_game()
@@ -820,12 +831,24 @@ func buy(id: String) -> bool:
 		"sneakers":
 			has_sneakers = true
 		"smoke":
-			smoke_count += 1
+			# R-12a：购买入备货库存（库存/携带分离），出发时并入携带数。
+			smoke_stock += 1
 	items_changed.emit()
 	money_changed.emit()
 	backpack_changed.emit()
 	save_game()
 	return true
+
+
+## 出发装载（R-12a）：备货烟雾弹并入携带数并清空备货。
+## 由 main 在 start_mission（穿过房门出发）时调用；安全屋内采购不动携带数。
+func load_outgoing_loadout() -> void:
+	if smoke_stock <= 0:
+		return
+	smoke_count += smoke_stock
+	smoke_stock = 0
+	items_changed.emit()
+	save_game()
 
 
 ## Returns true when a smoke bomb was actually used.
@@ -870,6 +893,7 @@ func save_game() -> void:
 		"bm_selected_target": bm_selected_target,
 		"pending_mission_level": pending_mission_level,
 		"loot_reserved": loot_reserved,
+		"smoke_stock": smoke_stock,
 		"level_visited_rooms": level_visited_rooms,
 		"level_taken_items": level_taken_items,
 	})
@@ -939,6 +963,7 @@ func load_game() -> void:
 	_restore_level_taken(data.get("level_taken_items", {}))
 	_restore_pending_mission(data.get("pending_mission_level", ""))
 	_restore_loot_reserved(data.get("loot_reserved", {}))
+	smoke_stock = maxi(0, int(data.get("smoke_stock", 0)))
 	bm_selected_target = _migrate_selected_target(str(data.get("bm_selected_target", "ram_zun")))
 	money_changed.emit()
 	items_changed.emit()
@@ -1349,6 +1374,7 @@ func reset_progress() -> void:
 	archive_seen.clear()
 	pending_mission_level = ""
 	loot_reserved.clear()
+	smoke_stock = 0
 	story_flags.clear()
 	bm_selected_target = "ram_zun"
 	level_visited_rooms.clear()

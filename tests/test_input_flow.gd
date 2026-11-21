@@ -1095,6 +1095,8 @@ func _ready() -> void:
 	await _test_safehouse_devices()
 	await _test_safehouse_door()
 	await _test_safehouse_box_sell()
+	await _test_computer_investigation()
+	await _test_safehouse_shop()
 	await _test_phone_archive_footer()
 	await _test_safehouse_phone()
 	await _test_investigation_inputs()
@@ -1130,6 +1132,63 @@ func _visible_close_hint(root: Node) -> bool:
 		if _visible_close_hint(child):
 			return true
 	return false
+
+
+## R-12a 采购 App（真实点击驱动）：购买入备货、连点两次两件、出发时并入携带；
+## 已拥有的永久装备不再上架；无钱按钮禁用。
+func _test_safehouse_shop() -> void:
+	Game.reset_progress()
+	Game.money = 300
+	Game.set_story_flag("saw_p01")
+	main.show_safehouse()
+	await _frames(4)
+	check(main._safehouse != null, "采购：安全屋已打开")
+	if main._safehouse == null:
+		return
+	await _wait(0.3)
+	await _tap(KEY_P)
+	check(main.phone.is_open(), "采购：打开手机")
+	await _click(main.phone.app_button("shop").get_global_rect().get_center())
+	check(main.phone.shop_list.is_visible_in_tree(), "采购：采购页打开")
+	check(main.phone.shop_money_label.text.contains("300"), "采购：显示金币（实际 %s）" % main.phone.shop_money_label.text)
+	var buy_smoke: Button = _find_button_with_text(main.phone.shop_list, "购买")
+	check(buy_smoke != null and not buy_smoke.disabled, "采购：烟雾弹可购买（有钱）")
+	if buy_smoke == null:
+		main.phone.close()
+		return
+	await _click(buy_smoke.get_global_rect().get_center())
+	check(Game.smoke_stock == 1 and Game.money == 180, "采购：购买一次扣款一次发货（120 金，实际 %d）" % Game.money)
+	# 连点两次 = 两件两笔扣款（每次点击独立意图，不允许一次点击重复发货）。
+	# 注意：_fill_shop 会重建按钮，必须重新定位当前实例再点。
+	var buy_smoke2: Button = _find_button_with_text(main.phone.shop_list, "购买")
+	check(buy_smoke2 != null, "采购：刷新后仍有购买按钮")
+	if buy_smoke2 == null:
+		main.phone.close()
+		return
+	await _click(buy_smoke2.get_global_rect().get_center())
+	check(Game.smoke_stock == 2 and Game.money == 60, "采购：第二次购买独立扣款（实际 %d）" % Game.money)
+	# 钱不够时当前购买按钮禁用。
+	var smoke_disabled := Game.money < Game.upgrade_price("smoke")
+	var current_buy: Button = _find_button_with_text(main.phone.shop_list, "购买")
+	check(current_buy != null and current_buy.disabled == smoke_disabled, "采购：钱不够时购买按钮禁用")
+	await _tap(KEY_P)
+	check(not main.phone.is_open(), "采购：关闭手机")
+	_check_pause_contract("采购页关闭")
+
+	# 出发装载：确认行动 → 门口出发 → 备货并入携带（HUD 烟雾弹计数随之增加）。
+	Game.set_story_flag("saw_h01")
+	Game.set_story_flag("saw_h02")
+	Game.pending_mission_level = "british_museum"
+	var p: Player = main._safehouse.player
+	p.global_position = Vector2(152, 136)
+	await _physics_frames(3)
+	await _wait(0.3)
+	await _tap(KEY_E)
+	await _frames(6)
+	check(main._museum != null, "采购：出发进入关卡")
+	check(Game.smoke_count == 2 and Game.smoke_stock == 0, "采购：出发装载 备货2→携带2（实际 %d/%d）" % [Game.smoke_count, Game.smoke_stock])
+	await _skip_dialogue()
+	check(main.hud.item_label.text.contains("2"), "采购：HUD 烟雾弹计数显示携带数（实际 %s）" % main.hud.item_label.text)
 
 
 ## A-00：任务页与档案页都必须有可读的关闭提示（P/B/ESC），Footer 不能只挂在一个页面里。
@@ -1438,3 +1497,102 @@ func _test_investigation_inputs() -> void:
 	check(not Game.has_link("zun_tech", "zun_chat"), "拖一条线不会自动补全其他关联")
 	hub.queue_free()
 	await _frames(2)
+
+
+func _find_option_buttons(root: Node) -> Array[OptionButton]:
+	var out: Array[OptionButton] = []
+	for child in root.get_children():
+		if child is OptionButton:
+			out.append(child)
+		if child is Container or child is Control:
+			out.append_array(_find_option_buttons(child))
+	return out
+
+
+## E 批：电脑调查链（真实按键/鼠标驱动）。
+## 浏览器关键词 → 档案检索 → 聊天追问 → 推理板确认关系。
+func _test_computer_investigation() -> void:
+	Game.reset_progress()
+	Game.set_story_flag("saw_p00")
+	Game.set_story_flag("saw_p01")
+	main.show_safehouse()
+	await _frames(4)
+	var house := main._safehouse
+	if house == null:
+		return
+	var p: Player = house.player
+	p.global_position = Vector2(64, 58)
+	await _physics_frames(4)
+	await _wait_for_prompt("书桌电脑")
+	# 设备交互在 _physics_process 读 just_pressed；按键必须跨物理帧保持，
+	# 否则进程帧快于物理帧时，按下/抬起可能都落在同一物理 tick 之间。
+	_key(KEY_E, true)
+	await _physics_frames(4)
+	_key(KEY_E, false)
+	await _physics_frames(2)
+	check(main.computer.is_open(), "电脑调查：走近按 E 打开书桌电脑")
+	if not main.computer.is_open():
+		return
+
+	# 浏览器：搜索关键词解锁技术研究。
+	var search: LineEdit = main.computer._browser_search
+	search.text = "双羊尊"
+	await _frames(2)
+	var search_btn := _find_button_with_text(main.computer._content, "搜索")
+	check(search_btn != null, "电脑调查：浏览器有搜索按钮")
+	if search_btn:
+		await _click(search_btn.get_global_rect().get_center())
+	check(Game.story_flag("inv_zun_tech"), "电脑调查：搜索关键词解锁技术研究")
+
+	# 档案库：用编号检索解锁馆藏档案。
+	search.text = "1936,1118.1"
+	await _frames(2)
+	search_btn = _find_button_with_text(main.computer._content, "搜索")
+	if search_btn:
+		await _click(search_btn.get_global_rect().get_center())
+	check(Game.story_flag("inv_zun_archive"), "电脑调查：编号检索解锁馆藏档案")
+
+	# 邮件/聊天：切换到聊天页，发送编号触发阿岚邮件。
+	var tab_bar: TabBar = main.computer._tab_bar
+	await _click(tab_bar.get_global_transform() * tab_bar.get_tab_rect(3).get_center())
+	await _frames(2)
+	var chat_input: LineEdit = main.computer._chat_input
+	chat_input.text = "双羊尊 1936,1118.1"
+	await _frames(2)
+	var send_btn: Button = main.computer._chat_send
+	check(send_btn != null, "电脑调查：聊天有发送按钮")
+	if send_btn:
+		await _click(send_btn.get_global_rect().get_center())
+	check(Game.story_flag("inv_zun_delivery"), "电脑调查：聊天触发阿岚邮件")
+
+	# 推理板：补足现场服务便条，打开推理板，选择材料与正确关系并确认。
+	Game.set_story_flag("inv_zun_service")
+	await _click(tab_bar.get_global_transform() * tab_bar.get_tab_rect(4).get_center())
+	await _frames(2)
+	var opts := _find_option_buttons(main.computer._content)
+	var mat_opt: OptionButton = null
+	for opt in opts:
+		if opt.item_count > 0 and opt.get_item_text(0) == "选择材料":
+			mat_opt = opt
+			break
+	check(mat_opt != null, "电脑调查：推理板有材料选项")
+	if mat_opt != null:
+		var rel_opt: OptionButton = null
+		for child in mat_opt.get_parent().get_children():
+			if child is OptionButton and child != mat_opt:
+				rel_opt = child
+				break
+		check(rel_opt != null, "电脑调查：推理板有关系选项")
+		if rel_opt != null:
+			mat_opt.selected = 1
+			mat_opt.item_selected.emit(1)
+			await _frames(2)
+			rel_opt.selected = 1
+			await _frames(2)
+			var confirm_btn := _find_button_with_text(main.computer._content, "确认")
+			if confirm_btn:
+				await _click(confirm_btn.get_global_rect().get_center())
+			check(Game.story_flag("inv_ram_zun_features_ok"), "电脑调查：推理板确认正确关系")
+
+	await _tap(KEY_ESCAPE)
+	check(not main.computer.is_open(), "电脑调查：ESC 关闭电脑")

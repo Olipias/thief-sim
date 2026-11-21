@@ -158,7 +158,11 @@ func _test_shop() -> void:
 	check(not gs.buy("sneakers"), "second sneakers purchase refused")
 
 	check(gs.buy("smoke"), "buy smoke bomb")
-	check(gs.smoke_count == 1, "smoke in inventory")
+	# R-12a：购买入备货（库存/携带分离），出发装载后进馆消耗。
+	check(gs.smoke_stock == 1, "smoke goes to stock, not carried")
+	check(gs.smoke_count == 0, "purchase does not touch carried count")
+	gs.load_outgoing_loadout()
+	check(gs.smoke_count == 1 and gs.smoke_stock == 0, "outgoing loadout moves stock into carried")
 	check(gs.use_smoke(), "use smoke bomb")
 	check(gs.smoke_count == 0, "smoke consumed")
 	check(not gs.use_smoke(), "cannot use what you don't have")

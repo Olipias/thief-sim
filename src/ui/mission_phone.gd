@@ -14,6 +14,7 @@ const APPS := [
 	{"id": "trade", "label": "交易", "hint": "箱内战利品报价"},
 	{"id": "contacts", "label": "联系人", "hint": "来电与联络记录"},
 	{"id": "calendar", "label": "日历", "hint": "闭馆与维护排期"},
+	{"id": "shop", "label": "采购", "hint": "烟雾弹与跑鞋"},
 ]
 
 @onready var dim: ColorRect = $Root/Dim
@@ -38,6 +39,8 @@ var call_label: Label
 ## R-04：安全屋模式的应用首页（2×2 图标）与交易页，均代码构建。
 var home_page: VBoxContainer
 var trade_list: VBoxContainer
+var shop_list: VBoxContainer
+var shop_money_label: Label
 var missions_box: VBoxContainer
 var _item_ids: Array[String] = []
 var _hub_mode := false
@@ -56,6 +59,10 @@ func _ready() -> void:
 	trade_list.name = "TradePage"
 	trade_list.add_theme_constant_override("separation", 4)
 	$Root/Panel/Margin/VBox.add_child(trade_list)
+	shop_list = VBoxContainer.new()
+	shop_list.name = "ShopPage"
+	shop_list.add_theme_constant_override("separation", 6)
+	$Root/Panel/Margin/VBox.add_child(shop_list)
 	missions_box = VBoxContainer.new()
 	missions_box.name = "MissionsBox"
 	missions_box.add_theme_constant_override("separation", 4)
@@ -82,7 +89,7 @@ func _ready() -> void:
 	)
 
 
-## 应用首页：2×2 图标按钮（委托 / 交易 / 联系人 / 日历）。
+## 应用首页：2 列图标按钮（委托 / 交易 / 联系人 / 日历 / 采购）。
 func _build_app_grid() -> void:
 	var grid := GridContainer.new()
 	grid.name = "AppGrid"
@@ -154,12 +161,15 @@ func _show_tab(tab: String) -> void:
 	extra_page.visible = tab == "日历" or tab == "通讯录"
 	home_page.visible = tab == "home"
 	trade_list.visible = tab == "trade"
+	shop_list.visible = tab == "shop"
 	if tab == "task" and _hub_mode:
 		_fill_missions()
 	elif tab == "task":
 		_fill_task_briefing()
 	if tab == "trade":
 		_fill_trade()
+	if tab == "shop":
+		_fill_shop()
 	tab_task.button_pressed = tab == "task"
 	tab_archive.button_pressed = tab == "archive"
 	for child in extra_page.get_children():
@@ -248,6 +258,68 @@ func _fill_trade() -> void:
 	status.add_theme_color_override("font_color", Color(0.7, 0.72, 0.8))
 	status.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	trade_list.add_child(status)
+
+
+## R-12a 采购 App：商品卡（消耗品/永久装备、效果、价格）+ 购买。
+## 只在安全屋可下单（局内禁采购）；一次点击一次扣款一次发货，备货在下一次出发时并入携带。
+func _fill_shop() -> void:
+	for child in shop_list.get_children():
+		child.queue_free()
+	var title := HBoxContainer.new()
+	title.add_theme_constant_override("separation", 8)
+	var title_label := Label.new()
+	title_label.text = "采购（安全屋下单）"
+	title_label.add_theme_font_size_override("font_size", 13)
+	title_label.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	title.add_child(title_label)
+	shop_money_label = Label.new()
+	shop_money_label.text = "金币 %d" % Game.money
+	shop_money_label.add_theme_font_size_override("font_size", 12)
+	title.add_child(shop_money_label)
+	shop_list.add_child(title)
+
+	# 商品卡：id → 文案。跑鞋为永久装备（已拥有则不再上架）。
+	var catalog := {
+		"smoke": "烟雾弹（消耗品）\n近距离脱身：致盲附近保安并争取撤离窗口。\n价格 %d 金币 · 备货 %d 件（出发时自动携带）" % [
+			Game.upgrade_price("smoke"), Game.smoke_stock,
+		],
+		"sneakers": "跑鞋（永久装备）\n疾跑速度提升，缩短危险区暴露与往返。\n价格 %d 金币 · %s" % [
+			Game.upgrade_price("sneakers"), "已拥有" if Game.has_sneakers else "未拥有",
+		],
+	}
+	for id in catalog:
+		if id == "sneakers" and Game.has_sneakers:
+			continue
+		var card := PanelContainer.new()
+		var card_box := VBoxContainer.new()
+		card_box.add_theme_constant_override("separation", 4)
+		card.add_child(card_box)
+		var info := Label.new()
+		info.text = String(catalog[id])
+		info.add_theme_font_size_override("font_size", 11)
+		info.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+		card_box.add_child(info)
+		var buy := Button.new()
+		buy.name = "Buy_" + id
+		buy.text = "购买"
+		buy.add_theme_font_size_override("font_size", 10)
+		buy.custom_minimum_size = Vector2(72, 22)
+		buy.disabled = not Game.can_buy(id)
+		if Game.can_buy(id):
+			buy.pressed.connect(func() -> void:
+				if Game.buy(id):
+					_fill_shop()
+			)
+		card_box.add_child(buy)
+		shop_list.add_child(card)
+
+	var note := Label.new()
+	var stock_hint := "备货 %d 件 · 确认行动后走到房门出发时自动携带进馆。" % Game.smoke_stock if Game.smoke_stock > 0 else "暂无备货。"
+	note.text = "采购只在安全屋可用，馆内不能购买。%s\n无钱也能继续主线：基础调查与地图记录免费。" % stock_hint
+	note.add_theme_font_size_override("font_size", 10)
+	note.add_theme_color_override("font_color", Color(0.7, 0.72, 0.8))
+	note.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	shop_list.add_child(note)
 
 
 func _trade_button(text: String) -> Button:

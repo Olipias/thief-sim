@@ -31,6 +31,7 @@ func _initialize() -> void:
 	_test_save_robustness()
 	_test_new_game_clears_everything()
 	_test_r05_reservation_and_delivery()
+	_test_r12a_shop_loadout()
 
 	if _failures > 0:
 		print("FAILED %d / %d checks" % [_failures, _checks])
@@ -108,6 +109,14 @@ func _test_r05_reservation_and_delivery() -> void:
 	check(not gs.reserve_loot(0), "R-05：主目标不可普通预约")
 	check(gs.loot_reserved.is_empty(), "R-05：主目标未写入预约")
 
+	# 同一件不能重复预约超过库存；连续点两次第二次应失败，且计数仍为 1。
+	gs.reset_progress()
+	gs.loot_stash.clear()
+	gs.loot_stash.append("vase")
+	check(gs.reserve_loot(0), "R-05：单件预约成功")
+	check(not gs.reserve_loot(0), "R-05：同一件不能重复预约超过库存")
+	check(int(gs.loot_reserved.get("vase", 0)) == 1, "R-05：重复预约不增加计数")
+
 	# 读档：预约/随身标记保留；交货后重读不重复付款。
 	var path := DIR + "/r05_roundtrip.json"
 	gs.save_path = path
@@ -132,6 +141,56 @@ func _test_r05_reservation_and_delivery() -> void:
 	check(not bool(r2.get("ok", false)) and reader2.money == before + reader2.item_value("gem"), "R-05：交货后重读不重复付款")
 	reader2.free()
 	# （gs 已在上方 save_game 后 free，不能重复 free——否则 native double-free 中断整个套件。）
+
+
+## R-12a 采购/备货/出发装载：购买入备货、出发并入携带、局内消耗只动携带数、
+## 无钱不可购买、旧档兼容；回放/失败恢复不触碰局外购物（购买即时落盘）。
+func _test_r12a_shop_loadout() -> void:
+	var gs = _new_game(DIR + "/r12a_shop.json")
+	gs.reset_progress()
+	gs.money = 500
+	var smoke_price: int = gs.upgrade_price("smoke")
+	var sneakers_price: int = gs.upgrade_price("sneakers")
+
+	# 购买入备货：一次点击一次扣款一次发货；携带数不动。
+	check(gs.buy("smoke"), "R-12a：购买烟雾弹成功")
+	check(gs.money == 500 - smoke_price, "R-12a：购买扣款一次")
+	check(gs.smoke_stock == 1, "R-12a：备货 +1")
+	check(gs.smoke_count == 0, "R-12a：购买不动携带数（库存/携带分离）")
+	gs.buy("smoke")
+	check(gs.smoke_stock == 2, "R-12a：再买一件备货 +1")
+
+	# 出发装载：备货并入携带并清空。
+	gs.load_outgoing_loadout()
+	check(gs.smoke_count == 2, "R-12a：出发时备货并入携带")
+	check(gs.smoke_stock == 0, "R-12a：装载后备货清空")
+	# 馆内消耗只动携带数（use_smoke 既有语义）。
+	var carried_before: int = gs.smoke_count
+	check(gs.use_smoke(), "R-12a：馆内使用烟雾消耗携带")
+	check(gs.smoke_count == carried_before - 1, "R-12a：消耗只减携带数，备货不再变化")
+
+	# 回放不倒退局外购物：消耗回滚由世界快照负责，局外购买落盘不受影响。
+	var stock_snapshot: int = gs.smoke_stock
+	var money_snapshot: int = gs.money
+	gs.save_game()
+	var reader = _new_game(DIR + "/r12a_shop.json")
+	reader.load_game()
+	check(reader.smoke_stock == stock_snapshot, "R-12a：读档备货一致（回放不倒退局外）")
+	check(reader.money == money_snapshot, "R-12a：读档金币一致（无重复扣款）")
+	reader.free()
+
+	# 无钱不可购买：钱包为零时按钮门禁拒绝。
+	gs.money = 0
+	check(not gs.can_buy("smoke"), "R-12a：无钱不可购买烟雾弹")
+	check(not gs.buy("smoke"), "R-12a：无钱购买失败且不扣款")
+	check(gs.money == 0 and gs.smoke_stock == 0, "R-12a：失败购买无副作用")
+
+	# 永久装备：跑鞋购买后立即生效且不重复上架。
+	gs.money = sneakers_price
+	check(gs.buy("sneakers"), "R-12a：购买跑鞋成功")
+	check(gs.has_sneakers, "R-12a：跑鞋立即生效")
+	check(not gs.can_buy("sneakers"), "R-12a：已拥有不可再购买")
+	gs.free()
 
 
 # ---------------------------------------------------------------- 工具

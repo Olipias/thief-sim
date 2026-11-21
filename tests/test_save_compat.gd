@@ -35,6 +35,7 @@ func _initialize() -> void:
 	_test_dirty_story_flags()
 	_test_dirty_pending_mission()
 	_test_dirty_loot_reserved()
+	_test_dirty_smoke_stock()
 	_test_relic_selection_migration()
 	_test_investigation_flags()
 	_test_current_round_trip()
@@ -256,6 +257,34 @@ func _test_dirty_loot_reserved() -> void:
 	check(not gs3.loot_reserved.has("mask"), "教学主目标不可恢复普通预约")
 	check(not gs3.loot_reserved.has("not_item"), "非法 item id 预约丢弃")
 	gs3.free()
+
+
+## R-12a 备货库存：老档缺失 → 0；脏类型/负数 → 0；合法值保留。
+func _test_dirty_smoke_stock() -> void:
+	var legacy := _write_save("legacy_no_stock.json", '{"money": 10, "smoke_count": 2}')
+	var gs = _new_game(legacy)
+	gs.load_game()
+	check(gs.smoke_stock == 0, "老档缺 smoke_stock：默认无备货")
+	check(gs.smoke_count == 2, "老档缺 smoke_stock：携带数保留")
+	gs.free()
+
+	var dirty := _write_save("dirty_stock.json", '{"smoke_stock": "three"}')
+	var gs2 = _new_game(dirty)
+	gs2.load_game()
+	check(gs2.smoke_stock == 0, "脏 smoke_stock（非数值）：按 0")
+	gs2.free()
+
+	var negative := _write_save("negative_stock.json", '{"smoke_stock": -2}')
+	var gs3 = _new_game(negative)
+	gs3.load_game()
+	check(gs3.smoke_stock == 0, "负数备货按 0")
+	gs3.free()
+
+	var good := _write_save("good_stock.json", '{"smoke_stock": 3}')
+	var gs4 = _new_game(good)
+	gs4.load_game()
+	check(gs4.smoke_stock == 3, "合法备货保留")
+	gs4.free()
 
 
 ## 收集册字段：老档缺失 → 空；老档有端详进度 → 兼容解锁；脏条目过滤。

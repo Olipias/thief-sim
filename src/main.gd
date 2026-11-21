@@ -412,6 +412,8 @@ func start_mission(level_id := "museum") -> void:
 		Game.save_checkpoint("pre_heist")
 	Game.set_level(level_id)
 	Game.reset_run()
+	# R-12a 出发装载：备货烟雾弹并入携带数（库存/携带分离的边界在穿过房门这一刻）。
+	Game.load_outgoing_loadout()
 	_clear_screen()
 	_clear_ui()
 	_hub = null
