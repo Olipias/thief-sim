@@ -160,7 +160,7 @@ func _test_safe_route_equivalence() -> void:
 
 	var snap := museum._build_sim_snapshot()
 	var route := museum._planned_sim_route()
-	var preview := Sim.simulate_route(snap, route, 200)
+	var preview := Sim.simulate_route(snap, route, 200, museum._build_sim_context())
 
 	museum.execute_plan()
 	var exec := await _capture_execution_trace(museum)
@@ -189,7 +189,7 @@ func _test_guard_spot_equivalence() -> void:
 
 	var snap := museum._build_sim_snapshot()
 	var route := museum._planned_sim_route()
-	var preview := Sim.simulate_route(snap, route, 100)
+	var preview := Sim.simulate_route(snap, route, 100, museum._build_sim_context())
 
 	museum.execute_plan()
 	var exec := await _capture_execution_trace(museum)
@@ -226,7 +226,7 @@ func _test_wall_occlusion_equivalence() -> void:
 
 	var snap := museum._build_sim_snapshot()
 	var route := museum._planned_sim_route()
-	var preview := Sim.simulate_route(snap, route, 80)
+	var preview := Sim.simulate_route(snap, route, 80, museum._build_sim_context())
 
 	museum.execute_plan()
 	var exec := await _capture_execution_trace(museum)
@@ -259,7 +259,7 @@ func _test_camera_spot_equivalence() -> void:
 
 	var snap := museum._build_sim_snapshot()
 	var route := museum._planned_sim_route()
-	var preview := Sim.simulate_route(snap, route, 120)
+	var preview := Sim.simulate_route(snap, route, 120, museum._build_sim_context())
 
 	museum.execute_plan()
 	var exec := await _capture_execution_trace(museum)
@@ -297,7 +297,7 @@ func _test_noise_investigate_equivalence() -> void:
 
 	var snap := museum._build_sim_snapshot()
 	var route := museum._planned_sim_route()
-	var preview := Sim.simulate_route(snap, route, 200)
+	var preview := Sim.simulate_route(snap, route, 200, museum._build_sim_context())
 
 	museum.execute_plan()
 	var exec := await _capture_execution_trace(museum)
@@ -331,7 +331,7 @@ func _test_take_action_equivalence() -> void:
 
 	var snap := museum._build_sim_snapshot()
 	var route := museum._planned_sim_route()
-	var preview := Sim.simulate_route(snap, route, 200)
+	var preview := Sim.simulate_route(snap, route, 200, museum._build_sim_context())
 
 	museum.execute_plan()
 	var exec := await _capture_execution_trace(museum)
