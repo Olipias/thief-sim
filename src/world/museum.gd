@@ -952,7 +952,7 @@ func _unhandled_input(event: InputEvent) -> void:
 						_selected_plan_index = i
 						_plan_drag_start = mouse_position
 						break
-				if _drag_plan_index < 0 and planned_points.size() < MAX_PLAN_POINTS and _is_walkable_world(mouse_position):
+				if _drag_plan_index < 0 and planned_points.size() < MAX_PLAN_POINTS and _can_plan_at(mouse_position):
 					_add_plan_point(mouse_position)
 					_drag_plan_index = planned_points.size() - 1
 			else:
@@ -965,9 +965,14 @@ func _unhandled_input(event: InputEvent) -> void:
 	elif event is InputEventMouseMotion and _drag_plan_index >= 0 and _drag_plan_index < planned_points.size():
 		if _plan_drag_start.distance_to(mouse_position) >= 3.0:
 			_selected_plan_index = -1
-		if _is_walkable_world(mouse_position):
+		if _can_plan_at(mouse_position):
 			planned_points[_drag_plan_index] = mouse_position
 			queue_redraw()
+
+
+## 新增与拖动路点共用已知区域门禁，不以未探区域的碰撞结果探地图。
+func _can_plan_at(pos: Vector2) -> bool:
+	return _is_zone_revealed(_zone_at(pos)) and _is_walkable_world(pos)
 
 
 func _is_walkable_world(pos: Vector2) -> bool:
@@ -1033,7 +1038,7 @@ func toggle_planning_mode(on: bool) -> void:
 
 
 func _add_plan_point(pos: Vector2) -> void:
-	if planned_points.size() >= MAX_PLAN_POINTS:
+	if planned_points.size() >= MAX_PLAN_POINTS or not _can_plan_at(pos):
 		return
 	planned_points.append(pos)
 	_plan_node_actions.append("")
@@ -1504,7 +1509,8 @@ func run_preview() -> void:
 		return
 	var snap := _build_sim_snapshot()
 	var route := _planned_sim_route()
-	var result := SimPreview.simulate_route(snap, route, 900)
+	var context := _build_sim_context()
+	var result := SimPreview.simulate_route(snap, route, 900, context)
 	_preview_spotted_tick = result.first_spotted
 	# 重放快照拿每 tick 位置（预演 trace 只是摘要；直接重放最直观且确定性一致）。
 	_preview_cells = []
@@ -1514,7 +1520,7 @@ func run_preview() -> void:
 	var idx := {"i": 0}
 	var t := 0
 	while t < 900:
-		SimPreview.tick(replay, replay_route, idx)
+		SimPreview.tick(replay, replay_route, idx, context)
 		t = int(replay["tick"])
 		_preview_cells.append(replay["player"]["pos"])
 		var guards: Array = replay.get("guards", [])

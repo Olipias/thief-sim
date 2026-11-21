@@ -1,0 +1,38 @@
+extends SceneTree
+func _initialize() -> void:
+    call_deferred("_run")
+func _run() -> void:
+    var game = root.get_node("Game")
+    game.save_path = "/tmp/thief_preview_real_probe_save.json"
+    game.reset_progress()
+    game.current_level_id = "museum"
+    game.mission_target_id = "mask"
+    var museum = load("res://src/world/museum.tscn").instantiate()
+    museum.level_id = "museum"
+    root.add_child(museum)
+    await physics_frame
+    await physics_frame
+    museum.toggle_planning_mode(true)
+    museum.police.clear()
+    museum.player.global_position = Vector2(56,40)
+    museum.planned_points.clear()
+    museum.planned_points.append(Vector2(120,40))
+    museum._plan_node_actions.clear()
+    museum._plan_node_actions.append("")
+    var sim = load("res://src/sim/sim_preview.gd")
+    var snap = museum._build_sim_snapshot()
+    var route = museum._planned_sim_route()
+    var context = museum._build_sim_context()
+    var expected = sim.simulate_route(snap,route,900,context)
+    var wrong = sim.simulate_route(snap,route,900)
+    museum.run_preview()
+    print("WALL_BLOCKED=",museum.is_cell_blocked(5,2))
+    print("EXPECTED_FINAL=",expected.snapshot.player.pos)
+    print("WITHOUT_CONTEXT_FINAL=",wrong.snapshot.player.pos)
+    print("ACTUAL_PREVIEW_FINAL=",museum._preview_cells[-1])
+    var ok = museum._preview_cells[-1] == expected.snapshot.player.pos and expected.snapshot.player.pos != wrong.snapshot.player.pos
+    print("REAL_PREVIEW_CONTEXT_PASS=",ok)
+    museum.queue_free()
+    await process_frame
+    root.get_node("Audio").shutdown()
+    quit(0 if ok else 1)

@@ -36,6 +36,7 @@ func _ready() -> void:
 	await _test_recon_evacuation_and_antiduplicate()
 	await _test_reset_clears_exploration()
 	await _test_minimap_does_not_leak()
+	await _test_planning_rejects_unknown_area()
 
 	Audio.shutdown()
 	if _failures > 0:
@@ -141,6 +142,45 @@ func _test_minimap_does_not_leak() -> void:
 		check(known2.size() <= 2, "小地图：只增加已踏房间（实际 %d）" % known2.size())
 		minimap.queue_free()
 		await get_tree().process_frame
+	await _free_museum(museum)
+
+
+## R-11a：规划只能编辑已探可走区域；未知房间的点击不得生成节点。
+func _test_planning_rejects_unknown_area() -> void:
+	Game.level_visited_rooms.clear()
+	Game.level_taken_items.clear()
+	var museum := await _make_museum()
+	var start_zone := museum._zone_at(museum.player.global_position)
+	var unknown_point := Vector2.ZERO
+	var found := false
+	for i in museum.rooms.size():
+		if i == start_zone:
+			continue
+		var center := _room_center(museum, i)
+		if not museum._is_zone_revealed(i) and museum._is_walkable_world(center):
+			unknown_point = center
+			found = true
+			break
+	check(found, "未知区域规划：找到未探可走点")
+	if found:
+		# 规划入口已在 input_flow 用真实 Tab 覆盖；这里重点验证真实鼠标事件走 viewport 路由。
+		museum.toggle_planning_mode(true)
+		await get_tree().process_frame
+		check(museum.planning_mode, "未知区域规划：规划模式已开启")
+		var screen_pos: Vector2 = museum.get_viewport().get_canvas_transform() * unknown_point
+		var ev := InputEventMouseButton.new()
+		ev.button_index = MOUSE_BUTTON_LEFT
+		ev.pressed = true
+		ev.position = screen_pos
+		museum.get_viewport().push_input(ev)
+		await get_tree().process_frame
+		check(museum.planned_points.is_empty(), "未知区域规划：真实鼠标点击未探区域不得添加节点")
+		var up := InputEventMouseButton.new()
+		up.button_index = MOUSE_BUTTON_LEFT
+		up.pressed = false
+		up.position = screen_pos
+		museum.get_viewport().push_input(up)
+		museum.toggle_planning_mode(false)
 	await _free_museum(museum)
 
 

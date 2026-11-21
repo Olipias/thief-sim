@@ -1,0 +1,7 @@
+Godot Engine v4.7.2.stable.official.ed1daf0bf - https://godotengine.org
+
+WALL_BLOCKED=true
+EXPECTED_FINAL=(4, 2)
+WITHOUT_CONTEXT_FINAL=(7, 2)
+ACTUAL_PREVIEW_FINAL=(4, 2)
+REAL_PREVIEW_CONTEXT_PASS=true

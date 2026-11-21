@@ -44,6 +44,7 @@ func _ready() -> void:
 	await _test_noise_investigate_equivalence()
 	await _test_take_action_equivalence()
 	await _test_full_snapshot_restore()
+	await _test_preview_wall_context()
 
 	Audio.shutdown()
 	if _failures > 0:
@@ -356,6 +357,57 @@ func _test_take_action_equivalence() -> void:
 			artifact_gone = false
 	check(artifact_gone, "拿取动作：场景中 mask 文物已移除")
 	check(_compare_trace("拿取动作", preview.trace, exec_trace, exec_trace.size()), "拿取动作：预演与执行逐 tick 一致")
+	museum.queue_free()
+
+
+## 实际 museum.run_preview + execute_plan 的墙阻挡上下文（不是两个独立 Sim 调用互比）。
+func _test_preview_wall_context() -> void:
+	var museum := await _make_museum()
+	_scatter_other_guards(museum, -1)
+	var p: Player = museum.player
+	var pc := Vector2i(int(p.global_position.x / 16.0), int(p.global_position.y / 16.0))
+	var blocked := Vector2i(-1, -1)
+	for d in [Vector2i.RIGHT, Vector2i.LEFT, Vector2i.UP, Vector2i.DOWN]:
+		var c: Vector2i = pc + d
+		if museum.is_cell_blocked(c.x, c.y):
+			blocked = c
+			break
+	check(blocked.x >= 0, "预演墙阻挡：找到玩家旁的实心格")
+	if blocked.x < 0:
+		museum.queue_free()
+		return
+	p.global_position = _cell_center(pc.x, pc.y)
+	museum.planned_points = [_cell_center(blocked.x, blocked.y)]
+	museum._plan_node_actions = [""]
+	museum.run_preview()
+	await get_tree().process_frame
+	check(museum._preview_active and not museum._preview_cells.is_empty(), "预演墙阻挡：实际 run_preview 生成轨迹")
+	var preview_ok := true
+	for cell in museum._preview_cells:
+		if museum.is_cell_blocked(cell.x, cell.y):
+			preview_ok = false
+	check(preview_ok, "预演墙阻挡：轨迹不穿实心格")
+	museum.execute_plan()
+	var exec_cells: Array[Vector2i] = []
+	for i in 20:
+		await get_tree().physics_frame
+		if museum._sim_snapshot.is_empty():
+			break
+		var ep: Dictionary = museum._sim_snapshot.get("player", {})
+		if ep.has("pos"):
+			exec_cells.append(Vector2i(ep["pos"]))
+	var exec_ok := not exec_cells.is_empty()
+	for cell in exec_cells:
+		if museum.is_cell_blocked(cell.x, cell.y):
+			exec_ok = false
+	check(exec_ok, "预演墙阻挡：真实执行也不穿实心格")
+	var overlap := mini(museum._preview_cells.size(), exec_cells.size())
+	var same := true
+	for i in overlap:
+		if Vector2i(museum._preview_cells[i]) != exec_cells[i]:
+			same = false
+	check(same, "预演墙阻挡：实际预演与执行前 %d tick 位置一致" % overlap)
+	museum.cancel_plan()
 	museum.queue_free()
 
 

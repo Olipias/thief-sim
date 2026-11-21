@@ -1,0 +1,10 @@
+extends SceneTree
+func _initialize() -> void:
+    var gs = load("res://src/autoload/game_state.gd").new()
+    gs.save_path = "/tmp/thief_repro_loot_save.json"
+    gs.current_level_id = "british_museum"
+    gs.mission_target_id = "ram_zun"
+    gs.bag_items.clear()
+    print("BRITISH_ORDINARY_PICKUP=", gs.try_pickup("vase", "audit:vase:1"))
+    gs.free()
+    quit()
