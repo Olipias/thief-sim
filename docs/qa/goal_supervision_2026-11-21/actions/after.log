@@ -1,0 +1,15 @@
+Godot Engine v4.7.2.stable.official.ed1daf0bf - https://godotengine.org
+
+PASS - 真实点击添加已知地面路点
+PASS - 点击路点选择等待
+PASS - 再次点击选择蹲行
+PASS - 普通地面跳过不适用开锁与拿取，能够选择疾跑
+PASS - 疾跑后可返回普通移动
+PASS - 夹具存在任务物品
+PASS - 目标格跳过无效开锁后能够选择拿取
+PASS - 真实输入的拿取动作进入执行时间轴
+PASS - 目标格拿取后仍能选择疾跑
+PASS - 第二轮循环仍能选择拿取
+PASS - 真实空格启动路线执行
+PASS - 真实空格执行拿取后目标实际入包
+ALL 12 CHECKS PASSED

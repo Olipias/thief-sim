@@ -1062,29 +1062,23 @@ const _ACTION_CYCLE: Array[String] = ["", "wait", "crouch", "unlock", "take", "s
 func _cycle_node_action(index: int) -> void:
 	if index < 0 or index >= _plan_node_actions.size():
 		return
-	var current := _plan_node_actions[index]
-	var next := ""
-	var found := false
-	for action in _ACTION_CYCLE:
-		if found:
-			next = action
-			break
-		if action == current:
-			found = true
-	if not found:
-		next = ""
-	var cell := Vector2i(int(planned_points[index].x / TILE), int(planned_points[index].y / TILE))
-	match next:
-		"unlock":
-			if not _is_door_cell(cell):
-				toast.emit("此位置没有门锁，无法设置开锁。")
-				next = ""
-		"take":
-			if not _is_target_cell(cell):
-				toast.emit("此位置没有任务目标，无法设置拿取。")
-				next = ""
-	_plan_node_actions[index] = next
-	queue_redraw()
+	var current_index := _ACTION_CYCLE.find(_plan_node_actions[index])
+	var cell := _world_to_cell(planned_points[index])
+	var skipped: Array[String] = []
+	# 跳过无效动作后继续循环；不能重置到开头，否则拿取/疾跑永远不可达。
+	for offset in range(1, _ACTION_CYCLE.size() + 1):
+		var next := _ACTION_CYCLE[(current_index + offset) % _ACTION_CYCLE.size()]
+		if next == "unlock" and not _is_door_cell(cell):
+			skipped.append("此位置没有门锁")
+			continue
+		if next == "take" and not _is_target_cell(cell):
+			skipped.append("此位置没有任务目标")
+			continue
+		_plan_node_actions[index] = next
+		if not skipped.is_empty():
+			toast.emit("；".join(skipped) + "，已跳过相应动作。")
+		queue_redraw()
+		return
 
 
 func _is_door_cell(cell: Vector2i) -> bool:
