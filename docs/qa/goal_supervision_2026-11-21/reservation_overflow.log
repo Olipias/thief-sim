@@ -1,0 +1,7 @@
+Godot Engine v4.7.2.stable.official.ed1daf0bf - https://godotengine.org
+
+FIRST_RESERVE=true
+REPEAT_RESERVE=true
+PHYSICAL_COUNT=1 RESERVED_COUNT=2
+TAKE=true
+EMPTY_STASH=true LEFTOVER_RESERVATION=1

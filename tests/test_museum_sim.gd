@@ -45,6 +45,7 @@ func _ready() -> void:
 	await _test_take_action_equivalence()
 	await _test_full_snapshot_restore()
 	await _test_preview_wall_context()
+	await _test_full_snapshot_exact_state()
 
 	Audio.shutdown()
 	if _failures > 0:
@@ -361,6 +362,33 @@ func _test_take_action_equivalence() -> void:
 
 
 ## 实际 museum.run_preview + execute_plan 的墙阻挡上下文（不是两个独立 Sim 调用互比）。
+## G20261121-05：精确回退（非整格）、守卫计时同步、结束/接管后仍保留合法重试快照。
+func _test_full_snapshot_exact_state() -> void:
+	var museum := await _make_museum()
+	_scatter_other_guards(museum, -1)
+	var p: Player = museum.player
+	var exact := Vector2(57.25, 41.75)
+	p.global_position = exact
+	var cop: Police = museum.police[0]
+	cop._spot_timer = 0.35
+	cop._wait_timer = 0.45
+	var snap := museum._build_sim_snapshot()
+	museum.planned_points = [_cell_center(8, 18)]
+	museum._plan_node_actions = [""]
+	museum.execute_plan()
+	for i in 8:
+		await get_tree().physics_frame
+	museum.cancel_plan()
+	await get_tree().physics_frame
+	check(not museum._run_start_snapshot.is_empty(), "G05：结束/接管后保留重试快照")
+	museum._restore_full_snapshot(snap)
+	await get_tree().physics_frame
+	check(p.global_position.is_equal_approx(exact), "G05：玩家回退到精确坐标（实际 %s）" % str(p.global_position))
+	check(is_equal_approx(cop._spot_timer, 0.35), "G05：守卫 _spot_timer 精确恢复（实际 %.3f）" % cop._spot_timer)
+	check(is_equal_approx(cop._wait_timer, 0.45), "G05：守卫 _wait_timer 精确恢复（实际 %.3f）" % cop._wait_timer)
+	museum.queue_free()
+
+
 func _test_preview_wall_context() -> void:
 	var museum := await _make_museum()
 	_scatter_other_guards(museum, -1)

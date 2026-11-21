@@ -335,6 +335,8 @@ func _ready() -> void:
 		var entry_cam: Camera2D = player.get_node_or_null("Camera2D")
 		if entry_cam != null:
 			entry_cam.reset_smoothing()
+	# 没有规划过的手动潜入也必须有可回退的起始状态。
+	_run_start_snapshot = _build_sim_snapshot()
 
 
 func _load_map() -> void:
@@ -1154,7 +1156,7 @@ func _finish_plan_execution(clear_route: bool = false) -> void:
 	_pre_exec_ai_states.clear()
 	# 不清理 _sim_snapshot：失败后回退与测试都需要读取最终 tick 的事件与状态。
 	# 下一次 execute_plan() 会重新构建新快照。
-	_run_start_snapshot.clear()
+	# 保留最后一次合法起点，完成/接管后的发现仍可免费重试。
 	# 保留 _run_start_planned_points / _run_start_node_actions，供失败回退时还原路线。
 	if clear_route:
 		planned_points.clear()
@@ -1183,6 +1185,8 @@ func _build_sim_snapshot() -> Dictionary:
 		var p: Dictionary = snap["player"]
 		p["pos"] = _world_to_cell(player.global_position)
 		p["crouch"] = player.crouching
+		p["world_pos"] = player.global_position
+		p["carrying"] = Game.mission_complete
 		p["move_interval"] = _ticks_per_cell(Player.WALK_SPEED)
 		p["crouch_move_interval"] = _ticks_per_cell(Player.WALK_SPEED * Player.CROUCH_SPEED_MULTIPLIER)
 		p["sprint_move_interval"] = _ticks_per_cell(Player.SPRINT_SPEED)
@@ -1201,7 +1205,7 @@ func _build_sim_snapshot() -> Dictionary:
 			"investigate_interval": _ticks_per_cell(Police.INVESTIGATE_SPEED),
 			"chase_interval": _ticks_per_cell(Police.CHASE_SPEED),
 			"wait_left": int(round(cop._wait_timer * SimPreview.TICK_RATE)),
-			"facing": _facing_to_cell(cop._facing),
+			"facing": cop._facing,
 			"investigate_pos": _world_to_cell(cop._investigate_pos) if cop._investigate_pos != Vector2.ZERO else Vector2i(-1, -1),
 			"investigate_left": int(round(cop._investigate_timer * SimPreview.TICK_RATE)),
 			"alert": _state_to_alert(cop.state),
@@ -1209,6 +1213,12 @@ func _build_sim_snapshot() -> Dictionary:
 			"spot_delay": int(round(cop._spot_delay() * SimPreview.TICK_RATE)),
 			"blind_timer": int(round(cop._blind_timer * SimPreview.TICK_RATE)),
 			"ai_enabled": cop.ai_enabled,
+			"world_state": {
+				"pos": cop.global_position, "facing": cop._facing,
+				"wait_timer": cop._wait_timer, "investigate_pos": cop._investigate_pos,
+				"investigate_timer": cop._investigate_timer, "spot_timer": cop._spot_timer,
+				"blind_timer": cop._blind_timer, "alert_level": cop._alert_level,
+			},
 		}
 		for pt in cop.patrol_points:
 			g["waypoints"].append(_world_to_cell(pt))
@@ -1233,14 +1243,14 @@ func _build_sim_snapshot() -> Dictionary:
 	snap["items"] = []
 	for child in get_children():
 		if child is Artifact:
-			snap["items"].append({"id": child.item_id, "pos": _world_to_cell(child.global_position), "taken": false})
+			snap["items"].append({"id": child.item_id, "pos": _world_to_cell(child.global_position), "world_pos": child.global_position, "taken": false})
 
 	snap["bag_items"] = Game.bag_items.duplicate(true)
 	snap["smoke_count"] = Game.smoke_count
 	snap["smoke_puffs"] = []
 	for child in get_children():
 		if child is SmokePuffClass:
-			snap["smoke_puffs"].append({"pos": _world_to_cell(child.global_position), "time": child._t})
+			snap["smoke_puffs"].append({"pos": _world_to_cell(child.global_position), "world_pos": child.global_position, "time": child._t})
 	return snap
 
 
@@ -1257,15 +1267,6 @@ func _ticks_per_cell(speed_px_per_sec: float) -> int:
 		return 1
 	var tpc := SimPreview.TICK_RATE * TILE / speed_px_per_sec
 	return clampi(int(round(tpc)), 1, 60)
-
-
-func _facing_to_cell(facing: Vector2) -> Vector2i:
-	if facing == Vector2.ZERO:
-		return Vector2i(1, 0)
-	var cell := Vector2i(signi(int(facing.x)), signi(int(facing.y)))
-	if cell == Vector2i.ZERO:
-		return Vector2i(1, 0)
-	return cell
 
 
 func _state_to_alert(state: Police.State) -> int:
@@ -1384,7 +1385,7 @@ func _apply_sim_state(snap: Dictionary) -> void:
 		player.sim_dir = dir
 		player.crouching = bool(p.get("crouch", false))
 
-	# 3) 守卫（由内核驱动位置与朝向；内部计时器在执行结束/回退时统一恢复）
+	# 3) 守卫位置、朝向与计时同tick同步，结束执行/接管后人工AI接续当前状态。
 	var guard_map := {}
 	for g in snap.get("guards", []):
 		guard_map[g.get("id", "")] = g
@@ -1396,6 +1397,12 @@ func _apply_sim_state(snap: Dictionary) -> void:
 			continue
 		cop.global_position = _cell_to_world(Vector2i(g["pos"]))
 		cop.state = _alert_to_state(int(g.get("alert", 0)))
+		cop._patrol_index = int(g.get("wp_index", 0))
+		cop._wait_timer = float(g.get("wait_left", 0)) / SimPreview.TICK_RATE
+		cop._investigate_timer = float(g.get("investigate_left", 0)) / SimPreview.TICK_RATE
+		cop._investigate_pos = _cell_to_world(Vector2i(g["investigate_pos"])) if Vector2i(g.get("investigate_pos", Vector2i(-1, -1))).x >= 0 else Vector2.ZERO
+		cop._spot_timer = float(g.get("spot_timer", 0)) / SimPreview.TICK_RATE
+		cop._blind_timer = float(g.get("blind_timer", 0)) / SimPreview.TICK_RATE
 		cop._facing = Vector2(g.get("facing", Vector2i(1, 0)))
 		cop._alert_level = 1 if int(g.get("alert", 0)) == 1 or float(g.get("spot_timer", 0.0)) > 0.05 else (2 if int(g.get("alert", 0)) == 2 else 0)
 
@@ -1438,7 +1445,7 @@ func _restore_full_snapshot(snap: Dictionary) -> void:
 
 	if player != null:
 		var p: Dictionary = snap["player"]
-		player.global_position = _cell_to_world(Vector2i(p["pos"]))
+		player.global_position = p.get("world_pos", _cell_to_world(Vector2i(p["pos"])))
 		player.crouching = bool(p.get("crouch", false))
 		player.sim_driven = false
 		player.sim_dir = Vector2.ZERO
@@ -1465,13 +1472,24 @@ func _restore_full_snapshot(snap: Dictionary) -> void:
 		cop.ai_enabled = bool(g.get("ai_enabled", true))
 		cop._alert_level = 1 if int(g.get("alert", 0)) == 1 or float(g.get("spot_timer", 0.0)) > 0.05 else (2 if int(g.get("alert", 0)) == 2 else 0)
 
+		var original: Dictionary = g.get("world_state", {})
+		if not original.is_empty():
+			cop.global_position = original["pos"]
+			cop._facing = original["facing"]
+			cop._wait_timer = float(original["wait_timer"])
+			cop._investigate_pos = original["investigate_pos"]
+			cop._investigate_timer = float(original["investigate_timer"])
+			cop._spot_timer = float(original["spot_timer"])
+			cop._blind_timer = float(original["blind_timer"])
+			cop._alert_level = int(original["alert_level"])
+
 	# 物品：按快照增删
 	for child in get_children():
 		if child is Artifact:
 			child.queue_free()
 	for item in snap.get("items", []):
 		if not bool(item.get("taken", false)):
-			_spawn_artifact(String(item["id"]), _cell_to_world(Vector2i(item["pos"])))
+			_spawn_artifact(String(item["id"]), item.get("world_pos", _cell_to_world(Vector2i(item["pos"]))))
 
 	# 背包与消耗品
 	Game.bag_items = snap.get("bag_items", []).duplicate(true)
@@ -1479,6 +1497,8 @@ func _restore_full_snapshot(snap: Dictionary) -> void:
 	Game._recompute_mission()
 	Game.backpack_changed.emit()
 	Game.items_changed.emit()
+	# 拾取会自动存档；回退也须覆盖磁盘，避免退出重开取回被回滚的收益。
+	Game.save_game()
 
 	# 烟雾 puff
 	for child in get_children():
@@ -1486,7 +1506,7 @@ func _restore_full_snapshot(snap: Dictionary) -> void:
 			child.queue_free()
 	for puff in snap.get("smoke_puffs", []):
 		var node := SMOKE_SCENE.instantiate() as SmokePuffClass
-		node.position = _cell_to_world(Vector2i(puff["pos"]))
+		node.position = puff.get("world_pos", _cell_to_world(Vector2i(puff["pos"])))
 		node._t = float(puff.get("time", 0.0))
 		add_child(node)
 

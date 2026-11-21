@@ -1,0 +1,34 @@
+extends SceneTree
+func _initialize() -> void:
+    call_deferred("_run")
+func _run() -> void:
+    var game = root.get_node("Game")
+    game.save_path = "/tmp/thief_snapshot_probe_save.json"
+    game.reset_progress()
+    var museum = load("res://src/world/museum.tscn").instantiate()
+    museum.level_id = "museum"
+    root.add_child(museum)
+    await physics_frame
+    await physics_frame
+    museum.toggle_planning_mode(true)
+    var original = Vector2(57.25, 41.75)
+    museum.player.global_position = original
+    var snap = museum._build_sim_snapshot()
+    museum._restore_full_snapshot(snap)
+    print("EXACT_PLAYER_ORIGINAL=",original," RESTORED=",museum.player.global_position)
+    var cop = museum.police[0]
+    var modified = museum._build_sim_snapshot()
+    modified.guards[0]["spot_timer"] = 7
+    modified.guards[0]["wait_left"] = 9
+    cop._spot_timer = 0
+    cop._wait_timer = 0
+    museum._apply_sim_state(modified)
+    print("GUARD_SPOT_EXPECTED=",7.0/20.0," ACTUAL=",cop._spot_timer)
+    print("GUARD_WAIT_EXPECTED=",9.0/20.0," ACTUAL=",cop._wait_timer)
+    museum._run_start_snapshot = snap
+    museum._finish_plan_execution()
+    print("RETRY_SNAPSHOT_AFTER_FINISH_EMPTY=",museum._run_start_snapshot.is_empty())
+    museum.queue_free()
+    await process_frame
+    root.get_node("Audio").shutdown()
+    quit()

@@ -1,0 +1,1 @@
+PID 256081, confirmed headless input test, elapsed 561.2s. SIGTERM sent by supervisor; not a normal test failure or pass. Shared step log may have been overwritten by another verify.

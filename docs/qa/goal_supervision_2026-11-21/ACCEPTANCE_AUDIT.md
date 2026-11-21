@@ -34,3 +34,7 @@
 Codex认领G20261121-02修复museum规划点可加入未知区；点击/拖动/共用入口先检查已知分区，探索34、模拟43通过。全量17过/1失败：R-12a在途购买备货语义导致test_logic原烟雾入携带/使用2断言失败。实际完整日志verify_round1.log。test已独立确认门禁修复（消息779），正在补正常输入路由和拖动回归。其他功能未标通过。
 
 G20261121-03：实际run_preview与轨迹重放遗漏context已修正。隔离探针显示不传context到(7,2)，真实context/当前实际预演停(4,2)，中间(5,2)为实心格。test在806独立加入真实run_preview+execute_plan回归，museum_sim48/48；门禁真实鼠标回归exploration35/35。采购/调查仍在途，非全项目完成。
+
+G20261121-05：非整格起点被回退为格心、AI计时未同步、结束清空重试快照已通过隔离探针确认并修复。新增test_snapshot_handoff25项并挂verify，test独立新增完整快照用例后museum_sim52项通过。R-05重复预约超过实物库存仍需code修复，日志reservation_overflow.log；全项目未完成。
+
+G20261121-05全量完成：独立TMPDIR的tools/verify.sh 19/19通过，snapshot/verify19.log；新快照接管25项已挂入口，已有museum_sim52项通过。code已修R-05超预约上限。G20261121-06继续要求大馆普通拾取、可选装载与stock脏类型读取，尚未完成；电脑真实拖拽、F扩馆/迁移、R-06交付、发布与真人体验仍不宣称通过。

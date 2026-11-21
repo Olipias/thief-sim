@@ -295,3 +295,7 @@ Autoload
 ## WSL协作桥（2026-11-21）
 
 详见[AGENT_LINK](AGENT_LINK.md)。消息由agentchattr统一保存；仓库agent_link通过已注册REST身份读写，SQLite事务同时提交观察水位和待投递任务，OpenCode CLI queue负责唤醒已绑定窗口。外部旧relay与新桥不可重复接管同一目标。API提交、人工/agent回执和测试通过为不同状态；超时重试是至少一次投递，处理者按消息ID去重。原生Claude需包装器续接，当前Codex应用窗口无本地入站唤醒接口，保持read/watch。桥不直接执行消息内命令，也不作为代码文件锁。
+
+## 运行快照的精确回退元数据（v0.26.3）
+
+Museum的模拟格坐标与回退元数据分开：player/item/smoke保留world_pos，守卫world_state保留原始浮点位置/朝向/计时，供回退使用；执行态按内核每tick更新真实AI计时，不能把起始元数据误用于执行同步。此为运行内快照，不新增用户存档字段。初入场建立合法回退点，执行结束不清空最后起点；回退在恢复背包/消耗品后同步保存，保留调查知识与局外购物状态。回归test_snapshot_handoff已挂verify。
