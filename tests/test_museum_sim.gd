@@ -46,6 +46,7 @@ func _ready() -> void:
 	await _test_full_snapshot_restore()
 	await _test_preview_wall_context()
 	await _test_full_snapshot_exact_state()
+	await _test_multi_guard_equivalence()
 
 	Audio.shutdown()
 	if _failures > 0:
@@ -363,6 +364,39 @@ func _test_take_action_equivalence() -> void:
 
 ## 实际 museum.run_preview + execute_plan 的墙阻挡上下文（不是两个独立 Sim 调用互比）。
 ## G20261121-05：精确回退（非整格）、守卫计时同步、结束/接管后仍保留合法重试快照。
+## 多守卫：两名守卫同时可能发现时，预演与真实执行的首次发现 tick/实体一致。
+func _test_multi_guard_equivalence() -> void:
+	var museum := await _make_museum()
+	var player_start := _cell_center(5, 5)
+	museum.player.global_position = player_start
+	var cop0: Police = museum.police[0]
+	var cop1: Police = museum.police[1]
+	cop0.global_position = _cell_center(5, 3)
+	cop0._facing = Vector2.DOWN
+	cop1.global_position = _cell_center(3, 5)
+	cop1._facing = Vector2.RIGHT
+	for i in range(2, museum.police.size()):
+		museum.police[i].global_position = _cell_center(17, 9)
+	museum.planned_points = [_cell_center(5, 7)]
+	museum._plan_node_actions = ["wait"]
+	var snap := museum._build_sim_snapshot()
+	var route := museum._planned_sim_route()
+	var context := museum._build_sim_context()
+	var preview := Sim.simulate_route(snap, route, 120, context)
+	museum.execute_plan()
+	var exec := await _capture_execution_trace(museum)
+	var exec_trace: Array[String] = exec["trace"]
+	var preview_spotted := _first_event_kind(preview.events, "spotted")
+	check(not preview_spotted.is_empty(), "多守卫：预演触发发现")
+	var exec_spotted := _first_event_kind(exec["events"], "spotted")
+	check(not exec_spotted.is_empty(), "多守卫：执行触发发现")
+	if not preview_spotted.is_empty() and not exec_spotted.is_empty():
+		check(int(preview_spotted.get("tick", -1)) == int(exec_spotted.get("tick", -2)), "多守卫：首次发现 tick 一致")
+		check(String(preview_spotted.get("id", "")) == String(exec_spotted.get("id", "")), "多守卫：首次发现实体 id 一致")
+	check(_compare_trace("多守卫", preview.trace, exec_trace, preview.first_spotted), "多守卫：发现前逐 tick 一致")
+	museum.queue_free()
+
+
 func _test_full_snapshot_exact_state() -> void:
 	var museum := await _make_museum()
 	_scatter_other_guards(museum, -1)
