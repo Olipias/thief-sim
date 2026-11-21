@@ -1,0 +1,290 @@
+
+==> 文档自检（链接 / CHANGELOG 格式）
+check_docs OK（链接 130 条可达；CHANGELOG 79 个版本条目）
+
+==> 关卡数据自检（生成物与脚本同步）
+check_level OK（2 个关卡：生成物与脚本同步）
+
+==> 资源导入（新增/改动贴图与音效）
+Godot Engine v4.7.2.stable.official.ed1daf0bf - https://godotengine.org
+
+[   0% ] [90m[1mfirst_scan_filesystem[22m | Started Project initialization (5 steps)[39m[0m
+[   0% ] [90m[1mfirst_scan_filesystem[22m | Scanning file structure...[39m[0m
+[  16% ] [90m[1mfirst_scan_filesystem[22m | Loading global class names...[39m[0m
+[  33% ] [90m[1mfirst_scan_filesystem[22m | Verifying GDExtensions...[39m[0m
+[  50% ] [90m[1mfirst_scan_filesystem[22m | Creating autoload scripts...[39m[0m
+[  66% ] [90m[1mfirst_scan_filesystem[22m | Initializing plugins...[39m[0m
+[  83% ] [90m[1mfirst_scan_filesystem[22m | Starting file scan...[39m[0m
+[92m[ DONE ][39m [1mfirst_scan_filesystem[22m
+[0m
+[   0% ] [90m[1mupdate_scripts_classes[22m | Started Registering global classes... (6 steps)[39m[0m
+[   0% ] [90m[1mupdate_scripts_classes[22m | [39m[0m
+[  14% ] [90m[1mupdate_scripts_classes[22m | InvestigationBoard[39m[0m
+[  28% ] [90m[1mupdate_scripts_classes[22m | MissionPhone[39m[0m
+[  42% ] [90m[1mupdate_scripts_classes[22m | [39m[0m
+[  57% ] [90m[1mupdate_scripts_classes[22m | [39m[0m
+[  71% ] [90m[1mupdate_scripts_classes[22m | [39m[0m
+[92m[ DONE ][39m [1mupdate_scripts_classes[22m
+[0m
+[   0% ] [90m[1mloading_editor_layout[22m | Started Loading editor (5 steps)[39m[0m
+[   0% ] [90m[1mloading_editor_layout[22m | Loading editor layout...[39m[0m
+[  16% ] [90m[1mloading_editor_layout[22m | Loading docks...[39m[0m
+[  33% ] [90m[1mloading_editor_layout[22m | Reopening scenes...[39m[0m
+[  50% ] [90m[1mloading_editor_layout[22m | Loading central editor layout...[39m[0m
+[  66% ] [90m[1mloading_editor_layout[22m | Loading plugin window layout...[39m[0m
+[  83% ] [90m[1mloading_editor_layout[22m | Editor layout ready.[39m[0m
+[92m[ DONE ][39m [1mloading_editor_layout[22m
+[0m
+
+==> GDScript 编译检查（src + tests）
+Godot Engine v4.7.2.stable.official.ed1daf0bf - https://godotengine.org
+
+ALL 57 SCRIPTS COMPILE
+
+==> 逻辑单测
+Godot Engine v4.7.2.stable.official.ed1daf0bf - https://godotengine.org
+
+FAIL - 大英行动拒绝非选定文物
+FAIL - british museum target picked up
+FAIL - carrying the level target completes the mission
+FAIL - british museum run succeeds
+FAIL - summary names the double-ram zun
+FAIL - british museum pays its own reward
+FAIL - 大英成功结算记录 completed_british_museum
+FAIL - settlement cleared the bag, so the mission is not complete
+FAIL - 大英行动不能拿未选择的目标
+FAIL - 大英行动能拿选定目标
+FAILED 10 / 2551 checks
+
+==> 内容一致性测试
+Godot Engine v4.7.2.stable.official.ed1daf0bf - https://godotengine.org
+
+ALL 635 CHECKS PASSED
+
+==> 输入流自检（真实按键驱动 UI 覆盖层）
+Godot Engine v4.7.2.stable.official.ed1daf0bf - https://godotengine.org
+
+FAIL - 电脑调查：推理板有材料选项
+FAILED 1 / 307 checks
+FAIL - 电脑调查：推理板有材料选项
+
+==> 存档兼容自检（老档 / 脏档 / 未来档）
+Godot Engine v4.7.2.stable.official.ed1daf0bf - https://godotengine.org
+
+ERROR: Parse JSON failed. Error at line 0: Expected key
+   at: parse_string (core/io/json.cpp:629)
+   GDScript backtrace (most recent call first):
+       [0] _read_save_dict (res://src/autoload/game_state.gd:904)
+       [1] load_game (res://src/autoload/game_state.gd:981)
+       [2] _test_corrupt_json (res://tests/test_save_compat.gd:98)
+       [3] _initialize (res://tests/test_save_compat.gd:28)
+ALL 119 CHECKS PASSED
+
+==> 玩家进度自检（结算 / 仓库 / 收集册 / 存档健壮性）
+Godot Engine v4.7.2.stable.official.ed1daf0bf - https://godotengine.org
+
+ERROR: Parse JSON failed. Error at line 0: Expected ']'
+   at: parse_string (core/io/json.cpp:629)
+   GDScript backtrace (most recent call first):
+       [0] _read_save_dict (res://src/autoload/game_state.gd:904)
+       [1] has_save (res://src/autoload/game_state.gd:420)
+       [2] _test_save_robustness (res://tests/test_progression.gd:410)
+       [3] _initialize (res://tests/test_progression.gd:31)
+ERROR: Parse JSON failed. Error at line 0: Expected ']'
+   at: parse_string (core/io/json.cpp:629)
+   GDScript backtrace (most recent call first):
+       [0] _read_save_dict (res://src/autoload/game_state.gd:904)
+       [1] load_game (res://src/autoload/game_state.gd:981)
+       [2] _reload (res://tests/test_progression.gd:273)
+       [3] _test_save_robustness (res://tests/test_progression.gd:411)
+       [4] _initialize (res://tests/test_progression.gd:31)
+ALL 100 CHECKS PASSED
+
+==> 剧情自检（story_flags / 双羊尊文物志）
+Godot Engine v4.7.2.stable.official.ed1daf0bf - https://godotengine.org
+
+ALL 30 CHECKS PASSED
+
+==> 确定性预演自检（R-02 灰盒一致性）
+Godot Engine v4.7.2.stable.official.ed1daf0bf - https://godotengine.org
+
+PASS - 预演与执行 tick 数一致（20 vs 20）
+PASS - 逐 tick 状态摘要完全一致
+PASS - 事件序列一致
+PASS - 首次发现 tick 一致（20 vs 20）
+PASS - 风险路线确实触发了发现（灰盒有效性）
+PASS - 重复执行事件一致（帧率无关）
+PASS - 修改路线后预演/执行仍一致
+PASS - 预演不污染源快照（整份深比较）
+PASS - 失败场景触发发现
+PASS - 恢复快照逐字段一致
+PASS - 失败恢复后重跑同路线仍逐 tick 一致
+PASS - 噪音触发守卫调查事件
+PASS - 守卫朝噪音源移动
+PASS - 站立距离 4 被发现
+PASS - 蹲下距离 4 未被发现
+PASS - 开锁动作 40 tick 后门解锁
+PASS - 拿取动作 20 tick 后目标入包
+PASS - 执行也不污染源快照（整份深比较）
+PASS - batch=1 逐 tick 轨迹与执行一致
+PASS - batch=3 逐 tick 轨迹与执行一致
+PASS - batch=7 逐 tick 轨迹与执行一致
+PASS - batch=20 逐 tick 轨迹与执行一致
+PASS - 多噪音并发两次预演逐 tick 一致
+PASS - 多噪音并发事件序列一致
+PASS - 多噪音触发调查
+PASS - 最近噪音 (5,5) 优先（实际 (5, 5)）
+PASS - 长路线产生了足够 tick（5000）
+PASS - 长路线两次预演逐 tick 一致
+PASS - 长路线事件序列一致
+PASS - restore_full 完整还原（含 tick/守卫等待/监控相位/噪音）
+PASS - 非门口执行 unlock 不应开门
+PASS - 门口门锁保持锁定
+PASS - 噪音调查结束后守卫回到巡逻态（实际 alert=0）
+PASS - TICK_RATE 固定 20
+PASS - sim_preview.gd 不调用随机数
+PASS - 多守卫/监控场景触发发现
+PASS - 监控摄像头也被纳入发现归因
+PASS - 墙体遮挡时不应发现玩家
+PASS - 隔壁厅半径内的噪音不触发调查
+PASS - 跨房间噪音不生成调查事件
+PASS - 多个噪音只选择合法同厅来源
+PASS - 无房间上下文的单房灰盒仍响应半径噪音
+ALL 42 CHECKS PASSED
+
+==> 真实场景等价自检（R-02b 预览 vs 执行）
+Godot Engine v4.7.2.stable.official.ed1daf0bf - https://godotengine.org
+
+PASS - 安全路线：预演未发现
+PASS - 安全路线：执行至少推进 2 tick（实际 8）
+PASS - 安全路线：预演与执行逐 tick 一致
+PASS - 守卫视野：预演触发发现（tick 16）
+PASS - 守卫视野：触发实体归因是 guard
+PASS - 守卫视野：执行至少跑到发现 tick（16 >= 16）
+PASS - 守卫视野：发现前逐 tick 一致
+PASS - 守卫视野：执行也触发 spotted 事件
+PASS - 守卫视野：执行发现 tick 与预演相同
+PASS - 守卫视野：执行发现归因是 guard
+PASS - 墙体遮挡：预演未触发发现
+PASS - 墙体遮挡：执行推进了至少 1 tick
+PASS - 墙体遮挡：预演与执行逐 tick 一致
+PASS - 墙体遮挡：执行也未触发 spotted
+PASS - 监控摄像头：预演触发发现
+PASS - 监控摄像头：触发实体归因是 camera
+PASS - 监控摄像头：执行跑到发现 tick
+PASS - 监控摄像头：发现前逐 tick 一致
+PASS - 监控摄像头：执行也触发 spotted
+PASS - 监控摄像头：执行发现 tick 与预演相同
+PASS - 监控摄像头：执行发现归因是 camera
+PASS - 噪音调查：预演触发守卫调查事件
+PASS - 噪音调查：执行与预演调查事件数相同（3 == 3）
+PASS - 噪音调查：第 0 个调查事件 tick 一致
+PASS - 噪音调查：第 0 个调查事件守卫 id 一致
+PASS - 噪音调查：第 1 个调查事件 tick 一致
+PASS - 噪音调查：第 1 个调查事件守卫 id 一致
+PASS - 噪音调查：第 2 个调查事件 tick 一致
+PASS - 噪音调查：第 2 个调查事件守卫 id 一致
+PASS - 拿取动作：预演触发 target_taken 事件
+PASS - 拿取动作：预演拿取目标是 mask
+PASS - 拿取动作：执行触发 target_taken 事件
+PASS - 拿取动作：执行拿取 tick 与预演相同
+PASS - 拿取动作：执行拿取目标是 mask
+PASS - 拿取动作：执行后 mask 实际入包
+PASS - 拿取动作：场景中 mask 文物已移除
+PASS - 拿取动作：预演与执行逐 tick 一致
+PASS - 完整快照：玩家位置恢复
+PASS - 完整快照：守卫位置恢复
+PASS - 完整快照：目标文物重新出现
+PASS - 完整快照：背包被清空回起始状态
+PASS - 完整快照：烟雾弹数量恢复
+PASS - 完整快照：烟雾 puff 恢复
+PASS - 预演墙阻挡：找到玩家旁的实心格
+PASS - 预演墙阻挡：实际 run_preview 生成轨迹
+PASS - 预演墙阻挡：轨迹不穿实心格
+PASS - 预演墙阻挡：真实执行也不穿实心格
+PASS - 预演墙阻挡：实际预演与执行前 20 tick 位置一致
+PASS - G05：结束/接管后保留重试快照
+PASS - G05：玩家回退到精确坐标（实际 (57.25, 41.75)）
+PASS - G05：守卫 _spot_timer 精确恢复（实际 0.350）
+PASS - G05：守卫 _wait_timer 精确恢复（实际 0.450）
+PASS - 多守卫：预演触发发现
+PASS - 多守卫：执行触发发现
+PASS - 多守卫：首次发现 tick 一致
+PASS - 多守卫：首次发现实体 id 一致
+PASS - 多守卫：发现前逐 tick 一致
+ALL 57 CHECKS PASSED
+
+==> 完整回退与人工接管自检
+Godot Engine v4.7.2.stable.official.ed1daf0bf - https://godotengine.org
+
+ALL 25 CHECKS PASSED
+
+==> 探索循环自检（迷雾 / 侦察撤离 / 跨次保留）
+Godot Engine v4.7.2.stable.official.ed1daf0bf - https://godotengine.org
+
+PASS - 迷雾：玩家起始分区有效
+PASS - 迷雾：入口分区已揭示
+PASS - 迷雾：入口分区已写入跨次记录
+PASS - 迷雾：至少有一个其他房间初始隐藏
+PASS - 跨次保留：第二个房间分区索引一致
+PASS - 跨次保留：第二个房间已揭示
+PASS - 跨次保留：第二个房间已写入记录
+PASS - 跨次保留：重进后入口仍揭示
+PASS - 跨次保留：重进后第二个房间仍揭示
+PASS - 跨次保留：未进入的房间仍隐藏
+PASS - 侦察撤离：场景中存在普通战利品
+PASS - 侦察撤离：普通战利品有实例ID
+PASS - 侦察撤离：战利品拾取成功
+PASS - 侦察撤离：战利品在背包中
+PASS - 侦察撤离：背包条目保留实例ID
+PASS - 侦察撤离：结算标记 recon
+PASS - 侦察撤离：背包已清空
+PASS - 侦察撤离：战利品进入 stash
+PASS - 侦察撤离：未发放任务报酬
+PASS - 侦察撤离：实例ID已记录
+PASS - 侦察撤离后：已探房间保留
+PASS - 侦察撤离后：第二个房间记录保留
+PASS - 侦察撤离后：已带出实例不再刷新
+PASS - 新游戏：已探房间清空
+PASS - 新游戏：已取实例清空
+PASS - 小地图：至少显示入口房间
+PASS - 小地图：入口房间可见
+PASS - 小地图：初始不泄露其他房间（实际 1）
+PASS - 小地图：未探出口不显示
+PASS - 小地图：未探目标房不显示
+PASS - 小地图：踏入后显示该房间
+PASS - 小地图：只增加已踏房间（实际 2）
+PASS - 未知区域规划：找到未探可走点
+PASS - 未知区域规划：规划模式已开启
+PASS - 未知区域规划：真实鼠标点击未探区域不得添加节点
+ALL 35 CHECKS PASSED
+
+==> 剧情验收（独立：隐藏条件 / 双羊全分支播放）
+Godot Engine v4.7.2.stable.official.ed1daf0bf - https://godotengine.org
+
+ALL 30 CHECKS PASSED
+
+==> 推理数据自检（三链 / 线索数据边界 / 恶魔分支）
+Godot Engine v4.7.2.stable.official.ed1daf0bf - https://godotengine.org
+
+ALL 144 CHECKS PASSED
+
+==> 场景实例化自检（src/*.tscn）
+Godot Engine v4.7.2.stable.official.ed1daf0bf - https://godotengine.org
+
+ALL 158 SCENES OK
+
+==> 随机操作自检（monkey，规则不变量）
+Godot Engine v4.7.2.stable.official.ed1daf0bf - https://godotengine.org
+
+覆盖统计：背包 47 步 / 手机 55 步 / 对话框 260 步 / 对话树 13 步 / 开局 2 次
+ALL 600 步随机操作通过（seed=20261020）
+
+==> 冒烟测试（场景集成）
+Godot Engine v4.7.2.stable.official.ed1daf0bf - https://godotengine.org
+
+ALL 184 CHECKS PASSED
+
+❌ 失败 2 项（通过 17 项）：
+   - 逻辑单测
+   - 输入流自检（真实按键驱动 UI 覆盖层）

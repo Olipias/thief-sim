@@ -47,6 +47,8 @@
 
 - ✅ G20261121-03预演真实上下文｜Codex｜2026-11-21：`test_museum_sim` 新增实际 `run_preview`+有碰撞路线回归，6 处直接 `Sim.simulate_route` 传 `_build_sim_context`，48/48；仅专项通，R-02b 其余边界仍欠。
 
+- ✅ G20261121-09同厅噪音门禁｜Codex｜2026-11-21：已认领并修复共享模拟跨房间噪音调查；专项由3红到42/42通过。全量17过/2失败，G06/G07在途问题已派单#868，证据goal_supervision_2026-11-21/noise；不标R-02b整体完成。
+
 - ✅ G20261121-05完整回退/接管状态｜Codex｜2026-11-21：玩家非整格精确位置回退、守卫 `_spot_timer`/`_wait_timer` 恢复、`cancel_plan()` 后重试快照保留；`test_museum_sim` 52/52；隔离提交 `56ca123` 含 `test_snapshot_handoff.gd`/UID/verify 入口。仅专项通，R-02b 多实体/帧率等欠项仍保留。
 
 - ✅ F批展馆布局交接｜art｜2026-11-21：`docs/art_direction/F_LAYOUT_HANDOFF.md` 已交付，12区域为可调目标，三件主目标统一为 ram_zun / egypt_heart_scarab / akrotiri_askos，保留回路/免费钥匙/工具路线；地图生成仍由code负责。

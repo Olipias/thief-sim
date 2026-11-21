@@ -41,6 +41,7 @@ func _initialize() -> void:
 	_test_no_random_and_fixed_tick()
 	_test_multi_guard_camera()
 	_test_wall_occlusion()
+	_test_noise_stays_in_room()
 
 	if _failures > 0:
 		print("FAILED %d / %d checks" % [_failures, _checks])
@@ -384,3 +385,33 @@ func _deep_equal(a: Variant, b: Variant) -> bool:
 				return false
 		return true
 	return a == b
+
+## 手动感知与共享模拟均只响应同房间的噪音，不能穿墙跨厅引怪。
+func _noise_room(a: Vector2i, b: Vector2i) -> bool:
+	return (a.x < 6) == (b.x < 6)
+
+
+func _noise_fixture() -> Dictionary:
+	var snap := Sim.default_snapshot()
+	snap["player"]["pos"] = Vector2i(2, 20)
+	snap["cameras"] = []
+	snap["guards"][0]["pos"] = Vector2i(5, 5)
+	snap["guards"][0]["waypoints"] = [Vector2i(5, 5)]
+	snap["noise"] = [{"pos": Vector2i(6, 5), "radius_cells": 3, "left": 10}]
+	return snap
+
+
+func _test_noise_stays_in_room() -> void:
+	var snap := _noise_fixture()
+	var route := [{"pos": Vector2i(2, 20), "action": "wait", "ticks": 20, "done": 0}]
+	var context := {"same_room": _noise_room}
+	Sim.tick(snap, route.duplicate(true), {"i": 0}, context)
+	check(int(snap["guards"][0]["alert"]) == 0, "隔壁厅半径内的噪音不触发调查")
+	check(snap["events"].is_empty(), "跨房间噪音不生成调查事件")
+	snap = _noise_fixture()
+	snap["noise"].append({"pos": Vector2i(4, 5), "radius_cells": 3, "left": 10})
+	Sim.tick(snap, route.duplicate(true), {"i": 0}, context)
+	check(snap["guards"][0]["investigate_pos"] == Vector2i(4, 5), "多个噪音只选择合法同厅来源")
+	var gray := _noise_fixture()
+	Sim.tick(gray, route.duplicate(true), {"i": 0})
+	check(int(gray["guards"][0]["alert"]) == 1, "无房间上下文的单房灰盒仍响应半径噪音")

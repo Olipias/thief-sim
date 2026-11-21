@@ -1,0 +1,6 @@
+Godot Engine v4.7.2.stable.official.ed1daf0bf - https://godotengine.org
+
+FAIL - 隔壁厅半径内的噪音不触发调查
+FAIL - 跨房间噪音不生成调查事件
+FAIL - 多个噪音只选择合法同厅来源
+FAILED 3 / 42 checks

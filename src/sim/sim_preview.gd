@@ -382,7 +382,7 @@ static func _tick_guard(g: Dictionary, snap: Dictionary, context: Dictionary) ->
 
 	# 调查
 	if int(g.get("alert", 0)) < 2:
-		var noise_target := _nearest_noise(g, snap)
+		var noise_target := _nearest_noise(g, snap, context)
 		if noise_target.x >= 0:
 			if Vector2i(g.get("investigate_pos", Vector2i(-1, -1))) != noise_target:
 				g["investigate_pos"] = noise_target
@@ -435,11 +435,14 @@ static func _move_guard(g: Dictionary, state: String, target: Vector2i) -> void:
 		g["move_counter"] = maxi(1, interval)
 
 
-static func _nearest_noise(g: Dictionary, snap: Dictionary) -> Vector2i:
+static func _nearest_noise(g: Dictionary, snap: Dictionary, context: Dictionary = {}) -> Vector2i:
 	var best := Vector2i(-1, -1)
 	var best_dist := INF
+	var same_room_cb: Callable = context.get("same_room", Callable())
 	for n in snap.get("noise", []):
 		var npos: Vector2i = n["pos"] if n["pos"] is Vector2i else Vector2i(int(n["pos"]["x"]), int(n["pos"]["y"]))
+		if same_room_cb.is_valid() and not same_room_cb.call(Vector2i(g["pos"]), npos):
+			continue
 		var radius: int = int(n.get("radius_cells", GUARD_NOISE_RANGE_CELLS))
 		var dist: int = route_distance(Vector2i(g["pos"]), npos)
 		if dist <= radius and dist < best_dist:
