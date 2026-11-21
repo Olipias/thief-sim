@@ -29,3 +29,22 @@
 - 作者/许可/署名：用户提供，包内没有明确模型或渲染图授权书，待作者确认。Met公版参考照片不能自动赋予派生模型许可。原始SOURCES说明保存在 docs/art_direction/relic_pack_sources.md。
 
 选定封面 SHA256：`b72aa7f00f6df5611405f4083f9b9169f5b4e1e509319ab085b9bfccd487cd88`。
+
+## 美术批次补登记（2026-11-21，G10）
+
+审计明细见 [素材交付审计](docs/art_direction/ASSET_DELIVERY_AUDIT.md)。以下文件此前未登记；许可与署名一律未知，不推定可分发。
+
+| 路径 | 用途 | 来源 / 作者 | 许可与署名 | 状态 |
+| --- | --- | --- | --- | --- |
+| assets/sprites/bm/bm_wall_trim.png、bm_floor_wear.png | 博物馆墙裙与地面覆盖层 | ofox `openai/gpt-image-2` 生成网格原图，`tools/gen_external_p0.py` 切格 | 生成服务条款与输出权利未知 | 已接入（地面覆盖默认关） |
+| assets/sprites/bm/decor_bm_{china,egypt,greek,silk,jade,dock}.png | 六厅装饰 | 同上 | 同上 | 已接入 |
+| assets/sprites/bm/case_glass_highlight.png | 展柜玻璃高光 | 同上 | 同上 | 未接入 |
+| assets/sprites/safehouse/home_{floor,floor2,wall,trim}_16.png、home_{shelf,basket,lantern,cabinet}*.png | 安全屋瓦片与陈设 | ofox 生成，`tools/gen_external_p0.py` | 同上 | 已接入 |
+| assets/sprites/safehouse/{desk_computer,storage_box,exit_door}*.png | 安全屋交互道具 | 程序生成，`tools/gen_explore_art.py` | 项目程序生成，项目许可待确认 | 已接入 |
+| assets/sprites/wall_lamp_glow_32.png | 墙灯光晕 | 程序生成，`tools/gen_lamp_glow.py` | 同上 | 未接入 |
+| assets/sprites/explore/fog_room_16.png、door_unknown_16.png | 迷雾与未探门标记 | 程序生成，`tools/gen_explore_art.py` | 同上 | 未接入 |
+| assets/sprites/monitor_cam_16.png、path_node_16.png | 监控与路径节点标记 | 程序生成，`tools/gen_evidence_art.py` | 同上 | 未接入 |
+| assets/sprites/ui/phone_app_*.png、pc_app_*.png | 手机与电脑应用图标 | 程序生成，`tools/gen_ui_icons.py` | 同上 | 未接入 |
+| docs/art_direction/external_raw/*.png | ofox 原始输出与提示词 | ofox 生成 | 同上；是否入库待 plan 决定 | 原始素材，未入运行时 |
+
+`docs/ASSET_FILES.tsv` 已于 2026-11-21 追加上述磁盘文件的路径与 sha256；许可与署名仍未知，登记不构成许可结论。
