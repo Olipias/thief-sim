@@ -349,8 +349,14 @@ func _fill_shop() -> void:
 			card_box.add_child(plan_row)
 
 	var note := Label.new()
-	var planned_note := Game.smoke_carry_plan if Game.smoke_carry_plan >= 0 else Game.smoke_stock
-	var stock_hint := "本次出发计划携带 %d 件（备货 %d 件）；未计划默认全部携带。" % [planned_note, Game.smoke_stock] if Game.smoke_stock > 0 else "暂无备货。"
+	# 判断“有没有可用烟雾弹”要算总量（已携带 + 备货）：已带 2/备货 0 不算“暂无”。
+	var plan_total := Game.smoke_count + Game.smoke_stock
+	var planned_note := Game.smoke_carry_plan if Game.smoke_carry_plan >= 0 else plan_total
+	var stock_hint := ""
+	if plan_total > 0:
+		stock_hint = "本次出发计划携带 %d 件（已带 %d + 备货 %d）；未计划默认全部携带。" % [planned_note, Game.smoke_count, Game.smoke_stock]
+	else:
+		stock_hint = "暂无烟雾弹（未携带且无备货）。"
 	note.text = "采购只在安全屋可用，馆内不能购买。%s\n无钱也能继续主线：基础调查与地图记录免费。" % stock_hint
 	note.add_theme_font_size_override("font_size", 10)
 	note.add_theme_color_override("font_color", Color(0.7, 0.72, 0.8))

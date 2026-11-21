@@ -1184,6 +1184,48 @@ func _test_safehouse_shop() -> void:
 	check(not main.phone.is_open(), "采购：关闭手机")
 	_check_pause_contract("采购页关闭")
 
+	# R-12a 装载计划（test #949 要求的真实点击用例）：−/+ 调整、选 0、读档后再选 2。
+	await _tap(KEY_P)  # 先关闭手机再补货（手机开着时 P 是关闭键）。
+	check(not main.phone.is_open(), "装载：先关闭手机")
+	await _wait(0.3)  # P 冷却 0.2s：等它过去再重开。
+	Game.money = 240
+	Game.buy("smoke")
+	Game.buy("smoke")
+	check(Game.smoke_stock == 4, "装载：共 4 颗备货（2+2，实际 %d）" % Game.smoke_stock)
+	await _tap(KEY_P)
+	check(main.phone.is_open(), "装载：打开手机")
+	await _click(main.phone.app_button("shop").get_global_rect().get_center())
+	check(main.phone.shop_list.is_visible_in_tree(), "装载：采购页打开")
+	var loadout_row: HBoxContainer = main.phone.shop_list.find_child("LoadoutRow", true, false)
+	check(loadout_row != null, "装载：找到装载计划行")
+	if loadout_row == null:
+		main.phone.close()
+		return
+	var minus_btn: Button = loadout_row.get_node("LoadoutMinus")
+	var plus_btn: Button = loadout_row.get_node("LoadoutPlus")
+	# 未设置（-1）→ 计划 = 总量 4；− 一次 → 3。
+	await _click(minus_btn.get_global_rect().get_center())
+	check(Game.smoke_carry_plan == 3, "装载：− 使计划 4→3（实际 %d）" % Game.smoke_carry_plan)
+	# 选 0：连按 − 到 0（每次 _fill_shop 重建按钮，必须现取现用）。
+	for i in 3:
+		var cur_minus: Button = main.phone.shop_list.find_child("LoadoutMinus", true, false) as Button
+		if cur_minus != null and not cur_minus.disabled:
+			await _click(cur_minus.get_global_rect().get_center())
+	check(Game.smoke_carry_plan == 0, "装载：选 0 落档（实际 %d）" % Game.smoke_carry_plan)
+	var minus_now: Button = main.phone.shop_list.find_child("LoadoutMinus", true, false) as Button
+	check(minus_now != null and minus_now.disabled, "装载：计划 0 时 − 禁用")
+	# 读档后再选 2：读档保留计划，+ 两次回到 2。
+	Game.save_game()
+	Game.load_game()
+	check(Game.smoke_carry_plan == 0, "装载：读档保留计划 0")
+	await _click((main.phone.shop_list.find_child("LoadoutPlus", true, false) as Button).get_global_rect().get_center())
+	check(Game.smoke_carry_plan == 1, "装载：读档后 + 使计划 0→1")
+	await _click((main.phone.shop_list.find_child("LoadoutPlus", true, false) as Button).get_global_rect().get_center())
+	check(Game.smoke_carry_plan == 2, "装载：读档后再选 2（实际 %d）" % Game.smoke_carry_plan)
+	await _tap(KEY_P)
+	check(not main.phone.is_open(), "装载：关闭手机")
+	_check_pause_contract("装载计划关闭")
+
 	# 出发装载：确认行动 → 门口出发 → 备货并入携带（HUD 烟雾弹计数随之增加）。
 	Game.set_story_flag("saw_h01")
 	Game.set_story_flag("saw_h02")
@@ -1195,7 +1237,7 @@ func _test_safehouse_shop() -> void:
 	await _tap(KEY_E)
 	await _frames(6)
 	check(main._museum != null, "采购：出发进入关卡")
-	check(Game.smoke_count == 2 and Game.smoke_stock == 0, "采购：出发装载 备货2→携带2（实际 %d/%d）" % [Game.smoke_count, Game.smoke_stock])
+	check(Game.smoke_count == 2 and Game.smoke_stock == 2, "采购：出发装载 按计划携带2/备货余2（实际 %d/%d）" % [Game.smoke_count, Game.smoke_stock])
 	await _skip_dialogue()
 	check(main.hud.item_label.text.contains("2"), "采购：HUD 烟雾弹计数显示携带数（实际 %s）" % main.hud.item_label.text)
 
@@ -1574,6 +1616,18 @@ func _test_computer_investigation() -> void:
 		await _click(send_btn.get_global_rect().get_center())
 	check(Game.story_flag("inv_zun_delivery"), "电脑调查：聊天触发阿岚邮件")
 	check(not Game.story_flag("inv_zun_service"), "电脑调查：聊天不赠送现场便条")
+	chat_input.text = "圣甲虫 10.130.1650"
+	await _frames(2)
+	if send_btn:
+		await _click(send_btn.get_global_rect().get_center())
+	check(Game.story_flag("inv_scarab_delivery"), "电脑调查：聊天触发圣甲虫布展邮件")
+	chat_input.text = "注壶 VM-GR-25-012"
+	await _frames(2)
+	if send_btn:
+		await _click(send_btn.get_global_rect().get_center())
+	check(Game.story_flag("inv_askos_delivery"), "电脑调查：聊天触发注壶布展邮件")
+	check(not Game.story_flag("inv_scarab_service") and not Game.story_flag("inv_askos_service"),
+		"电脑调查：另两线现场便条也不由聊天赠送")
 
 	# 推理板：打开板面，确认新组件已挂载。拖卡/连线/双材料细节见独立
 	# tests/test_investigation_board.tscn，避免在共享 input_flow 里重复维护。
