@@ -3,6 +3,8 @@ extends Node2D
 ## Builds and runs the museum heist level from src/levels/museum_map.json.
 
 signal escaped(outcome: String)
+## 每个权威模拟tick完成后发出独立记录；低帧率一次推进多tick也不会漏采。
+signal sim_tick_completed(step: Dictionary)
 signal caught
 signal toast(text: String)
 signal prompt_changed(text: String)
@@ -1097,11 +1099,15 @@ func _is_target_cell(cell: Vector2i) -> bool:
 func execute_plan() -> void:
 	if planned_points.is_empty() or player == null or _ended or failure_replay:
 		return
+	var route := _planned_sim_route()
+	if route.is_empty():
+		toast.emit("路线没有移动或动作，请调整路点或设置节点动作。")
+		return
 	_run_start_snapshot = _build_sim_snapshot()
 	_run_start_planned_points = planned_points.duplicate()
 	_run_start_node_actions = _plan_node_actions.duplicate()
 	_sim_snapshot = SimPreview.copy_snapshot(_run_start_snapshot)
-	_sim_route = _planned_sim_route()
+	_sim_route = route
 	_sim_index = {"i": 0}
 	_sim_time = 0.0
 	_sim_context = _build_sim_context()
@@ -1345,6 +1351,8 @@ func _sim_step() -> void:
 		return
 	SimPreview.tick(_sim_snapshot, _sim_route, _sim_index, _sim_context)
 	_apply_sim_state(_sim_snapshot)
+	if sim_tick_completed.get_connections().size() > 0:
+		sim_tick_completed.emit(SimPreview.record_step(_sim_snapshot, _sim_route, _sim_index))
 	# 先处理本 tick 事件（拿取/开门必须在完成检测之前应用）。
 	for e in _sim_snapshot["events"]:
 		if int(e["tick"]) != int(_sim_snapshot["tick"]):
@@ -1533,9 +1541,9 @@ func run_preview() -> void:
 	var replay_route: Array = route.duplicate(true)
 	var idx := {"i": 0}
 	var t := 0
-	while t < 900:
+	while t < result.trace.size():
 		SimPreview.tick(replay, replay_route, idx, context)
-		t = int(replay["tick"])
+		t += 1
 		_preview_cells.append(replay["player"]["pos"])
 		var guards: Array = replay.get("guards", [])
 		if guards.is_empty():

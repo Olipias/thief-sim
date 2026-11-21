@@ -992,6 +992,15 @@ func _test_route_planning() -> void:
 	check(museum.planned_points.size() == 1, "左键点击添加规划节点")
 	check(museum.planned_points[0].distance_to(click_world) < 8.0, "节点落在点击位置附近（世界坐标）")
 
+	# G11：同一节点连续真实点击循环动作；该点无门、非目标，应跳过 unlock/take，
+	# 依次到达 wait → crouch → sprint → 空。
+	var expected_actions := ["wait", "crouch", "sprint", ""]
+	var action_labels := ["等待", "蹲下", "疾跑", "空"]
+	for i in expected_actions.size():
+		await _click(click_screen)
+		check(museum._plan_node_actions[0] == expected_actions[i],
+			"节点动作循环：%s（实际 %s）" % [action_labels[i], museum._plan_node_actions[0]])
+
 	# V0-1：规划节点变化后自动预演；Enter 手动重算。断言轨迹/守卫残影/预警与内核一致。
 	await _tap(KEY_ENTER)
 	await _frames(2)
@@ -1564,35 +1573,16 @@ func _test_computer_investigation() -> void:
 	if send_btn:
 		await _click(send_btn.get_global_rect().get_center())
 	check(Game.story_flag("inv_zun_delivery"), "电脑调查：聊天触发阿岚邮件")
+	check(not Game.story_flag("inv_zun_service"), "电脑调查：聊天不赠送现场便条")
 
-	# 推理板：补足现场服务便条，打开推理板，选择材料与正确关系并确认。
+	# 推理板：打开板面，确认新组件已挂载。拖卡/连线/双材料细节见独立
+	# tests/test_investigation_board.tscn，避免在共享 input_flow 里重复维护。
 	Game.set_story_flag("inv_zun_service")
 	await _click(tab_bar.get_global_transform() * tab_bar.get_tab_rect(4).get_center())
-	await _frames(2)
-	var opts := _find_option_buttons(main.computer._content)
-	var mat_opt: OptionButton = null
-	for opt in opts:
-		if opt.item_count > 0 and opt.get_item_text(0) == "选择材料":
-			mat_opt = opt
-			break
-	check(mat_opt != null, "电脑调查：推理板有材料选项")
-	if mat_opt != null:
-		var rel_opt: OptionButton = null
-		for child in mat_opt.get_parent().get_children():
-			if child is OptionButton and child != mat_opt:
-				rel_opt = child
-				break
-		check(rel_opt != null, "电脑调查：推理板有关系选项")
-		if rel_opt != null:
-			mat_opt.selected = 1
-			mat_opt.item_selected.emit(1)
-			await _frames(2)
-			rel_opt.selected = 1
-			await _frames(2)
-			var confirm_btn := _find_button_with_text(main.computer._content, "确认")
-			if confirm_btn:
-				await _click(confirm_btn.get_global_rect().get_center())
-			check(Game.story_flag("inv_ram_zun_features_ok"), "电脑调查：推理板确认正确关系")
+	await _frames(3)
+	check(main.computer._board != null, "电脑调查：推理板组件已挂载")
+	if main.computer._board != null:
+		check(main.computer._board.card_ids().size() >= 2, "电脑调查：推理板显示已获得材料")
 
 	await _tap(KEY_ESCAPE)
 	check(not main.computer.is_open(), "电脑调查：ESC 关闭电脑")

@@ -47,11 +47,17 @@
 
 - ✅ G20261121-03预演真实上下文｜Codex｜2026-11-21：`test_museum_sim` 新增实际 `run_preview`+有碰撞路线回归，6 处直接 `Sim.simulate_route` 传 `_build_sim_context`，48/48；仅专项通，R-02b 其余边界仍欠。
 
+- 🚧 G20261121-13预演终止与完整tick记录｜Codex｜2026-11-21：同路线完成条件停止预演/执行，补完整快照摘要与真实逐tick记录接口，test独立接轨迹长度/多帧率回归；不扩大地图。
+
+- 🚧 G20261121-12脚本错误快速退出工具｜art实现、Codex接入口｜2026-11-21：只在既有门禁禁止的致命脚本输出后结束自己子进程组，保存错误及非零退出；不加普通时限、不杀全局Godot。专项结束后并入串行总验。
+
 - 🚧 G20261121-11路线动作入口｜Codex｜2026-11-21：动作循环修复，真实鼠标/空格专项12/12（含实际拿取入包），共享输入流已补4次点击回归；全量待并行测试解析错误修复后串行重跑，未标批次通过。
 
 - ✅ G20261121-09同厅噪音门禁｜Codex｜2026-11-21：已认领并修复共享模拟跨房间噪音调查；专项由3红到42/42通过。全量17过/2失败，G06/G07在途问题已派单#868，证据goal_supervision_2026-11-21/noise；不标R-02b整体完成。
 
 - ✅ G20261121-05完整回退/接管状态｜Codex｜2026-11-21：玩家非整格精确位置回退、守卫 `_spot_timer`/`_wait_timer` 恢复、`cancel_plan()` 后重试快照保留；`test_museum_sim` 52/52；隔离提交 `56ca123` 含 `test_snapshot_handoff.gd`/UID/verify 入口。仅专项通，R-02b 多实体/帧率等欠项仍保留。
+
+- ✅ G20261121-11输入流补例｜plan｜2026-11-21：`museum._cycle_node_action` 跳过无门 `unlock` 与非目标 `take`；独立 `test_plan_actions` 12/12；plan 在 `test_input_flow._test_route_planning` 补真实点击循环 wait→crouch→sprint→空，输入流 312/312。
 
 - ✅ F批展馆布局交接｜art｜2026-11-21：`docs/art_direction/F_LAYOUT_HANDOFF.md` 已交付，12区域为可调目标，三件主目标统一为 ram_zun / egypt_heart_scarab / akrotiri_askos，保留回路/免费钥匙/工具路线；地图生成仍由code负责。
 
@@ -59,7 +65,7 @@
 
 - 🚧 Claude续接启动修复｜Codex｜2026-11-21：修正包装器默认cwd与自动重启，专项3项/dry-run通过；无模型调用，真实终端续接待确认；全量在并行输入测试Signal.clear解析错误处阻断并停止，证据docs/qa/claude_resume_2026-11-21/。
 
-- 🚧 E批电脑调查链与V2叙事接入｜plan｜2026-11-21：按EXPLORATION_PATCH_V2覆盖V1局外完整照片/三链硬门槛；已实现安全屋电脑内浏览器关键词查资料→档案卡→邮件/聊天追问→推理板材料+关系确认的最小链（双羊尊/阿岚样板），`test_input_flow` 309/309 通过。文件归属：docs/narrative/、src/data/lore.gd、新增src/data/investigation.gd、src/ui/computer_screen.gd/.tscn；不碰game_state.gd/main.gd/mission_phone.gd。仍待：真实拖卡/连线替代OptionButton、多材料联合排除、现场柜号/照片不自动获得、三条线补全；museum.gd 的 `_both_read_lines` 等旧硬编码台词须在正式叙事接线时逐条覆盖，不能与 V2 两套并存。等待code完成R-12a后交接采购入口/Game.inventory事务接口。\n\n- 🚧 协作桥代码已交付，端到端接入部分通过｜Codex｜2026-11-21：tools/agent_link.py统一读写、四角色绑定、持久重试；离线7项通过，art/test明确回复602，code/plan投递已受理待回执；原生Claude待包装器续接，Codex当前应用仅read/watch。游戏全量16过/1失败（箱子E输入），已通知负责窗口；证据docs/qa/agent_link_2026-11-21/。
+- 🚧 E批电脑调查链与V2叙事接入｜plan｜2026-11-21：按EXPLORATION_PATCH_V2覆盖V1局外完整照片/三链硬门槛；安全屋电脑已接入浏览器/档案库/邮件/聊天/推理板，推理板为真实拖卡+中央连线+关系按钮+错误重试+双材料联合排除；位置/连线存 `story_flags` 跨读档保留，未到现场不出现实物照片/柜号。首条双羊尊线完成：`tests/test_investigation_board` 24/24，`test_input_flow` 313/313；另两线因未核事实暂 `ready=false` 隔离，不显示占位 correct=true。已补“技术研究产地≠今晚展位”的合理误读与两来源纠正；C-17 标题去掉编辑标签、保留 X 映射；现场便条不由聊天赠送。文件归属：`src/data/investigation.gd`、`src/ui/investigation_board.gd`、`src/ui/computer_screen.gd`、`tests/test_investigation_board.*`；不碰game_state/main/mission_phone。仍待：另两条线核事实后补全、现场柜号/照片真实获得链、museum旧硬编码台词逐条覆盖。等待code交接采购入口/Game.inventory事务接口。\n\n- 🚧 协作桥代码已交付，端到端接入部分通过｜Codex｜2026-11-21：tools/agent_link.py统一读写、四角色绑定、持久重试；离线7项通过，art/test明确回复602，code/plan投递已受理待回执；原生Claude待包装器续接，Codex当前应用仅read/watch。游戏全量16过/1失败（箱子E输入），已通知负责窗口；证据docs/qa/agent_link_2026-11-21/。
 
 - ✅ OpenCode后续执行计划交付｜Codex｜2026-11-20：docs/OPENCODE_NEXT_PLAN.md含A–G批次、逐项可操作验收、四级完成标准；plan.md/项目skill/确认方案指向新入口，R-02b单列真实关卡预演和完整回退缺口。仅文档；verify全部16项通过，日志docs/qa/next_plan_2026-11-20.log；玩法仍待实施。
 

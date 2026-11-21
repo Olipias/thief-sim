@@ -24,6 +24,20 @@ func click_world(museum: Node2D, at: Vector2) -> void:
 	get_viewport().push_input(up)
 	await get_tree().process_frame
 
+func tap_space() -> void:
+	var key := InputEventKey.new()
+	key.physical_keycode = KEY_SPACE
+	key.pressed = true
+	Input.parse_input_event(key)
+	await get_tree().process_frame
+	await get_tree().process_frame
+	key = InputEventKey.new()
+	key.physical_keycode = KEY_SPACE
+	key.pressed = false
+	Input.parse_input_event(key)
+	await get_tree().process_frame
+	await get_tree().process_frame
+
 func _ready() -> void:
 	Game.save_path = "/tmp/thief_g11_actions_save.json"
 	Game.reset_progress()
@@ -39,6 +53,9 @@ func _ready() -> void:
 	await click_world(museum, point)
 	check(museum.planned_points.size() == 1, "真实点击添加已知地面路点")
 	if museum.planned_points.size() == 1:
+		await tap_space()
+		check(museum.planning_mode and not museum.executing_plan, "原地无动作路线保留规划，不能凭空推进模拟")
+		check(museum._sim_snapshot.is_empty(), "无效空路线不创建执行快照")
 		await click_world(museum, point)
 		check(museum._plan_node_actions[0] == "wait", "点击路点选择等待")
 		await click_world(museum, point)

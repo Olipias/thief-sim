@@ -32,6 +32,8 @@ func _initialize() -> void:
 	_test_new_game_clears_everything()
 	_test_r05_reservation_and_delivery()
 	_test_r12a_shop_loadout()
+	_test_r12a_selective_loadout()
+	_test_r12a_smoke_cross_run()
 
 	if _failures > 0:
 		print("FAILED %d / %d checks" % [_failures, _checks])
@@ -191,6 +193,107 @@ func _test_r12a_shop_loadout() -> void:
 	check(gs.has_sneakers, "R-12a：跑鞋立即生效")
 	check(not gs.can_buy("sneakers"), "R-12a：已拥有不可再购买")
 	gs.free()
+
+
+## G20261121-06.2：玩家明确选择装载量（可选 0），余量留库存；
+## 重复出发不复制/不倒退。
+func _test_r12a_selective_loadout() -> void:
+	var gs = _new_game(DIR + "/r12a_plan.json")
+	gs.reset_progress()
+	gs.money = 500
+	gs.loot_stash.clear()
+	# 未设置计划（-1）= 旧行为：全部携带。
+	gs.buy("smoke")
+	gs.buy("smoke")
+	check(gs.smoke_stock == 2, "装载：备货 2 件")
+	gs.load_outgoing_loadout()
+	check(gs.smoke_count == 2 and gs.smoke_stock == 0, "装载：未计划默认全部携带（v0.26.4 兼容）")
+
+	# 明确计划 0：结算语义——已携带的退回备货（总量守恒）。
+	gs.buy("smoke")
+	gs.set_smoke_carry_plan(0)
+	gs.load_outgoing_loadout()
+	check(gs.smoke_count == 0 and gs.smoke_stock == 3, "装载：计划 0 = 携带清零、退回备货（实际 %d/%d）" % [gs.smoke_count, gs.smoke_stock])
+
+	# 明确计划 1/2：结算到计划值；重复出发从当前备货扣除，不复制。
+	gs.set_smoke_carry_plan(1)
+	gs.load_outgoing_loadout()
+	check(gs.smoke_count == 1 and gs.smoke_stock == 2, "装载：计划 1 携带一件（实际 %d/%d）" % [gs.smoke_count, gs.smoke_stock])
+	check(gs.smoke_carry_plan == 1, "装载：计划保留供下次沿用")
+
+	# G20261121-06 边界：已携带 2、备货 0 时仍可选择继续带 2；
+	# 上限必须是携带+备货总量，不能只看备货。
+	gs.smoke_count = 2
+	gs.smoke_stock = 0
+	gs.smoke_carry_plan = -1
+	gs.set_smoke_carry_plan(2)
+	check(gs.smoke_carry_plan == 2, "装载：备货 0、已携带 2 仍可选计划 2（实际 %d）" % gs.smoke_carry_plan)
+	gs.load_outgoing_loadout()
+	check(gs.smoke_count == 2 and gs.smoke_stock == 0, "装载：计划 2 保持携带 2 不回退（实际 %d/%d）" % [gs.smoke_count, gs.smoke_stock])
+	gs.set_smoke_carry_plan(5)
+	check(gs.smoke_carry_plan == 2, "装载：超过总量按携带+备货夹到 2（实际 %d）" % gs.smoke_carry_plan)
+	gs.free()
+
+	# 大英博物馆拾取规则（G20261121-06.1）：普通战利品可拾；主文物一次一件。
+	gs = _new_game(DIR + "/r06_bm_pickup.json")
+	gs.reset_progress()
+	gs.set_level("british_museum")
+	gs.reset_run()
+	# 主文物：空包先拾目标（双羊尊占 3 格，先于小件拾取）。
+	check(gs.try_pickup("ram_zun"), "大英：主文物可拾取")
+	check(gs.mission_complete, "大英：携带目标 → mission_complete")
+	# 普通战利品随时可拾（新手包 2×2：双羊尊 3 格 + 花瓶 1 格 = 满包）。
+	check(gs.try_pickup("vase"), "大英：普通战利品可拾取")
+	check(not gs.try_pickup("gem"), "大英：背包满时不再拾取")
+	# 已带主文物后再拾另一件主文物被拒（先丢弃花瓶腾位，证明拒绝与格数无关）。
+	gs.erase_item_at(1)
+	gs.set_bm_target("egypt_heart_scarab")
+	check(not gs.try_pickup("egypt_heart_scarab"), "大英：一次行动只带一件主文物")
+	# 教学关（museum）没有 Game 层拾取门禁：出口的“必须带目标”由
+	# mission_complete/教学关出口逻辑把关，普通物拾取本就允许。
+	gs.reset_progress()
+	gs.set_level("museum")
+	gs.reset_run()
+	check(gs.try_pickup("vase"), "教学：普通物可拾（带目标要求由出口把关）")
+	check(not gs.mission_complete, "教学：未带目标不完成任务")
+	check(gs.try_pickup("mask"), "教学：拾取任务目标")
+	check(gs.mission_complete, "教学：带目标完成任务")
+	gs.free()
+
+
+## R-12a 跨次携带：本次总携带数结算、未选携带回备货、重复调用不复制、读档守恒。
+func _test_r12a_smoke_cross_run() -> void:
+	var gs = _new_game(DIR + "/r12a_smoke_cross.json")
+	gs.reset_progress()
+	# 上一趟剩 1 颗携带，备货 2；本次选择 0。
+	gs.smoke_count = 1
+	gs.smoke_stock = 2
+	gs.smoke_carry_plan = 0
+	gs.load_outgoing_loadout()
+	check(gs.smoke_count == 0, "R-12a 跨次：选 0 时携带清零（实际 %d）" % gs.smoke_count)
+	check(gs.smoke_stock == 3, "R-12a 跨次：未携带的 1 颗回备货（实际 %d）" % gs.smoke_stock)
+
+	# 再选 2：携带 2、备货 1，总数守恒。
+	gs.smoke_carry_plan = 2
+	gs.load_outgoing_loadout()
+	check(gs.smoke_count == 2, "R-12a 跨次：选 2 后携带 2（实际 %d）" % gs.smoke_count)
+	check(gs.smoke_stock == 1, "R-12a 跨次：选 2 后备货 1（实际 %d）" % gs.smoke_stock)
+	var total: int = int(gs.smoke_count) + int(gs.smoke_stock)
+	# 重复调用不得再搬一次。
+	gs.load_outgoing_loadout()
+	check(gs.smoke_count + gs.smoke_stock == total, "R-12a 跨次：重复装载不改变总数")
+	check(gs.smoke_count == 2 and gs.smoke_stock == 1, "R-12a 跨次：重复装载不额外移物")
+
+	# 读档后总携带/备货仍守恒，重复装载不复制。
+	gs.save_path = DIR + "/r12a_smoke_cross.json"
+	gs.save_game()
+	gs.free()
+	var reader = _new_game(DIR + "/r12a_smoke_cross.json")
+	reader.load_game()
+	check(reader.smoke_count == 2 and reader.smoke_stock == 1, "R-12a 跨次：读档携带/备货守恒")
+	reader.load_outgoing_loadout()
+	check(reader.smoke_count + reader.smoke_stock == total, "R-12a 跨次：读档后重复装载不复制")
+	reader.free()
 
 
 # ---------------------------------------------------------------- 工具

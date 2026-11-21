@@ -204,9 +204,15 @@ var has_sneakers := false
 var smoke_count := 0
 
 ## R-12a 备货库存：手机「采购」买下的烟雾弹数量（只增字段，老档默认 0）。
-## 库存与携带分离：购买入备货，不改变携带数；出发（start_mission）时备货并入
-## 携带 smoke_count 并清空——进馆后 Q 消耗只影响携带数。回放/失败恢复不改备货。
+## 库存与携带分离：购买入备货，不改变携带数；出发（start_mission）时按
+## `smoke_carry_plan` 并入携带 smoke_count 并清空——进馆后 Q 消耗只影响携带数。
+## 回放/失败恢复不改备货。
 var smoke_stock := 0
+
+## 出发计划携带数（R-12a 玩家明确选择，可为 0）：-1 = 未设置（默认全部携带，
+## 兼容 v0.26.4 语义）；0..smoke_stock 为明确选择。存档只增字段，脏值按 -1。
+## 装载量 = clamp(plan, 0, stock)；重复出发不会复制（每次装载都从当前备货扣除）。
+var smoke_carry_plan := -1
 
 ## 文物志进度：item_id → 下一段序号（0 = 还没聊过）；端详已发现热点：item_id → [索引]
 var lore_stage: Dictionary = {}
@@ -474,9 +480,19 @@ func item_is_target(item_id: String) -> bool:
 
 ## Auto-places the item into the grid (tries both rotations).
 ## instance_id 用于普通战利品跨次反刷；主目标可空。
+##
+## 拾取规则（#770/G20261121-06）：
+##   - 城西教学关维持旧约束（必须先带目标，单一出口教学要求）。
+##   - 大英博物馆：普通战利品可拾；主要文物一次最多带一件（含任务目标，
+##     已带任何主文物时再拾另一件主文物会被拒绝）——"一次行动只带走一件"。
 func try_pickup(item_id: String, instance_id := "") -> bool:
-	if current_level_id == "british_museum" and (not bag_items.is_empty() or item_id != mission_target_id):
-		return false
+	if current_level_id == "british_museum":
+		if item_is_target(item_id):
+			# 主要文物：已带一件（任何主文物）即拒绝第二件。
+			for carried in bag_items:
+				if item_is_target(String(carried["id"])):
+					return false
+		# 普通战利品：可自由拾取（受背包格数限制）。
 	var fit := bag_auto_fit(item_id)
 	if fit["x"] < 0:
 		return false
@@ -840,15 +856,36 @@ func buy(id: String) -> bool:
 	return true
 
 
-## 出发装载（R-12a）：备货烟雾弹并入携带数并清空备货。
-## 由 main 在 start_mission（穿过房门出发）时调用；安全屋内采购不动携带数。
+## 出发装载（R-12a）：把携带数**结算到玩家计划值**（带差量在携带↔备货间搬运，总量守恒）。
+## plan = -1（未设置）默认全部携带（携带+备货总�进入携带，兼容 v0.26.4）；
+## 0 = 明确不带（已携带的退回备货）；>0 取 min(plan, 总量)。重复调用不再搬运。
 func load_outgoing_loadout() -> void:
-	if smoke_stock <= 0:
+	var total := smoke_count + smoke_stock
+	var plan := smoke_carry_plan if smoke_carry_plan >= 0 else total
+	plan = clampi(plan, 0, total)
+	var delta := plan - smoke_count
+	if delta == 0:
 		return
-	smoke_count += smoke_stock
-	smoke_stock = 0
+	if delta > 0:
+		var moved: int = mini(delta, smoke_stock)
+		smoke_stock -= moved
+		smoke_count += moved
+	else:
+		var moved_back: int = mini(-delta, smoke_count)
+		smoke_stock += moved_back
+		smoke_count -= moved_back
 	items_changed.emit()
 	save_game()
+
+
+## 手机采购页的携带计划调整：玩家明确选择本次出发带多少（0 = 不带）。
+func set_smoke_carry_plan(count: int) -> bool:
+	var plan := clampi(count, -1, maxi(smoke_stock, 0))
+	if plan == smoke_carry_plan:
+		return false
+	smoke_carry_plan = plan
+	save_game()
+	return true
 
 
 ## Returns true when a smoke bomb was actually used.
@@ -894,6 +931,7 @@ func save_game() -> void:
 		"pending_mission_level": pending_mission_level,
 		"loot_reserved": loot_reserved,
 		"smoke_stock": smoke_stock,
+		"smoke_carry_plan": smoke_carry_plan,
 		"level_visited_rooms": level_visited_rooms,
 		"level_taken_items": level_taken_items,
 	})
@@ -963,7 +1001,13 @@ func load_game() -> void:
 	_restore_level_taken(data.get("level_taken_items", {}))
 	_restore_pending_mission(data.get("pending_mission_level", ""))
 	_restore_loot_reserved(data.get("loot_reserved", {}))
-	smoke_stock = maxi(0, int(data.get("smoke_stock", 0)))
+	# 防御式读取（_as_int 检查 typeof）：字典/数组/布尔等脏类型一律按 0。
+	smoke_stock = maxi(0, _as_int(data.get("smoke_stock", 0), 0))
+	# 出发计划：老档缺省 -1（全部携带，兼容 v0.26.4）；脏类型按 -1。
+	var plan_raw: Variant = data.get("smoke_carry_plan", -1)
+	smoke_carry_plan = _as_int(plan_raw, -1) if (typeof(plan_raw) == TYPE_INT or typeof(plan_raw) == TYPE_FLOAT) else -1
+	if smoke_carry_plan < -1:
+		smoke_carry_plan = -1
 	bm_selected_target = _migrate_selected_target(str(data.get("bm_selected_target", "ram_zun")))
 	money_changed.emit()
 	items_changed.emit()
@@ -1375,6 +1419,7 @@ func reset_progress() -> void:
 	pending_mission_level = ""
 	loot_reserved.clear()
 	smoke_stock = 0
+	smoke_carry_plan = -1
 	story_flags.clear()
 	bm_selected_target = "ram_zun"
 	level_visited_rooms.clear()

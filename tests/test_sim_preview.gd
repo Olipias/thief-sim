@@ -42,6 +42,8 @@ func _initialize() -> void:
 	_test_multi_guard_camera()
 	_test_wall_occlusion()
 	_test_noise_stays_in_room()
+	_test_route_completion_and_trace_coverage()
+	_test_recorded_steps()
 
 	if _failures > 0:
 		print("FAILED %d / %d checks" % [_failures, _checks])
@@ -207,9 +209,9 @@ func _test_frame_batching() -> void:
 		var idx := {"i": 0}
 		var trace: Array[String] = []
 		var guard := 0
-		while int(snap["tick"]) < 200 and guard < 200:
+		while int(snap["tick"]) < 200 and guard < 200 and int(idx["i"]) < r.size():
 			for _k in batch:
-				if int(snap["tick"]) >= 200:
+				if int(snap["tick"]) >= 200 or int(idx["i"]) >= r.size():
 					break
 				Sim.tick(snap, r, idx)
 				trace.append(Sim.snapshot_summary(snap))
@@ -415,3 +417,46 @@ func _test_noise_stays_in_room() -> void:
 	var gray := _noise_fixture()
 	Sim.tick(gray, route.duplicate(true), {"i": 0})
 	check(int(gray["guards"][0]["alert"]) == 1, "无房间上下文的单房灰盒仍响应半径噪音")
+
+
+func _test_route_completion_and_trace_coverage() -> void:
+	var snap := Sim.default_snapshot()
+	snap["guards"] = []
+	snap["cameras"] = []
+	var route := [{"pos": Vector2i(1, 1), "action": "wait", "ticks": 2, "done": 0}]
+	var result := Sim.simulate_route(snap, route, 100)
+	check(result.trace.size() == 2, "路线完成即停止预演，不追加98个等待tick")
+	check(int(result.snapshot["tick"]) == 2, "路线终点快照与实际执行终点一致")
+	var empty := Sim.simulate_route(snap, [], 100)
+	check(empty.trace.is_empty(), "空路线不凭空推进世界")
+	snap["tick"] = 77
+	route[0]["ticks"] = 20
+	var budget := Sim.simulate_route(snap, route, 5)
+	check(budget.trace.size() == 5 and int(budget.snapshot["tick"]) == 82, "max_ticks是本次步数预算，支持非零起点")
+	var base := Sim.default_snapshot()
+	var signature := Sim.snapshot_summary(base)
+	for key in ["move_counter", "take_progress", "unlock_progress"]:
+		var changed := Sim.copy_snapshot(base)
+		changed["player"][key] = 9
+		check(Sim.snapshot_summary(changed) != signature, "完整摘要区分玩家" + key)
+	var changed := Sim.copy_snapshot(base)
+	changed["guards"][0]["move_counter"] = 9
+	check(Sim.snapshot_summary(changed) != signature, "完整摘要区分守卫移动计时")
+	changed = Sim.copy_snapshot(base)
+	changed["smoke_count"] = 7
+	check(Sim.snapshot_summary(changed) != signature, "完整摘要区分携带消耗品")
+
+
+func _test_recorded_steps() -> void:
+	var snap := Sim.default_snapshot()
+	snap["guards"] = []
+	snap["cameras"] = []
+	var route := [{"pos": Vector2i(1, 1), "action": "wait", "ticks": 3, "done": 0}]
+	var result := Sim.simulate_route(snap, route, 100, {}, true)
+	check(result.steps.size() == 3, "可选记录包含每个权威tick")
+	check(int(result.steps[0]["route"][0]["done"]) == 1, "逐tick记录保存当时的动作进度")
+	check(int(result.steps[0]["route_index"]) == 0 and int(result.steps[2]["route_index"]) == 1, "逐tick记录包含完成游标")
+	result.snapshot["player"]["pos"] = Vector2i(99, 99)
+	check(result.steps[0]["snapshot"]["player"]["pos"] == Vector2i(1, 1), "历史记录不被后续快照修改污染")
+	var unrecorded := Sim.simulate_route(snap, route, 100)
+	check(unrecorded.steps.is_empty(), "普通预演不额外保存完整逐tick副本")

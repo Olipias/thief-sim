@@ -124,30 +124,18 @@ static func _copy_value(value: Variant) -> Variant:
 
 ## ---------- 摘要与调试 ----------
 
+## 完整可还原的状态序列，不省略移动余量、动作进度或消耗品。
 static func snapshot_summary(snap: Dictionary) -> String:
-	var parts: Array[String] = ["t=%d" % int(snap.get("tick", 0))]
-	var p: Dictionary = snap.get("player", {})
-	parts.append("p=%s,c=%s,carry=%s" % [str(p.get("pos")), str(p.get("crouch")), str(p.get("carrying"))])
-	var guard_parts: Array[String] = []
-	for g in snap.get("guards", []):
-		guard_parts.append("%s:%s:%s:%s:%s:%s:%s:%s:%s" % [
-			str(g.get("id")), str(g.get("pos")), str(g.get("wp_index")),
-			str(g.get("facing")), str(g.get("alert")), str(g.get("wait_left")),
-			str(g.get("spot_timer")), str(g.get("investigate_left")), str(g.get("blind_timer"))
-		])
-	parts.append("g=[" + ",".join(guard_parts) + "]")
-	var cam_parts: Array[String] = []
-	for c in snap.get("cameras", []):
-		var rot := sin(float(c.get("phase", 0.0))) * float(c.get("sweep_amp", 0.35))
-		cam_parts.append("%s:%s:%.3f" % [str(c.get("id")), str(c.get("pos")), rot])
-	parts.append("c=[" + ",".join(cam_parts) + "]")
-	parts.append("d=%s" % str(snap.get("doors", {})))
-	parts.append("i=%s" % str(snap.get("items", [])))
-	var noise_sig := ""
-	for n in snap.get("noise", []):
-		noise_sig += "%s/%s/%s;" % [str(n.get("pos")), str(n.get("radius_cells")), str(n.get("left"))]
-	parts.append("n=%s" % noise_sig)
-	return "|".join(parts)
+	return var_to_str(snap)
+
+
+## 一份不可被后续tick修改的记录，连同路线动作进度与游标保存。
+static func record_step(snap: Dictionary, route: Array, route_index: Dictionary) -> Dictionary:
+	return {
+		"snapshot": copy_snapshot(snap),
+		"route": route.duplicate(true),
+		"route_index": int(route_index.get("i", 0)),
+	}
 
 
 ## ---------- 路径工具 ----------
@@ -510,17 +498,22 @@ static func _tick_camera(c: Dictionary, snap: Dictionary, context: Dictionary) -
 
 ## ---------- 高层接口 ----------
 
-## 预演：在快照副本上跑完整路线，返回 {snapshot(最终), trace(逐tick摘要), events, first_spotted}
-static func simulate_route(snapshot: Dictionary, route: Array, max_ticks := 1200, context: Dictionary = {}) -> Dictionary:
+## 预演：路线完成、首次发现或步数预算耗尽时停止。record_steps可选保存完整每tick快照/路线/游标。
+static func simulate_route(snapshot: Dictionary, route: Array, max_ticks := 1200, context: Dictionary = {}, record_steps := false) -> Dictionary:
 	var snap := copy_snapshot(snapshot)
 	var copied_route: Array = route.duplicate(true)
 	var idx := {"i": 0}
 	var trace: Array[String] = []
 	var events := []
 	var first_spotted := -1
-	while int(snap["tick"]) < max_ticks:
+	var steps: Array[Dictionary] = []
+	var elapsed := 0
+	while elapsed < max_ticks and int(idx["i"]) < copied_route.size():
 		tick(snap, copied_route, idx, context)
+		elapsed += 1
 		trace.append(snapshot_summary(snap))
+		if record_steps:
+			steps.append(record_step(snap, copied_route, idx))
 		for e in snap["events"]:
 			if int(e["tick"]) == int(snap["tick"]) and not events.has(e):
 				events.append(e)
@@ -528,7 +521,7 @@ static func simulate_route(snapshot: Dictionary, route: Array, max_ticks := 1200
 				first_spotted = int(e["tick"])
 		if first_spotted != -1:
 			break
-	return {"snapshot": snap, "trace": trace, "events": events, "first_spotted": first_spotted}
+	return {"snapshot": snap, "trace": trace, "events": events, "first_spotted": first_spotted, "steps": steps}
 
 
 ## 执行：与 simulate_route 同一 tick 函数，返回逐步状态流。

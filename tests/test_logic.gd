@@ -224,16 +224,18 @@ func _test_levels() -> void:
 	check(gs.bm_hall_name("akrotiri_askos") == "希腊馆", "bm_hall_name maps akrotiri_askos to 希腊馆")
 	check(gs.mission_reward() == 400, "level reward resolves from the registry")
 
-	check(not gs.try_pickup("mask"), "大英行动拒绝非选定文物")
-	check(not gs.mission_complete, "carrying another artifact does not complete the mission")
+	# 大英拾取新规则（#770/G06）：主文物一次一件；先拾 zun（任务目标）合法，
+	# 再拾第二件主文物（mask 亦为主要文物）被拒；普通战利品随时可拾。
 	check(gs.try_pickup("ram_zun"), "british museum target picked up")
 	check(gs.mission_complete, "carrying the level target completes the mission")
+	check(not gs.try_pickup("mask"), "大英：已带主文物时不能拾第二件（mask 亦为主文物）")
+	check(gs.try_pickup("vase"), "大英：带主文物后普通战利品仍可拾")
 
 	var summary: Dictionary = gs.finish_run(true)
 	check(summary["success"], "british museum run succeeds")
 	check(summary["target_name"] == "商代双羊尊", "summary names the double-ram zun")
 	check(summary["reward"] == 400, "british museum pays its own reward")
-	check(summary["stash_items"].is_empty(), "大英行动不再产生额外杂物销赃")
+	check(summary["stash_items"].size() == 1, "大英成功结算：随身普通战利品入箱待售（1 件）")
 	check(gs.story_flag("completed_british_museum"), "大英成功结算记录 completed_british_museum")
 
 	gs.set_level("museum")
@@ -447,9 +449,14 @@ func _test_evidence_chains() -> void:
 
 	check(gs.set_bm_target("egypt_heart_scarab"), "切换 BM 目标为 egypt_heart_scarab")
 	check(gs.mission_target_id == "egypt_heart_scarab", "set_bm_target 更新 mission_target_id")
-	check(not gs.try_pickup("ram_zun"), "大英行动不能拿未选择的目标")
-	check(gs.try_pickup("egypt_heart_scarab"), "大英行动能拿选定目标")
-	check(not gs.try_pickup("egypt_heart_scarab"), "大英行动不能重复拿第二件")
+	# 大英拾取新规则：主文物一次一件、任选其一；选定目标只决定任务完成与结算归属。
+	check(gs.try_pickup("ram_zun"), "大英：未选定的主文物也可拾取（一次一件任选）")
+	check(not gs.mission_complete, "未带选定目标不算完成任务")
+	check(not gs.try_pickup("egypt_heart_scarab"), "大英：已带一件主文物不能再拿第二件")
+	gs.reset_run()
+	check(gs.try_pickup("egypt_heart_scarab"), "大英：重置后能拿选定目标")
+	check(not gs.try_pickup("egypt_heart_scarab"), "大英：不能重复拿第二件")
+	check(gs.mission_complete, "携带选定目标完成任务")
 	gs.reset_run()
 
 

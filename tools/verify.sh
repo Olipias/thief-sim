@@ -90,6 +90,8 @@ step "真实场景等价自检（R-02b 预览 vs 执行）" "$GODOT" --headless 
 step "完整回退与人工接管自检" "$GODOT" --headless --script tests/test_snapshot_handoff.gd
 step "路线动作入口自检（真实鼠标）" "$GODOT" --headless res://tests/test_plan_actions.tscn
 step "探索循环自检（迷雾 / 侦察撤离 / 跨次保留）" "$GODOT" --headless res://tests/test_exploration.tscn
+step "安全屋经济闭环（真实键鼠全链）" "$GODOT" --headless res://tests/test_safehouse_loop.tscn
+step "推理板自检（真实拖卡 / 连线 / 双材料 / 读档）" "$GODOT" --headless res://tests/test_investigation_board.tscn
 step "剧情验收（独立：隐藏条件 / 双羊全分支播放）" "$GODOT" --headless --script tests/test_story_flow.gd
 step "推理数据自检（三链 / 线索数据边界 / 恶魔分支）" "$GODOT" --headless --script tests/test_reasoning.gd
 step "场景实例化自检（src/*.tscn）" "$GODOT" --headless res://tests/test_scenes.tscn

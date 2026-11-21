@@ -280,7 +280,7 @@ func _fill_shop() -> void:
 
 	# 商品卡：id → 文案。跑鞋为永久装备（已拥有则不再上架）。
 	var catalog := {
-		"smoke": "烟雾弹（消耗品）\n近距离脱身：致盲附近保安并争取撤离窗口。\n价格 %d 金币 · 备货 %d 件（出发时自动携带）" % [
+		"smoke": "烟雾弹（消耗品）\n近距离脱身：致盲附近保安并争取撤离窗口。\n价格 %d 金币 · 备货 %d 件" % [
 			Game.upgrade_price("smoke"), Game.smoke_stock,
 		],
 		"sneakers": "跑鞋（永久装备）\n疾跑速度提升，缩短危险区暴露与往返。\n价格 %d 金币 · %s" % [
@@ -312,9 +312,44 @@ func _fill_shop() -> void:
 			)
 		card_box.add_child(buy)
 		shop_list.add_child(card)
+		# R-12a 装载计划：本次出发携带 N 件（0 = 不带），− / + 实时调整。
+		if id == "smoke":
+			var plan_row := HBoxContainer.new()
+			plan_row.name = "LoadoutRow"
+			plan_row.add_theme_constant_override("separation", 6)
+			var plan_label := Label.new()
+			plan_label.name = "LoadoutLabel"
+			var planned := Game.smoke_carry_plan if Game.smoke_carry_plan >= 0 else Game.smoke_stock
+			plan_label.text = "本次出发携带：%d 件（备货 %d）" % [mini(planned, Game.smoke_stock), Game.smoke_stock]
+			plan_label.add_theme_font_size_override("font_size", 11)
+			plan_label.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+			plan_row.add_child(plan_label)
+			var minus := Button.new()
+			minus.name = "LoadoutMinus"
+			minus.text = "−"
+			minus.add_theme_font_size_override("font_size", 10)
+			minus.disabled = planned <= 0
+			minus.pressed.connect(func() -> void:
+				Game.set_smoke_carry_plan(mini(Game.smoke_carry_plan if Game.smoke_carry_plan >= 0 else Game.smoke_stock, Game.smoke_stock) - 1)
+				_fill_shop()
+			)
+			plan_row.add_child(minus)
+			var plus := Button.new()
+			plus.name = "LoadoutPlus"
+			plus.text = "+"
+			plus.add_theme_font_size_override("font_size", 10)
+			plus.disabled = planned >= Game.smoke_stock
+			plus.pressed.connect(func() -> void:
+				var cur := Game.smoke_carry_plan if Game.smoke_carry_plan >= 0 else Game.smoke_stock
+				Game.set_smoke_carry_plan(clampi(cur + 1, 0, Game.smoke_stock))
+				_fill_shop()
+			)
+			plan_row.add_child(plus)
+			card_box.add_child(plan_row)
 
 	var note := Label.new()
-	var stock_hint := "备货 %d 件 · 确认行动后走到房门出发时自动携带进馆。" % Game.smoke_stock if Game.smoke_stock > 0 else "暂无备货。"
+	var planned_note := Game.smoke_carry_plan if Game.smoke_carry_plan >= 0 else Game.smoke_stock
+	var stock_hint := "本次出发计划携带 %d 件（备货 %d 件）；未计划默认全部携带。" % [planned_note, Game.smoke_stock] if Game.smoke_stock > 0 else "暂无备货。"
 	note.text = "采购只在安全屋可用，馆内不能购买。%s\n无钱也能继续主线：基础调查与地图记录免费。" % stock_hint
 	note.add_theme_font_size_override("font_size", 10)
 	note.add_theme_color_override("font_color", Color(0.7, 0.72, 0.8))

@@ -30,6 +30,7 @@ var _chat_input: LineEdit
 var _chat_send: Button
 
 # 推理板
+var _board: InvestigationBoard
 var _board_target: OptionButton
 var _board_question: OptionButton
 var _board_material: OptionButton
@@ -269,6 +270,10 @@ func _build_chat() -> void:
 	_append_chat("系统", "联系人：阿岚。把目标名字或编号发给她，她会回邮件。")
 	if Game.story_flag("inv_zun_delivery"):
 		_append_chat("阿岚", "C-17 的搬运备注已经发到你邮箱了。展位在青铜厅内侧。")
+	if Game.story_flag("inv_scarab_delivery"):
+		_append_chat("阿岚", "E-09 的布展备注已经发到你邮箱了。展位在埃及厅。")
+	if Game.story_flag("inv_askos_delivery"):
+		_append_chat("阿岚", "G-04 的布展备注已经发到你邮箱了。展位在希腊厅。")
 
 
 func _on_chat_sent(_text: String = "") -> void:
@@ -284,6 +289,16 @@ func _on_chat_sent(_text: String = "") -> void:
 			Game.set_story_flag("inv_zun_delivery")
 			_append_chat("阿岚", "收到。我把 C-17 的搬运备注发到你邮箱。")
 			replied = true
+	if msg.contains("圣甲虫") or msg.contains("10.130.1650") or msg.contains("E-09"):
+		if not Game.story_flag("inv_scarab_delivery"):
+			Game.set_story_flag("inv_scarab_delivery")
+			_append_chat("阿岚", "收到。我把 E-09 的布展备注发到你邮箱。")
+			replied = true
+	if msg.contains("注壶") or msg.contains("阿克罗蒂里") or msg.contains("VM-GR-25-012") or msg.contains("G-04"):
+		if not Game.story_flag("inv_askos_delivery"):
+			Game.set_story_flag("inv_askos_delivery")
+			_append_chat("阿岚", "收到。我把 G-04 的布展备注发到你邮箱。")
+			replied = true
 	if not replied:
 		_append_chat("阿岚", "查到了我会直接发邮件。你先去现场看看门牌。")
 
@@ -295,7 +310,7 @@ func _append_chat(speaker: String, text: String) -> void:
 
 
 # ---------------------------------------------------------------- 推理板
-func _build_board() -> void:
+func _build_board_legacy() -> void:
 	var header := HBoxContainer.new()
 	header.add_theme_constant_override("separation", 6)
 	_content.add_child(header)
@@ -435,6 +450,38 @@ func _on_board_confirm(tid: String, qid: String, mat_opt: OptionButton, rel_opt:
 	_board_feedback.text = result["feedback"]
 	if result["ok"]:
 		_refresh_content(_tab_bar.current_tab)
+
+
+# ---------------------------------------------------------------- 推理板（E 批：真实拖卡/连线）
+func _build_board() -> void:
+	var header := HBoxContainer.new()
+	header.add_theme_constant_override("separation", 6)
+	_content.add_child(header)
+
+	var target_label := Label.new()
+	target_label.text = "推理对象："
+	header.add_child(target_label)
+
+	var target_opt := OptionButton.new()
+	var ready := Investigation.ready_target_ids()
+	for tid in ready:
+		target_opt.add_item(Investigation.target_name(tid))
+	target_opt.item_selected.connect(_on_board_target_changed_new)
+	header.add_child(target_opt)
+
+	_board = InvestigationBoard.new()
+	_board.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	_board.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	_content.add_child(_board)
+	if not ready.is_empty():
+		_board.set_target(ready[0])
+
+
+func _on_board_target_changed_new(idx: int) -> void:
+	if _board != null:
+		var ready := Investigation.ready_target_ids()
+		if idx >= 0 and idx < ready.size():
+			_board.set_target(ready[idx])
 
 
 # ---------------------------------------------------------------- 通用卡片
