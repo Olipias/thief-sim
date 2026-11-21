@@ -857,7 +857,7 @@ func buy(id: String) -> bool:
 
 
 ## 出发装载（R-12a）：把携带数**结算到玩家计划值**（带差量在携带↔备货间搬运，总量守恒）。
-## plan = -1（未设置）默认全部携带（携带+备货总�进入携带，兼容 v0.26.4）；
+## plan = -1（未设置）默认全部携带（携带+备货总量并入携带，兼容 v0.26.4）；
 ## 0 = 明确不带（已携带的退回备货）；>0 取 min(plan, 总量)。重复调用不再搬运。
 func load_outgoing_loadout() -> void:
 	var total := smoke_count + smoke_stock
@@ -879,8 +879,10 @@ func load_outgoing_loadout() -> void:
 
 
 ## 手机采购页的携带计划调整：玩家明确选择本次出发带多少（0 = 不带）。
+## 合法范围 [0, smoke_count + smoke_stock]：已携带数也算可用（保持不回退）。
+## 超范围夹取；同值返回 false（无变化）。
 func set_smoke_carry_plan(count: int) -> bool:
-	var plan := clampi(count, -1, maxi(smoke_stock, 0))
+	var plan := clampi(count, 0, smoke_count + smoke_stock)
 	if plan == smoke_carry_plan:
 		return false
 	smoke_carry_plan = plan

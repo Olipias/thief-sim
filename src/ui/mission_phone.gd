@@ -313,14 +313,16 @@ func _fill_shop() -> void:
 		card_box.add_child(buy)
 		shop_list.add_child(card)
 		# R-12a 装载计划：本次出发携带 N 件（0 = 不带），− / + 实时调整。
+		# 上限 = 已携带 + 备货（已带的不回退）；同值无变化。
 		if id == "smoke":
 			var plan_row := HBoxContainer.new()
 			plan_row.name = "LoadoutRow"
 			plan_row.add_theme_constant_override("separation", 6)
 			var plan_label := Label.new()
 			plan_label.name = "LoadoutLabel"
-			var planned := Game.smoke_carry_plan if Game.smoke_carry_plan >= 0 else Game.smoke_stock
-			plan_label.text = "本次出发携带：%d 件（备货 %d）" % [mini(planned, Game.smoke_stock), Game.smoke_stock]
+			var plan_total := Game.smoke_count + Game.smoke_stock
+			var planned := Game.smoke_carry_plan if Game.smoke_carry_plan >= 0 else plan_total
+			plan_label.text = "本次出发携带：%d 件（已带 %d + 备货 %d）" % [planned, Game.smoke_count, Game.smoke_stock]
 			plan_label.add_theme_font_size_override("font_size", 11)
 			plan_label.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 			plan_row.add_child(plan_label)
@@ -330,7 +332,7 @@ func _fill_shop() -> void:
 			minus.add_theme_font_size_override("font_size", 10)
 			minus.disabled = planned <= 0
 			minus.pressed.connect(func() -> void:
-				Game.set_smoke_carry_plan(mini(Game.smoke_carry_plan if Game.smoke_carry_plan >= 0 else Game.smoke_stock, Game.smoke_stock) - 1)
+				Game.set_smoke_carry_plan(planned - 1)
 				_fill_shop()
 			)
 			plan_row.add_child(minus)
@@ -338,10 +340,9 @@ func _fill_shop() -> void:
 			plus.name = "LoadoutPlus"
 			plus.text = "+"
 			plus.add_theme_font_size_override("font_size", 10)
-			plus.disabled = planned >= Game.smoke_stock
+			plus.disabled = planned >= plan_total
 			plus.pressed.connect(func() -> void:
-				var cur := Game.smoke_carry_plan if Game.smoke_carry_plan >= 0 else Game.smoke_stock
-				Game.set_smoke_carry_plan(clampi(cur + 1, 0, Game.smoke_stock))
+				Game.set_smoke_carry_plan(planned + 1)
 				_fill_shop()
 			)
 			plan_row.add_child(plus)

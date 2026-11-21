@@ -192,6 +192,25 @@ func _test_r12a_shop_loadout() -> void:
 	check(gs.buy("sneakers"), "R-12a：购买跑鞋成功")
 	check(gs.has_sneakers, "R-12a：跑鞋立即生效")
 	check(not gs.can_buy("sneakers"), "R-12a：已拥有不可再购买")
+
+	# G06/#895 计划上限：范围 [0, 已携带 + 备货]；已带 1/购 2 后总量 3，仍可任选计划。
+	gs.money = 300  # 备两颗烟雾弹（240 金）
+	gs.buy("smoke")
+	gs.buy("smoke")
+	gs.load_outgoing_loadout()  # 未设置 → 总量(已带1+备货2=3)全部并入携带
+	check(gs.smoke_count == 3 and gs.smoke_stock == 0, "装载：未计划默认全部携带（实际 %d/%d）" % [gs.smoke_count, gs.smoke_stock])
+	check(gs.smoke_carry_plan == -1, "装载：计划未设置保持 -1")
+	gs.set_smoke_carry_plan(2)
+	gs.load_outgoing_loadout()
+	check(gs.smoke_count == 2 and gs.smoke_stock == 1, "装载：计划 2 结算为携带 2/备货 1（实际 %d/%d）" % [gs.smoke_count, gs.smoke_stock])
+	gs.set_smoke_carry_plan(4)  # 超过总量：夹取到 3，保持在合法范围
+	check(gs.smoke_carry_plan == 3, "装载：超量计划夹取到总量（实际 %d）" % gs.smoke_carry_plan)
+	gs.set_smoke_carry_plan(0)
+	gs.load_outgoing_loadout()
+	check(gs.smoke_count == 0 and gs.smoke_stock == 3, "装载：计划 0 全部退回备货（实际 %d/%d）" % [gs.smoke_count, gs.smoke_stock])
+	gs.set_smoke_carry_plan(2)
+	gs.load_outgoing_loadout()
+	check(gs.smoke_count == 2 and gs.smoke_stock == 1, "装载：再次结算到计划 2")
 	gs.free()
 
 
