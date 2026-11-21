@@ -43,10 +43,15 @@ func _ready() -> void:
 	await _test_camera_spot_equivalence()
 	await _test_noise_investigate_equivalence()
 	await _test_take_action_equivalence()
+	await _test_full_state_trace_equivalence()
 	await _test_full_snapshot_restore()
 	await _test_preview_wall_context()
 	await _test_full_snapshot_exact_state()
+	await _test_full_snapshot_all_entities()
 	await _test_multi_guard_equivalence()
+	await _test_multi_camera_equivalence()
+	await _test_manual_takeover_invalidates_preview()
+	await _test_frame_rate_equivalence()
 
 	Audio.shutdown()
 	if _failures > 0:
@@ -107,6 +112,7 @@ func _spawn_smoke(museum: Museum, at: Vector2) -> SmokePuffClass:
 ## 因此事件必须在本函数内累积。
 func _capture_execution_trace(museum: Museum, max_ticks := 300) -> Dictionary:
 	var trace: Array[String] = []
+	var states: Array[String] = []
 	var events: Array = []
 	var last_tick := -1
 	var guard := 0
@@ -115,6 +121,7 @@ func _capture_execution_trace(museum: Museum, max_ticks := 300) -> Dictionary:
 		var t := int(snap.get("tick", 0))
 		if t > 0 and t != last_tick:
 			trace.append(Sim.snapshot_summary(snap))
+			states.append(var_to_str(snap))
 			last_tick = t
 		for e in snap.get("events", []):
 			if int(e.get("tick", 0)) == t and not events.has(e):
@@ -123,7 +130,7 @@ func _capture_execution_trace(museum: Museum, max_ticks := 300) -> Dictionary:
 			break
 		await get_tree().physics_frame
 		guard += 1
-	return {"trace": trace, "events": events}
+	return {"trace": trace, "states": states, "events": events}
 
 
 func _events_of_kind(events: Array, kind: String) -> Array:
@@ -142,9 +149,21 @@ func _first_event_kind(events: Array, kind: String) -> Dictionary:
 
 
 func _compare_trace(name: String, preview_trace: Array[String], exec_trace: Array[String], up_to: int = -1) -> bool:
-	var limit := up_to if up_to >= 0 else preview_trace.size()
-	limit = mini(limit, exec_trace.size())
-	for i in limit:
+	# up_to >= 0：必须完整覆盖到该 tick；任一侧提前截断即失败（不能只比共同前缀）。
+	# up_to < 0：要求长度相等后逐项比较。
+	if up_to >= 0:
+		if preview_trace.size() < up_to or exec_trace.size() < up_to:
+			printerr("  %s 轨迹长度不足：要求 %d，P=%d E=%d" % [name, up_to, preview_trace.size(), exec_trace.size()])
+			return false
+		for i in up_to:
+			if preview_trace[i] != exec_trace[i]:
+				printerr("  %s tick %d 差异：\n    P=%s\n    E=%s" % [name, i, preview_trace[i], exec_trace[i]])
+				return false
+		return true
+	if preview_trace.size() != exec_trace.size():
+		printerr("  %s 轨迹长度不一致：P=%d E=%d" % [name, preview_trace.size(), exec_trace.size()])
+		return false
+	for i in preview_trace.size():
 		if preview_trace[i] != exec_trace[i]:
 			printerr("  %s tick %d 差异：\n    P=%s\n    E=%s" % [name, i, preview_trace[i], exec_trace[i]])
 			return false
@@ -362,8 +381,120 @@ func _test_take_action_equivalence() -> void:
 	museum.queue_free()
 
 
-## 实际 museum.run_preview + execute_plan 的墙阻挡上下文（不是两个独立 Sim 调用互比）。
-## G20261121-05：精确回退（非整格）、守卫计时同步、结束/接管后仍保留合法重试快照。
+## 双摄像头同时存在：首次发现实体 id 与预演/执行一致。
+func _test_multi_camera_equivalence() -> void:
+	var museum := await _make_museum()
+	_scatter_other_guards(museum, -1)
+	for x in [1, 2]:
+		var cam := Node2D.new()
+		cam.name = "cam_%d" % x
+		cam.global_position = _cell_center(x, 5)
+		museum.add_child(cam)
+		museum._bm_cameras.append(cam)
+	museum._bm_time = 0.0
+	museum.player.global_position = _cell_center(5, 5)
+	museum.planned_points = [_cell_center(5, 7)]
+	museum._plan_node_actions = ["wait"]
+	var snap := museum._build_sim_snapshot()
+	var route := museum._planned_sim_route()
+	var context := museum._build_sim_context()
+	var preview := Sim.simulate_route(snap, route, 120, context)
+	museum.execute_plan()
+	var exec := await _capture_execution_trace(museum)
+	var preview_event := _first_event_kind(preview.events, "spotted")
+	var exec_event := _first_event_kind(exec["events"], "spotted")
+	check(not preview_event.is_empty(), "双摄像头：预演触发发现")
+	check(not exec_event.is_empty(), "双摄像头：执行触发发现")
+	if not preview_event.is_empty() and not exec_event.is_empty():
+		check(String(preview_event.get("detail", "")) == "camera", "双摄像头：归因为 camera")
+		check(String(preview_event.get("id", "")) == String(exec_event.get("id", "")), "双摄像头：首次发现实体 id 一致")
+		check(int(preview_event.get("tick", -1)) == int(exec_event.get("tick", -2)), "双摄像头：首次发现 tick 一致")
+	check(_compare_trace("双摄像头", preview.trace, exec["trace"], preview.first_spotted), "双摄像头：发现前逐 tick 一致")
+	museum.queue_free()
+
+
+## 30/60/120 物理帧率下，固定 tick 真实执行轨迹与事件一致；
+## 固定物理 60 时，渲染 max_fps=30 也不影响规则状态。
+func _test_frame_rate_equivalence() -> void:
+	var traces: Array = []
+	var events_list: Array = []
+	var configs := [
+		{"physics": 30, "max_fps": 0, "label": "物理 30"},
+		{"physics": 60, "max_fps": 0, "label": "物理 60"},
+		{"physics": 120, "max_fps": 0, "label": "物理 120"},
+		{"physics": 60, "max_fps": 30, "label": "渲染 30fps"},
+	]
+	for cfg in configs:
+		Engine.physics_ticks_per_second = int(cfg["physics"])
+		Engine.max_fps = int(cfg["max_fps"])
+		var museum := await _make_museum()
+		_scatter_other_guards(museum, -1)
+		# 快照里的实体 id 来自节点名；跨 museum 实例比较时统一为稳定名，
+		# 避免 Godot 自动生成名（@CharacterBody2D@123）造成假差异。
+		for gi in museum.police.size():
+			museum.police[gi].name = "guard_%d" % gi
+		for ci in museum._bm_cameras.size():
+			museum._bm_cameras[ci].name = "camera_%d" % ci
+		# 统一起始世界时间与守卫计时，避免不同 fps 的等待帧数污染起点。
+		museum._bm_time = 0.0
+		for cop in museum.police:
+			cop._wait_timer = 0.0
+			cop._spot_timer = 0.0
+			cop._investigate_timer = 0.0
+			cop._blind_timer = 0.0
+		museum.player.global_position = _cell_center(5, 5)
+		museum.planned_points = [_cell_center(5, 7)]
+		museum._plan_node_actions = ["wait"]
+		museum.execute_plan()
+		var exec := await _capture_execution_trace(museum)
+		traces.append(exec["trace"])
+		events_list.append(exec["events"])
+		museum.queue_free()
+		await get_tree().process_frame
+	Engine.physics_ticks_per_second = 60
+	Engine.max_fps = 0
+	check(traces.size() == 4, "帧率：物理 30/60/120 + 渲染 30fps 共四次执行")
+	check(str(traces[0]) == str(traces[1]) and str(traces[1]) == str(traces[2]), "帧率：30/60/120 逐 tick 轨迹一致")
+	check(str(events_list[0]) == str(events_list[1]) and str(events_list[1]) == str(events_list[2]), "帧率：30/60/120 事件一致")
+	check(str(traces[3]) == str(traces[1]), "帧率：渲染 max_fps=30 不改变逐 tick 轨迹")
+	check(str(events_list[3]) == str(events_list[1]), "帧率：渲染 max_fps=30 不改变事件")
+
+
+## 手动接管：取消执行立即恢复守卫 AI，旧预测清空；再次规划从新快照开始，不沿用旧轨迹。
+func _test_manual_takeover_invalidates_preview() -> void:
+	var museum := await _make_museum()
+	_scatter_other_guards(museum, -1)
+	var p: Player = museum.player
+	p.global_position = _cell_center(5, 5)
+	museum.planned_points = [_cell_center(5, 7)]
+	museum._plan_node_actions = ["wait"]
+	museum.run_preview()
+	check(museum._preview_active, "接管：预演已激活")
+	# 模拟接管前守卫 AI 处于开启状态，取消执行必须恢复该状态。
+	museum.police[0].set_ai_enabled(true)
+	museum.execute_plan()
+	for i in 4:
+		await get_tree().physics_frame
+	museum.cancel_plan()
+	await get_tree().physics_frame
+	check(not museum.executing_plan, "接管：取消执行")
+	check(not museum._preview_active, "接管：旧预演轨迹清空")
+	check(not museum._run_start_snapshot.is_empty(), "接管：保留重试快照")
+	check(museum.police[0].ai_enabled, "接管：守卫 AI 恢复")
+	# 新位置重新规划，首帧轨迹应从新位置开始，而不是旧预演缓存。
+	p.global_position = _cell_center(9, 5)
+	museum.planned_points = [_cell_center(9, 6)]
+	museum._plan_node_actions = [""]
+	museum.toggle_planning_mode(true)
+	museum.run_preview()
+	check(museum._preview_active and not museum._preview_cells.is_empty(), "接管：新规划生成预演")
+	if not museum._preview_cells.is_empty():
+		var first_cell: Vector2i = museum._preview_cells[0]
+		check(absi(first_cell.x - 9) <= 1, "接管：新预演从新位置开始（首格 %s）" % str(first_cell))
+	museum.toggle_planning_mode(false)
+	museum.queue_free()
+
+
 ## 多守卫：两名守卫同时可能发现时，预演与真实执行的首次发现 tick/实体一致。
 func _test_multi_guard_equivalence() -> void:
 	var museum := await _make_museum()
@@ -397,6 +528,7 @@ func _test_multi_guard_equivalence() -> void:
 	museum.queue_free()
 
 
+## G20261121-05：精确回退（非整格）、守卫计时同步、结束/接管后仍保留合法重试快照。
 func _test_full_snapshot_exact_state() -> void:
 	var museum := await _make_museum()
 	_scatter_other_guards(museum, -1)
@@ -423,6 +555,87 @@ func _test_full_snapshot_exact_state() -> void:
 	museum.queue_free()
 
 
+## 完整快照覆盖全部守卫/摄像头：每个实体的位置、朝向、计时、AI 状态与装饰时间逐项恢复。
+func _test_full_snapshot_all_entities() -> void:
+	var museum := await _make_museum()
+	for ci in 2:
+		var cam := Node2D.new()
+		cam.name = "camera_%d" % ci
+		cam.global_position = _cell_center(ci + 1, 5)
+		museum.add_child(cam)
+		museum._bm_cameras.append(cam)
+	museum._bm_time = 1.25
+	var expected: Array = []
+	for i in museum.police.size():
+		var cop: Police = museum.police[i]
+		cop.name = "guard_%d" % i
+		cop.global_position = _cell_center(3 + i, 12)
+		cop._facing = Vector2.DOWN if i % 2 == 0 else Vector2.RIGHT
+		cop._wait_timer = 0.1 * float(i + 1)
+		cop._investigate_timer = 0.05 * float(i + 1)
+		cop._spot_timer = 0.01 * float(i + 1)
+		cop._blind_timer = 0.02 * float(i + 1)
+		cop._patrol_index = i
+		cop.set_ai_enabled(i % 2 == 0)
+		expected.append({
+			"pos": cop.global_position,
+			"facing": cop._facing,
+			"wait": cop._wait_timer,
+			"investigate": cop._investigate_timer,
+			"spot": cop._spot_timer,
+			"blind": cop._blind_timer,
+			"wp": cop._patrol_index,
+			"ai": cop.ai_enabled,
+		})
+	var snap := museum._build_sim_snapshot()
+	check(snap.get("guards", []).size() == museum.police.size(), "全快照：包含全部 %d 名守卫" % museum.police.size())
+	check(snap.get("cameras", []).size() == 2, "全快照：包含全部 2 个摄像头")
+	var phases: Array[float] = []
+	for c in snap.get("cameras", []):
+		phases.append(float(c.get("phase", 0.0)))
+
+	# 打乱全部实体与时间，再回退。
+	museum._bm_time = 9.0
+	museum.player.global_position = _cell_center(1, 1)
+	for i in museum.police.size():
+		var cop: Police = museum.police[i]
+		cop.global_position = _cell_center(17, 9)
+		cop._facing = Vector2.UP
+		cop._wait_timer = 3.0
+		cop._investigate_timer = 2.0
+		cop._spot_timer = 1.0
+		cop._blind_timer = 0.5
+		cop._patrol_index = 0
+		cop.set_ai_enabled(not cop.ai_enabled)
+	museum._restore_full_snapshot(snap)
+	# 回退是同步的；立即断言，避免下一物理帧 AI 正常推进造成假差异。
+	check(is_equal_approx(museum._bm_time, 1.25), "全快照：装饰时间恢复（实际 %.3f）" % museum._bm_time)
+	var all_ok := true
+	for i in museum.police.size():
+		var cop: Police = museum.police[i]
+		var e: Dictionary = expected[i]
+		var ok: bool = cop.global_position.is_equal_approx(e["pos"]) \
+			and cop._facing.is_equal_approx(e["facing"]) \
+			and is_equal_approx(cop._wait_timer, float(e["wait"])) \
+			and is_equal_approx(cop._investigate_timer, float(e["investigate"])) \
+			and is_equal_approx(cop._spot_timer, float(e["spot"])) \
+			and is_equal_approx(cop._blind_timer, float(e["blind"])) \
+			and int(cop._patrol_index) == int(e["wp"]) \
+			and bool(cop.ai_enabled) == bool(e["ai"])
+		if not ok:
+			all_ok = false
+			printerr("  全快照守卫 %d 未恢复：pos=%s facing=%s wait=%.3f inv=%.3f spot=%.3f blind=%.3f wp=%d ai=%s" % [i, str(cop.global_position), str(cop._facing), cop._wait_timer, cop._investigate_timer, cop._spot_timer, cop._blind_timer, cop._patrol_index, str(cop.ai_enabled)])
+	check(all_ok, "全快照：全部守卫位置/朝向/计时/巡逻进度/AI 状态恢复")
+	var again := museum._build_sim_snapshot()
+	var camera_ok: bool = again.get("cameras", []).size() == phases.size()
+	for ci in mini(phases.size(), again.get("cameras", []).size()):
+		if not is_equal_approx(float(again["cameras"][ci].get("phase", 0.0)), phases[ci]):
+			camera_ok = false
+	check(camera_ok, "全快照：全部摄像头相位随装饰时间恢复")
+	museum.queue_free()
+
+
+## 实际 museum.run_preview + execute_plan 的墙阻挡上下文（不是两个独立 Sim 调用互比）。
 func _test_preview_wall_context() -> void:
 	var museum := await _make_museum()
 	_scatter_other_guards(museum, -1)
@@ -471,6 +684,44 @@ func _test_preview_wall_context() -> void:
 	check(same, "预演墙阻挡：实际预演与执行前 %d tick 位置一致" % overlap)
 	museum.cancel_plan()
 	museum.queue_free()
+
+
+## 完整状态逐 tick：除摘要外，比较整个快照字典（移动 counter、玩家动作进度、
+## 物品/噪音/烟雾/事件等全部字段），避免摘要遗漏字段造成假一致。
+func _test_full_state_trace_equivalence() -> void:
+	var museum := await _make_museum()
+	_scatter_other_guards(museum, -1)
+	museum.player.global_position = _cell_center(5, 5)
+	museum.planned_points = [_cell_center(5, 7)]
+	museum._plan_node_actions = ["wait"]
+	var snap := museum._build_sim_snapshot()
+	var route := museum._planned_sim_route()
+	var context := museum._build_sim_context()
+	museum.execute_plan()
+	var exec := await _capture_execution_trace(museum)
+	check(not museum.executing_plan, "完整状态：执行自然结束（未被 max_ticks 截断）")
+	var exec_states: Array = exec["states"]
+	var preview_states := _preview_full_states(snap, route, exec_states.size(), context)
+	check(preview_states.size() == exec_states.size(), "完整状态：预演/执行 tick 数一致（P=%d E=%d）" % [preview_states.size(), exec_states.size()])
+	var same := preview_states.size() == exec_states.size()
+	for i in mini(preview_states.size(), exec_states.size()):
+		if preview_states[i] != exec_states[i]:
+			same = false
+			printerr("  完整状态 tick %d 差异：\n    P=%s\n    E=%s" % [i, preview_states[i], exec_states[i]])
+			break
+	check(same, "完整状态：全部快照字段逐 tick 一致")
+	museum.queue_free()
+
+
+func _preview_full_states(snap: Dictionary, route: Array, ticks: int, context: Dictionary) -> Array[String]:
+	var replay := Sim.copy_snapshot(snap)
+	var replay_route: Array = route.duplicate(true)
+	var idx := {"i": 0}
+	var states: Array[String] = []
+	for i in ticks:
+		Sim.tick(replay, replay_route, idx, context)
+		states.append(var_to_str(replay))
+	return states
 
 
 func _test_full_snapshot_restore() -> void:
